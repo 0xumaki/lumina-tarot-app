@@ -5,10 +5,11 @@ import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Crown, RotateCcw, Trash2, ShieldCheck, Bell, Smartphone,
-  Sparkles, Target, AudioLines, ChevronRight, Check, AlertCircle, Info, BarChart3, Download,
+  Sparkles, Target, AudioLines, ChevronRight, Check, AlertCircle, Info, BarChart3, Download, Volume2, VolumeX,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
+import { useSoundEnabled, useSound } from "@/hooks/use-sound";
 import {
   GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider,
 } from "@/components/lumina/primitives";
@@ -170,6 +171,8 @@ export function SettingsView() {
       {/* Quick links */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <GlassCard className="overflow-hidden">
+          <SoundToggleRow />
+          <Divider />
           <SettingsRow icon={RotateCcw} label="Replay the intro" desc="See the onboarding again" onClick={replayOnboarding} />
           <Divider />
           <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setTab("premium")} />
@@ -245,6 +248,37 @@ function PracticeStat({ icon: Icon, label, value, accent }: { icon: React.Elemen
         <div className="text-[16px] font-light text-ink tabular-nums leading-none">{value}</div>
         <div className="text-[10px] text-ink-muted mt-0.5">{label}</div>
       </div>
+    </div>
+  );
+}
+
+function SoundToggleRow() {
+  const { enabled, toggle } = useSoundEnabled();
+  const sound = useSound();
+  const Icon = enabled ? Volume2 : VolumeX;
+  return (
+    <div className="w-full flex items-center gap-3 p-4">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gold/10 border border-gold/20">
+        <Icon className="w-4 h-4 text-gold" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-ink">Ritual sounds</div>
+        <div className="text-[11px] text-ink-muted mt-0.5">
+          {enabled ? "Shuffle, flip, bell & chime" : "Silent"}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          toggle(!enabled);
+          if (!enabled) sound("bell");
+        }}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${enabled ? "bg-gold/40" : "bg-white/10"}`}
+        aria-label="Toggle sound"
+      >
+        <div
+          className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${enabled ? "left-[22px] bg-gold" : "left-0.5 bg-white/40"}`}
+        />
+      </button>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, X } from "lucide-react";
+import { useSound } from "@/hooks/use-sound";
 
 /**
  * Milestone celebration overlay — shows when a user hits a streak milestone.
@@ -28,12 +29,15 @@ export function MilestoneCelebration({
 }) {
   const milestone = MILESTONES[streak];
 
-  // Auto-close after 4 seconds
+  const sound = useSound();
+
+  // Auto-close after 4 seconds + play chime on open
   React.useEffect(() => {
     if (!open) return;
+    sound("chime");
     const t = setTimeout(onClose, 4500);
     return () => clearTimeout(t);
-  }, [open, onClose]);
+  }, [open, onClose, sound]);
 
   return (
     <AnimatePresence>

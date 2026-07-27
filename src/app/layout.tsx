@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { ErrorBoundary } from "@/components/lumina/error-boundary";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,13 +46,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Lumina — Tarot · Manifest · Frequencies",
     description:
-      "AI tarot readings, manifestation rituals, and intention-tuned frequency tones.",
+      "AI tarot readings, manifestation rituals, and intention-tuned frequency tones. A mystical daily companion for clarity, desire, and resonance.",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1344, height: 768, alt: "Lumina — Tarot · Manifest · Frequencies" }],
   },
   twitter: {
-    card: "summary",
-    title: "Lumina",
-    description: "Tarot · Manifestation · Frequencies",
+    card: "summary_large_image",
+    title: "Lumina — Tarot · Manifest · Frequencies",
+    description: "AI tarot readings, manifestation rituals, and intention-tuned frequency tones.",
+    images: ["/og-image.png"],
   },
 };
 
@@ -79,7 +82,9 @@ export default function RootLayout({
         className={`${inter.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
           <Toaster />
           <ServiceWorkerRegister />
         </Providers>

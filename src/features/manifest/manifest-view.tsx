@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
+import { useSound } from "@/hooks/use-sound";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { MilestoneCelebration, isMilestone } from "@/components/lumina/milestone-celebration";
 import { getPreset, type IntentionKey } from "@/lib/frequencies";
@@ -48,12 +49,15 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
   });
   const goals: Goal[] = data?.goals || [];
 
+  const sound = useSound();
+
   const confirmMutation = useMutation({
     mutationFn: async (goalId: string) =>
       (await api("/api/manifest/confirm", { method: "POST", body: JSON.stringify({ goalId }) })).json(),
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["goals"] });
       qc.invalidateQueries({ queryKey: ["me"] });
+      sound("bell");
       // Check for milestone celebration
       if (res?.streak && isMilestone(res.streak)) {
         setMilestoneStreak(res.streak);

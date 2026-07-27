@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useShare } from "@/hooks/use-share";
+import { useSound } from "@/hooks/use-sound";
 import { SPREADS, type SpreadType } from "@/lib/limits";
 import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
 import { CardDetailModal } from "./card-detail-modal";
@@ -50,6 +51,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
 
   const currentSpread = SPREADS.find((s) => s.id === spread)!;
   const haptics = useHaptics();
+  const sound = useSound();
 
   async function performReading() {
     if (!question.trim()) {
@@ -60,6 +62,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
     setReading(null);
     setRevealedIdx(0);
     haptics("draw");
+    sound("shuffle");
 
     // Minimum shuffle animation time for ritual feel
     const minDelay = new Promise((r) => setTimeout(r, 2200));
@@ -92,6 +95,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
         await new Promise((r) => setTimeout(r, 650));
         setRevealedIdx(i + 1);
         haptics("reveal");
+        sound("flip");
       }
       await new Promise((r) => setTimeout(r, 400));
       setPhase("result");
