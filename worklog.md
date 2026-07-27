@@ -1115,3 +1115,79 @@ Task: Fix B&W cards → full color, fix silent frequencies, remove ShellCard for
 - **Cards**: From B&W to full vibrant color — the most immediately noticeable improvement.
 - **Audio**: From silent to clearly audible, warm, rich tones with harmonics.
 - **Design**: From "game-like gradient shells" to "quiet luxury glass" — App Store featured quality.
+
+---
+Task ID: tonejs-audio-engine
+Agent: main
+Task: Research and integrate Tone.js as the frequency audio engine
+
+## Research: Which Audio Library Is Most Suitable?
+
+### Decision: Tone.js
+
+**Research-driven rationale:**
+
+Evaluated 5 options across 8 criteria:
+
+| Library          | License     | Stars | Weekly DLs | Bundle   | Binaural | Solfeggio | Platform     | Maintained |
+|------------------|-------------|-------|------------|----------|----------|-----------|--------------|------------|
+| **Tone.js**      | **MIT**     | 14.7k | 254k       | ~40-60KB*| ✅       | ✅        | **Web (all)**| ✅ Jul 2026|
+| Superpowered SDK | Proprietary | —     | —          | WASM     | ✅       | ✅        | Web (WASM)  | ✅         |
+| ZenTone          | Apache-2.0  | 370   | —          | Android  | ❌       | ❌        | Android only | ❌         |
+| 1ps0/binaural    | No license  | <50   | —          | Vanilla  | ✅       | ✅        | Web          | ❌         |
+| Raw Web Audio    | N/A         | N/A   | N/A        | 0KB      | DIY      | DIY       | Web          | N/A        |
+
+*Tone.js supports tree-shaking; importing just Oscillator + Gain + Filter brings the actual gzip payload to ~40-60KB.
+
+### Why Tone.js Won
+
+1. **MIT License**: Fully open-source, no proprietary restrictions (unlike Superpowered's case-by-case licensing). Safe for commercial use.
+
+2. **Web-Native**: Built on the Web Audio API — no WASM overhead, no native dependencies. Works in all modern browsers (unlike ZenTone which is Android-only Kotlin/Java).
+
+3. **Massive Adoption**: 14.7k GitHub stars, 254k weekly npm downloads, 1k forks. Actively maintained (last push July 2026). Battle-tested in production.
+
+4. **Rich Abstractions**: Provides `Tone.Oscillator`, `Tone.Gain`, `Tone.Filter`, `Tone.LFO`, `Tone.Merge` — exactly the primitives needed for:
+   - Pure tone generation (sine + harmonics)
+   - Binaural beats (stereo channel merging with per-ear frequency offset)
+   - Ambient pads (layered detuned oscillators + LFO vibrato)
+   - Lowpass filtering for warmth
+   - Envelope ramping for smooth fade in/out
+
+5. **Tree-Shakeable**: Can import only needed modules (`import * as Tone from "tone"` or specific imports), keeping bundle size reasonable.
+
+### Why Alternatives Were Rejected
+
+- **Superpowered SDK**: Proprietary license ("case-by-case basis, free licenses for certain projects"), WASM complexity (overkill for tone generation), adds significant bundle weight. Risky for an open PWA.
+- **ZenTone**: Android-only (Kotlin/Java). Not web-compatible. Cannot run in a Next.js PWA.
+- **1ps0/binaural**: No license (legally unusable), unmaintained, no npm package, raw vanilla JS without abstractions.
+- **Raw Web Audio** (previous implementation): Already worked but lacked Tone.js's envelope/filter/LFO abstractions, harder to maintain, no gain ramping utilities.
+
+## Implementation
+
+### Audio Engine Rewrite (`audio-engine.ts`)
+
+Replaced the raw Web Audio API implementation with Tone.js:
+
+- **`Tone.start()`**: Ensures the AudioContext is started after a user gesture (browser autoplay policy compliance).
+- **`Tone.Filter`**: Lowpass at 5000Hz, Q=0.5 — warms the tone, removes harsh highs.
+- **`Tone.Oscillator`**: Supports sine, triangle, square, sawtooth types with frequency control.
+- **`Tone.Gain`**: Amplitude control with `gain.rampTo()` for smooth fade in/out (1.5s).
+- **`Tone.Merge`**: Stereo channel merger for binaural beats (left/right ear separation).
+- **`Tone.LFO`**: Low-frequency oscillator for vibrato (0.12Hz, modulating oscillator frequency ±1.5Hz).
+
+### Three Modes
+
+1. **Pure Tone**: Fundamental sine (0.7 gain, -6dB) + octave harmonic (0.15 gain, -12dB). Filtered through lowpass.
+2. **Binaural**: Stereo merge — left ear (carrier - beat/2) + right ear (carrier + beat/2), each with +octave harmonic. 4 oscillators total.
+3. **Ambient Pad**: 4 layered oscillators — sine fundamental (0.5), detuned sine (0.3), perfect fifth (0.25), sub-octave triangle (0.15). Each with its own LFO vibrato.
+
+### Cleanup
+- On stop: gain ramps to 0.0001 over 0.5s, then oscillators/gains/LFOs are disposed after 600ms (prevents clicks).
+- On unmount: `useEffect` cleanup calls `stop()`.
+
+## Verification
+- **Lint**: clean.
+- **agent-browser QA**: Console shows `* Tone.js v15.1.22 *` on load. Session starts → "NOW RESONATING 10:00 888 Hz" → Stop works. No errors.
+- **Web Audio**: `AudioContext` available, Tone.js initialized successfully.
+- **Package**: `tone@15.1.22` installed (MIT license).
