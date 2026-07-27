@@ -11,6 +11,7 @@ import { useApi } from "@/hooks/use-api";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { CardOfDay } from "@/components/lumina/card-of-day";
 import { StreakRing } from "@/components/lumina/streak-ring";
+import { MoodCheckIn } from "@/components/lumina/mood-check-in";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
 
@@ -65,6 +66,15 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
       {/* Hero */}
       <ShellCard className="overflow-hidden">
         <div className="relative p-5 lum-glow-gold">
+          {/* Breathing glow layer */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "radial-gradient(60% 50% at 30% 20%, rgba(197,168,124,0.10) 0%, transparent 70%)",
+            }}
+            animate={{ opacity: [0.5, 0.9, 0.5], scale: [0.95, 1.05, 0.95] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          />
           <div className="relative z-10">
             <div className="flex items-center justify-between">
               <div>
@@ -141,6 +151,9 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
           );
         })}
       </div>
+
+      {/* Daily mood check-in */}
+      <MoodCheckIn />
 
       {/* Widget preview */}
       <WidgetPreview isPremium={!!isPremium} confirmedToday={usage?.confirmedToday ?? 0} />

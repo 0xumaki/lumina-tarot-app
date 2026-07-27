@@ -30,6 +30,7 @@ type Reading = {
   cards: { id: string; reversed: boolean; position?: string; card: any }[];
   interpretation: string;
   createdAt: string;
+  saved?: boolean;
 };
 
 export function TarotView({ isPremium, remaining }: { isPremium: boolean; remaining: number | null }) {
@@ -133,9 +134,18 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
             <ShellCard className="p-4">
               <div className="space-y-4">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.18em] text-ink-muted font-medium">
-                    Your question
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] uppercase tracking-[0.18em] text-ink-muted font-medium">
+                      Your question
+                    </label>
+                    {question.trim().length > 0 && (
+                      <span className={`text-[10px] tabular-nums ${
+                        question.trim().length < 8 ? "text-ink-muted" : "text-gold/60"
+                      }`}>
+                        {question.trim().length < 8 ? `${question.trim().length}/8 min` : "✓ focused"}
+                      </span>
+                    )}
+                  </div>
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
@@ -171,13 +181,22 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                           }}
                           className={`relative text-left rounded-xl p-3 border transition-all ${
                             selected
-                              ? "border-gold/50 bg-gold/10"
+                              ? "border-gold/60 bg-gold/[0.12] shadow-[0_0_0_1px_rgba(197,168,124,0.3)]"
                               : "border-white/8 bg-white/[0.02] hover:border-white/15"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] font-medium text-ink">{s.name}</span>
-                            {locked && <Lock className="w-3 h-3 text-ink-muted" />}
+                          {/* Selected checkmark — top-right, consistent position */}
+                          <div className="absolute top-2 right-2">
+                            {selected ? (
+                              <div className="w-4 h-4 rounded-full bg-gold flex items-center justify-center">
+                                <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />
+                              </div>
+                            ) : locked ? (
+                              <Lock className="w-3 h-3 text-ink-muted" />
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-1.5 pr-5">
+                            <span className={`text-[13px] font-medium ${selected ? "text-gold" : "text-ink"}`}>{s.name}</span>
                           </div>
                           <div className="text-[11px] text-ink-muted mt-0.5 leading-[14px]">
                             {s.cardCount} card{s.cardCount > 1 ? "s" : ""} · {s.premium ? "Premium" : "Free"}
@@ -396,7 +415,16 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
         )}
       </AnimatePresence>
 
-      <HistorySheet open={showHistory} onOpenChange={setShowHistory} />
+      <HistorySheet
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        onReread={(r) => {
+          setReading(r);
+          setRevealedIdx(r.cards.length);
+          setPhase("result");
+          setShowHistory(false);
+        }}
+      />
       <CardDetailModal
         card={detailCard?.card ?? null}
         reversed={detailCard?.reversed ?? false}
@@ -453,20 +481,34 @@ function FormattedText({ text }: { text: string }) {
   );
 }
 
-function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function HistorySheet({
+  open,
+  onOpenChange,
+  onReread,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onReread: (r: Reading) => void;
+}) {
   const api = useApi();
   const [items, setItems] = React.useState<Reading[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [tab, setTab] = React.useState<"all" | "saved">("all");
 
-  React.useEffect(() => {
-    if (open) {
+  const load = React.useCallback(
+    (savedOnly: boolean) => {
       setLoading(true);
-      api("/api/tarot/history?limit=20")
+      api(`/api/tarot/history?limit=30${savedOnly ? "&saved=true" : ""}`)
         .then((r) => r.json())
         .then((d) => setItems(d.readings || []))
         .finally(() => setLoading(false));
-    }
-  }, [open, api]);
+    },
+    [api]
+  );
+
+  React.useEffect(() => {
+    if (open) load(tab === "saved");
+  }, [open, tab, load]);
 
   return (
     <AnimatePresence>
@@ -496,17 +538,50 @@ function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="overflow-y-auto p-4 space-y-3 lum-no-scrollbar">
+
+            {/* Tab toggle */}
+            <div className="flex gap-1 p-3 pb-1">
+              {(["all", "saved"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`flex-1 rounded-lg py-1.5 text-[12px] font-medium tracking-wide transition-colors ${
+                    tab === t
+                      ? "bg-gold/15 text-gold border border-gold/30"
+                      : "bg-white/[0.03] text-ink-muted border border-white/8 hover:text-ink"
+                  }`}
+                >
+                  {t === "all" ? "All" : "Saved"}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-y-auto p-4 pt-2 space-y-2.5 lum-no-scrollbar">
               {loading ? (
                 <div className="text-center py-8 text-ink-muted text-[13px]">Loading…</div>
               ) : items.length === 0 ? (
-                <div className="text-center py-8 text-ink-muted text-[13px]">
-                  No readings yet. Your first awaits.
+                <div className="text-center py-10 px-4">
+                  <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-3">
+                    {tab === "saved" ? (
+                      <Bookmark className="w-5 h-5 text-gold/60" />
+                    ) : (
+                      <History className="w-5 h-5 text-gold/60" />
+                    )}
+                  </div>
+                  <div className="text-[14px] font-medium text-ink">
+                    {tab === "saved" ? "No saved readings" : "No readings yet"}
+                  </div>
+                  <p className="text-[12px] text-ink-muted mt-1 max-w-[240px] mx-auto leading-[16px]">
+                    {tab === "saved"
+                      ? "Bookmark meaningful readings with the Save button, and they'll appear here."
+                      : "Your first reading awaits. Ask the cards a question."}
+                  </p>
                 </div>
               ) : (
                 items.map((r) => (
                   <button
                     key={r.id}
+                    onClick={() => onReread(r)}
                     className="w-full text-left rounded-xl border border-white/8 bg-white/[0.02] p-3 hover:border-gold/30 transition-colors"
                   >
                     <div className="flex items-center gap-1.5 mb-1.5">
@@ -515,11 +590,14 @@ function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
                           {c.card?.symbol}
                         </span>
                       ))}
-                      <span className="ml-auto text-[10px] text-ink-muted">
-                        {new Date(r.createdAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                      <span className="ml-auto flex items-center gap-1.5">
+                        {r.saved && <BookmarkCheck className="w-3 h-3 text-gold" />}
+                        <span className="text-[10px] text-ink-muted">
+                          {new Date(r.createdAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
                       </span>
                     </div>
                     <div className="text-[13px] text-ink line-clamp-1 mb-1">"{r.question}"</div>
@@ -529,6 +607,7 @@ function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
                     <div className="flex items-center gap-1 mt-1.5 text-[10px] text-gold">
                       <span className="uppercase tracking-[0.1em]">{r.spreadType.replace("-", " ")}</span>
                       <ChevronRight className="w-3 h-3" />
+                      <span className="ml-auto text-ink-muted normal-case tracking-normal">Tap to re-read</span>
                     </div>
                   </button>
                 ))

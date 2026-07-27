@@ -25,6 +25,7 @@ model Device {
   frequencySessions FrequencySession[]
   usageLogs         UsageLog[]
   confirmations     Confirmation[]
+  moods             Mood[]
 }
 
 /// A tarot reading session.
@@ -109,4 +110,19 @@ model UsageLog {
   updatedAt     DateTime @updatedAt
 
   @@unique([deviceId, date])
+}
+
+/// Daily mood check-in — one per device per day.
+model Mood {
+  id        String   @id @default(cuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date      String   // "YYYY-MM-DD"
+  mood      Int      // 1-5 scale
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([deviceId, date])
+  @@index([deviceId, date])
 }

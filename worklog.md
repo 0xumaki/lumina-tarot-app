@@ -430,3 +430,84 @@ Project stable from round 3. All views scoring 8.5-9.5/10 except tarot result (s
 4. Daily mood check-in feature (track emotional state alongside readings).
 5. Download real RWS card art via alternative source.
 6. Add reading "re-read" from history (load a past reading back into the result view).
+
+---
+Task ID: cron-review-5
+Agent: main (webDevReview cron, 5th round)
+Task: Tarot setup polish, saved filter + re-read in history, daily mood check-in, home breathing glow
+
+## Current Project Status Assessment
+Project stable from round 4. All views scoring 8.5-9.5/10. VLM assessment of tarot setup (8/10) found: active state ambiguity (gold border too subtle), inconsistent lock placement, no question validation. Stats (7/10) wanted a daily hook. Priority items from worklog: saved filter in history, reading re-read, daily mood check-in.
+
+## Completed Modifications
+
+### Fix: Tarot Setup Polish (VLM 8 → 9/10)
+1. **Clearer active state**: Selected spread now has gold checkmark badge (top-right, consistent position), stronger border (`border-gold/60`), gold-tinted background (`bg-gold/[0.12]`), and box-shadow ring. Name text turns gold when selected.
+2. **Consistent lock placement**: Lock icon now always top-right (same position as the checkmark), never inline with text. Selected = checkmark, locked = lock, neither = empty.
+3. **Question char count/guidance**: Shows `N/8 min` while typing (< 8 chars), switches to `✓ focused` at 8+ chars. Gold when focused, muted when too short. Encourages thoughtful questions.
+
+### New Features (3)
+1. **Saved Filter in History** (History API + HistorySheet):
+   - History API now supports `?saved=true` query param + excludes `card-of-day` readings by default.
+   - Returns `saved` boolean per reading.
+   - HistorySheet has All/Saved tab toggle (gold active state). Saved tab shows only bookmarked readings.
+   - Saved items show a gold BookmarkCheck icon.
+   - Dedicated empty states per tab ("No saved readings" vs "No readings yet") with guidance.
+
+2. **Reading Re-read from History**:
+   - Tapping any history item loads the full reading back into the result view (cards + interpretation + all sections).
+   - `onReread` callback sets reading state, reveals all cards, jumps to result phase.
+   - "Tap to re-read" hint on each history item.
+   - Verified: tapped saved reading → full result view loaded with Page of Swords reading.
+
+3. **Daily Mood Check-in** (`/api/mood` + `MoodCheckIn` component):
+   - New `Mood` model in Prisma (1-5 scale, optional note, unique per device per day).
+   - GET /api/mood returns today's mood + last 7 days.
+   - POST /api/mood upserts today's mood.
+   - `MoodCheckIn` component on home: 5-moon scale (🌑 Heavy → 🌕 Bright) with color-coded selection. Auto-saves on first tap. "Logged" indicator. Optional note input ("Add note" / "Edit note"). Haptic feedback.
+   - Verified: selected "Light" (4) → auto-saved → "Logged" + "● Light / Add note" shown.
+
+### Styling Polish
+- **Home hero breathing glow**: Added a slow-pulsing radial gradient layer (5s loop, opacity 0.5→0.9, scale 0.95→1.05) behind the hero content. Gives the hero a "living" quality.
+
+### Infrastructure
+- Added `Mood` model to Prisma schema + Device.moods relation.
+- db:push + db:generate for new model.
+- Cleared .next cache + restarted dev server for Prisma client refresh.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: all API routes 200; mood POST confirmed.
+- **agent-browser QA** (iPhone 15):
+  - Home: Mood check-in renders with 5 moons, "How are you feeling today?". Selected "Light" → auto-saved → "Logged". Breathing glow visible on hero.
+  - Tarot setup: char count shows "2/8 min" for short input, "✓ focused" for 8+ chars. Selected spread has checkmark badge. Locks consistent top-right.
+  - Tarot reading: "What energy should I bring?" → Page of Swords → saved via Save button.
+  - History: All tab shows reading, Saved tab shows saved reading. Tapped history item → re-read loaded full result view.
+- **VLM scores**: Tarot setup 8 → **9/10** ("all three previously identified UX failures resolved").
+
+## Cumulative VLM Scorecard
+| View | R1 | R2 | R3 | R4 | R5 |
+|------|-----|-----|-----|-----|-----|
+| Home | 7.5 | 8.5 | 8.5 | 8.5 | 8.5+ |
+| Tarot setup | — | — | — | 8.0 | **9.0** |
+| Tarot result | 7.5 | 7.5 | 7.5 | 9.0 | 9.0 |
+| Manifest | — | 7.5 | 9.0 | 9.0 | 9.0 |
+| Frequency | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (empty) | 6.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (data) | — | 8.5 | 8.5 | 8.5 | 8.5 |
+| Premium | 8.0 | 8.0 | 9.5 | 9.5 | 9.5 |
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **Mood trend in stats**: Mood data is collected but not yet visualized in the Stats view (would need a 7-day mood chart).
+4. **Energy insight scalability**: Still rule-based (6 archetypes). LLM enrichment for premium is future.
+5. **Dev server stability**: Required restart after .next cache clear.
+
+## Priority Recommendations for Next Phase
+1. Add 7-day mood trend chart to Stats view (gold line on the existing activity chart).
+2. Websocket mini-service for scheduled manifestation goal reminders.
+3. LLM-enriched Energy Insight for premium users.
+4. Add mood-reading correlation insight ("Your brightest moods follow abundance readings").
+5. Download real RWS card art via alternative source.
+6. Add a "Today's energy" mini-forecast on Stats (card-of-day snippet).
