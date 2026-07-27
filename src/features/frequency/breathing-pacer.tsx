@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { useHaptics } from "@/hooks/use-haptics";
 
 type BreathPattern = "4-7-8" | "box" | "coherent";
 
@@ -37,8 +36,9 @@ const PATTERNS: Record<BreathPattern, { phases: { name: string; sec: number }[];
 };
 
 /**
- * Breathing pacer — a visual guide that expands/contracts with the breath phases.
- * Shown during active frequency sessions to deepen the meditative state.
+ * Breathing pacer — uses a self-contained timer that doesn't depend on
+ * parent re-renders. The phase advances via an internal interval that
+ * survives parent state updates.
  */
 export function BreathingPacer({
   active,
@@ -51,22 +51,59 @@ export function BreathingPacer({
 }) {
   const [pattern, setPattern] = React.useState<BreathPattern>(patternProp);
   const [phaseIdx, setPhaseIdx] = React.useState(0);
-  const config = PATTERNS[pattern];
-  const phase = config.phases[phaseIdx];
-  const haptics = useHaptics();
+  const [countdown, setCountdown] = React.useState(0);
 
-  // Advance phases only when active
+  const config = PATTERNS[pattern];
+  const phases = config.phases;
+  const phase = phases[phaseIdx];
+
+  // Use a ref to track the current phase index so the interval doesn't stale-close
+  const phaseIdxRef = React.useRef(0);
+  const patternRef = React.useRef(pattern);
+
+  // Update refs in an effect (not during render)
+  React.useEffect(() => {
+    phaseIdxRef.current = phaseIdx;
+    patternRef.current = pattern;
+  }, [phaseIdx, pattern]);
+
+  // Self-contained timer — runs independently of parent re-renders
   React.useEffect(() => {
     if (!active) {
       setPhaseIdx(0);
+      setCountdown(0);
       return;
     }
-    haptics("tick");
-    const t = setTimeout(() => {
-      setPhaseIdx((i) => (i + 1) % config.phases.length);
-    }, phase.sec * 1000);
-    return () => clearTimeout(t);
-  }, [active, phaseIdx, phase.sec, config.phases.length, haptics]);
+
+    // Initialize countdown for the first phase
+    const currentPhases = PATTERNS[patternRef.current].phases;
+    setCountdown(currentPhases[0].sec);
+
+    const interval = setInterval(() => {
+      const currentIdx = phaseIdxRef.current;
+      const currentPhases = PATTERNS[patternRef.current].phases;
+      const currentPhase = currentPhases[currentIdx];
+
+      setCountdown((prev) => {
+        if (prev > 1) {
+          return prev - 1;
+        }
+        // Phase is done — advance to next phase
+        const nextIdx = (currentIdx + 1) % currentPhases.length;
+        setPhaseIdx(nextIdx);
+        return currentPhases[nextIdx].sec;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [active]); // ONLY depend on `active` — not on phaseIdx or pattern changes
+
+  // Reset when pattern changes
+  const handlePatternChange = React.useCallback((p: BreathPattern) => {
+    setPattern(p);
+    setPhaseIdx(0);
+    setCountdown(PATTERNS[p].phases[0].sec);
+  }, []);
 
   if (!active) return null;
 
@@ -85,9 +122,11 @@ export function BreathingPacer({
           className="absolute rounded-full border"
           style={{ width: "100%", height: "100%", borderColor: `${color}22`, borderWidth: 1 }}
         />
-        {/* breathing orb */}
+        {/* breathing orb — key changes on phaseIdx to force clean animation restart */}
         <motion.div
+          key={`orb-${phaseIdx}`}
           className="rounded-full"
+          initial={{ scale: isExpand ? 0.4 : 1, opacity: isExpand ? 0.35 : 1 }}
           animate={{ scale, opacity: orbOpacity }}
           transition={{ duration: dur, ease: "easeInOut" }}
           style={{
@@ -98,25 +137,20 @@ export function BreathingPacer({
             boxShadow: `0 0 ${glowSize}px ${color}${isExpand ? "55" : "33"}, inset 0 0 ${glowSize / 2}px ${color}${isExpand ? "33" : "22"}`,
           }}
         />
-        {/* phase label */}
+        {/* phase label + countdown */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <motion.div
-            key={phase.name + phaseIdx}
+            key={`label-${phaseIdx}`}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.3 }}
             className="text-[16px] font-light text-ink"
           >
             {phase.name}
           </motion.div>
-          <motion.div
-            key={"sec" + phaseIdx}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-[11px] text-ink-muted tabular-nums mt-0.5"
-          >
-            {phase.sec}s
-          </motion.div>
+          <div className="text-[20px] font-light text-ink tabular-nums mt-0.5">
+            {countdown}
+          </div>
         </div>
       </div>
 
@@ -125,7 +159,7 @@ export function BreathingPacer({
         {(Object.keys(PATTERNS) as BreathPattern[]).map((p) => (
           <button
             key={p}
-            onClick={() => { setPattern(p); setPhaseIdx(0); }}
+            onClick={() => handlePatternChange(p)}
             className={`rounded-full px-2.5 py-1 text-[10px] font-medium tracking-wide transition-colors ${
               pattern === p
                 ? "bg-gold/15 text-gold border border-gold/30"
