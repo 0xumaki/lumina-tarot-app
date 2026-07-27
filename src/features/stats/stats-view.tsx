@@ -12,6 +12,7 @@ import {
   Activity,
   CalendarDays,
   AlertCircle,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
@@ -21,6 +22,7 @@ import {
   SectionTitle,
   Divider,
 } from "@/components/lumina/primitives";
+import { useAppStore, type TabKey } from "@/lib/store";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -58,6 +60,12 @@ type StatsData = {
     confirmations: number;
     frequencySec: number;
   }[];
+  insight: {
+    title: string;
+    body: string;
+    accent: string;
+    glyph: string;
+  };
 };
 
 /* ------------------------------------------------------------------ */
@@ -370,6 +378,83 @@ function StatsError() {
   );
 }
 
+/** Friendly empty-state for first-time users — replaces the "all zeros" dashboard. */
+function StatsEmpty({ memberSinceStr }: { memberSinceStr: string }) {
+  const setTab = useAppStore((s) => s.setTab);
+  const steps = [
+    { icon: Sparkles, title: "Draw your first card", desc: "Ask the cards a question to begin your reading history.", tab: "tarot" as const, accent: GOLD },
+    { icon: Target, title: "Set a manifestation goal", desc: "Name what you desire and confirm it daily to build a streak.", tab: "manifest" as const, accent: LEAF },
+    { icon: AudioLines, title: "Tune into a frequency", desc: "Resonate with an intention tone to log your first session.", tab: "frequency" as const, accent: SAGE },
+  ];
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-5"
+    >
+      <motion.div variants={itemVariants}>
+        <ShellCard className="overflow-hidden">
+          <div className="relative p-6 lum-glow-gold text-center">
+            <div className="relative z-10 flex flex-col items-center">
+              <motion.div
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#9c7f54] flex items-center justify-center shadow-[0_0_40px_rgba(197,168,124,0.4)]"
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Sparkles className="w-7 h-7 text-black" />
+              </motion.div>
+              <div className="mt-4 text-[11px] uppercase tracking-[0.2em] text-gold/80 font-medium">
+                {memberSinceStr ? `Member since ${memberSinceStr}` : "Welcome"}
+              </div>
+              <h2 className="mt-1 text-[22px] font-light tracking-[-0.02em] text-ink">
+                Your journey <span className="lum-text-gold">begins here</span>
+              </h2>
+              <p className="mt-2 text-[13px] text-ink-muted max-w-[280px] leading-[19px]">
+                Your stats, streaks, and rhythms will bloom here as you read, manifest, and resonate. Begin with one of these:
+              </p>
+            </div>
+          </div>
+        </ShellCard>
+      </motion.div>
+
+      <motion.div variants={gridVariants} className="space-y-2.5">
+        {steps.map((s) => {
+          const Icon = s.icon;
+          return (
+            <motion.button key={s.tab} variants={itemVariants} onClick={() => setTab(s.tab)} className="block w-full text-left">
+              <GlassCard className="p-3.5 flex items-center gap-3 hover:border-white/15 transition-colors">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: `${s.accent}1a`, border: `1px solid ${s.accent}40` }}
+                >
+                  <Icon className="w-4 h-4" style={{ color: s.accent }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-medium text-ink">{s.title}</div>
+                  <div className="text-[11px] text-ink-muted leading-[15px] mt-0.5">{s.desc}</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-ink-muted" />
+              </GlassCard>
+            </motion.button>
+          );
+        })}
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <GlassCard className="p-4">
+          <div className="flex items-start gap-2.5">
+            <Flame className="w-3.5 h-3.5 text-leaf mt-0.5 shrink-0" />
+            <p className="text-[11px] leading-[16px] text-ink-muted">
+              <span className="text-ink font-medium">Streaks unlock rewards.</span> Confirm a goal 3 days in a row to unlock the Daily Reflection spread, and 7 days for a signature insight into your reading style.
+            </p>
+          </div>
+        </GlassCard>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Main view                                                           */
 /* ------------------------------------------------------------------ */
@@ -401,6 +486,14 @@ export default function StatsView() {
     0
   );
 
+  // Detect empty state: no readings, no confirmations, no frequency sessions
+  const isEmpty =
+    data.readings.total === 0 &&
+    data.goals.totalConfirmations === 0 &&
+    data.frequency.totalSessions === 0;
+
+  if (isEmpty) return <StatsEmpty memberSinceStr={memberSinceStr} />;
+
   return (
     <motion.div
       variants={containerVariants}
@@ -426,6 +519,37 @@ export default function StatsView() {
             ) : undefined
           }
         />
+      </motion.div>
+
+      {/* Energy Insight — AI-style narrative summary */}
+      <motion.div variants={itemVariants}>
+        <ShellCard className="overflow-hidden">
+          <div className="relative p-4" style={{ background: `linear-gradient(135deg, ${data.insight.accent}14 0%, transparent 70%)` }}>
+            <div className="flex items-start gap-3">
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-[20px]"
+                style={{
+                  background: `radial-gradient(circle at 50% 40%, ${data.insight.accent}33, transparent 70%)`,
+                  border: `1px solid ${data.insight.accent}44`,
+                  color: data.insight.accent,
+                }}
+              >
+                {data.insight.glyph}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: data.insight.accent }}>
+                  Your energy signature
+                </div>
+                <div className="text-[16px] font-medium text-ink mt-0.5 leading-[20px]">
+                  {data.insight.title}
+                </div>
+                <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
+                  {data.insight.body}
+                </p>
+              </div>
+            </div>
+          </div>
+        </ShellCard>
       </motion.div>
 
       {/* Summary tiles (2×2) */}

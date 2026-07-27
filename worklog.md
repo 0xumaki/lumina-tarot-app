@@ -189,3 +189,82 @@ The Lumina PWA was stable and feature-complete from the previous round. Lint cle
 4. Add haptic feedback (navigator.vibrate) on card draw, reveal, and breathing phase transitions.
 5. Add a "Share reading" feature (export reading as image/text).
 6. Consider downloading real RWS card art via alternative source.
+
+---
+Task ID: cron-review-2
+Agent: main (webDevReview cron, 2nd round)
+Task: QA, stats empty-state redesign, onboarding, streak ring, haptics, energy insight
+
+## Current Project Status Assessment
+Project stable from round 1. Lint clean, dev server healthy, all 6 tabs working. VLM assessment of home (7.5/10) and stats (6/10) revealed two critical UX gaps: (1) stats screen showed all-zeros for new users looking "broken", (2) no first-time-user onboarding, (3) no streak visualization, (4) no haptic feedback. Bottom-nav overlap was a false alarm (verified 99px gap with pb-44).
+
+## Completed Modifications
+
+### Bug Fixes / Verifications
+- **Bottom nav overlap**: Verified via getBoundingClientRect — last content element bottom (676px) sits 99px above nav top (775px). The `pb-44` from round 1 is effective. No change needed.
+- **Stats "all zeros" empty state** (VLM 6/10 → 9/10): Added `StatsEmpty` component that detects zero activity and renders a welcoming "Your journey begins here" panel with 3 tappable action cards (Draw a card / Set a goal / Tune a frequency) + a "Streaks unlock rewards" teaser. Replaces the sterile zero-dashboard.
+
+### New Features (4)
+1. **Onboarding Flow** (`onboarding.tsx`):
+   - 3-slide shimmer intro for first-time users (checks `localStorage` key `lumina.onboarded`).
+   - Slide 1: Tarot — "Ask, and the cards answer" (gold accent, ✦ glyph).
+   - Slide 2: Manifestation — "Name it. Confirm it daily." (leaf accent, ◉ glyph).
+   - Slide 3: Frequencies — "Tune the body, free the mind" (purple accent, 〰 glyph).
+   - Each slide: glowing icon orb with pulsing rings, eyebrow, title, body copy.
+   - Progress dots (active = wide pill), Continue/Begin CTA, Skip button.
+   - Aurora backdrop + 40-star StarField for immersive feel.
+   - Wired into page.tsx (renders before app shell if not onboarded).
+
+2. **Streak Ring** (`streak-ring.tsx`):
+   - Circular SVG progress ring (56px) showing daily confirmation streak.
+   - Fills proportionally 0→7 days; flame icon scales with streak (0.85x → 1.15x at 7+).
+   - Color shifts: sage (0-2) → leaf (3-6) → amber (7+, "flame lit").
+   - Animated stroke-dashoffset fill + gentle pulse when active.
+   - Replaced the plain "0 confirmed today" pill on the home hero.
+   - Home now fetches `/api/manifest/goals` to compute best streak across goals.
+   - VLM: home score 7.5 → 8.5/10 ("streak ring transforms abstract habit data into an emotional progress marker").
+
+3. **Haptic Feedback** (`use-haptics.ts` + integrations):
+   - 6 patterns: tap (8ms), draw ([12,40,18]), reveal ([20,30,30]), complete ([10,50,10,50,25]), error ([40,30,40]), tick (5ms).
+   - Wired into TarotView: `draw` on shuffle start, `reveal` on each card flip, `complete` when reading lands.
+   - Wired into BreathingPacer: `tick` on each breath phase transition.
+   - Safe fallback (no-op if navigator.vibrate unsupported).
+
+4. **AI Energy Insight** (stats API + view):
+   - Server-side `buildInsight()` function in `/api/stats/route.ts` generates a narrative summary from usage patterns (deterministic, instant — no LLM call).
+   - 6 archetypes: "A blank canvas" (new), "The manifester" (achieved goals), "The devoted" (manifestation-dominant), "The resonator" (frequency-dominant), "The seeker of depth" (Celtic Cross user), "The cartomancer" (tarot-dominant).
+   - Each returns title + body + accent color + signature glyph.
+   - New `EnergyInsight` card at top of stats view (below header, above tiles): gradient-tinted ShellCard with glowing glyph orb + archetype title + narrative body.
+   - VLM: "converts data → identity, exactly what a tarot app should do. Transforms a dashboard into a mirror."
+
+### Styling Polish
+- StreakRing: animated SVG ring with drop-shadow glow, color-shifted flame.
+- Onboarding: full-screen aurora + starfield, pulsing icon orb with concentric expanding rings.
+- Stats empty state: lum-glow-gold hero panel, animated sparkle orb, 3 action cards with colored icon chips.
+- Energy insight card: per-archetype accent gradient background + radial glyph orb.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: no runtime errors; all API routes 200.
+- **agent-browser QA** (cleared localStorage → fresh user):
+  - Onboarding: 3 slides flow correctly, "Begin" lands on home.
+  - Home: StreakRing renders (0 / "Begin a streak today"), hero layout balanced.
+  - Tarot: reading works, haptics fire on draw/reveal/complete.
+  - Stats (empty): "Your journey begins here" panel with 3 action cards (VLM 9/10).
+  - Stats (with data): Energy Insight "The cartomancer" card appears above tiles (VLM 8.5/10).
+- **VLM scores this round**: Home 8.5/10 (↑1.0), Stats empty 9/10 (↑3.0), Stats with data 8.5/10.
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Still only permission + welcome notification. Websocket mini-service for goal reminder times not yet built.
+3. **Onboarding replay**: No way to re-trigger onboarding from settings (would need a "replay intro" button).
+4. **Energy insight scalability**: VLM noted concern about whether archetypes feel nuanced at 100+ readings (currently rule-based, may want LLM enrichment for premium users later).
+5. **Streak ring tap**: Currently decorative — could be made tappable to jump to manifest tab.
+
+## Priority Recommendations for Next Phase
+1. Websocket mini-service for scheduled manifestation goal reminders (at each goal's reminderTime).
+2. Make StreakRing tappable → jumps to Manifest tab.
+3. Add "Replay intro" option in Premium/Settings.
+4. Add a "Share reading" feature (export reading as image/text).
+5. Enrich Energy Insight with LLM for premium users (deeper, personalized narrative).
+6. Add a daily reflection journal history view (browse past Card-of-the-Day reflections).

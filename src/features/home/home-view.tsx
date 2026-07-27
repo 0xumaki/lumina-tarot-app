@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { CardOfDay } from "@/components/lumina/card-of-day";
+import { StreakRing } from "@/components/lumina/streak-ring";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
 
@@ -36,6 +37,18 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
     queryFn: async () => (await api("/api/me")).json(),
     refetchInterval: 15000,
   });
+
+  // Lightweight goals fetch to get the best streak for the hero ring
+  const { data: goalsData } = useQuery({
+    queryKey: ["goals"],
+    queryFn: async () => (await api("/api/manifest/goals")).json(),
+    refetchInterval: 30000,
+  });
+  const bestStreak = React.useMemo(() => {
+    const goals = goalsData?.goals as any[] | undefined;
+    if (!goals || goals.length === 0) return 0;
+    return Math.max(0, ...goals.map((g) => g.streak ?? 0));
+  }, [goalsData]);
 
   const isPremium = data?.device.isPremium;
   const usage = data?.usage;
@@ -68,18 +81,24 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
               {greeting.subtitle}
             </p>
 
-            {/* Daily streak strip */}
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Pill variant="leaf">
-                <Flame className="w-3 h-3" />
-                {usage?.confirmedToday ?? 0} confirmed today
-              </Pill>
+            {/* Daily streak + status strip */}
+            <div className="mt-5 flex items-center gap-3">
+              <StreakRing streak={bestStreak ?? 0} size={56} />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-ink leading-[16px]">
+                  {bestStreak && bestStreak > 0 ? `${bestStreak}-day streak` : "Begin a streak today"}
+                </div>
+                <div className="text-[11px] text-ink-muted mt-0.5">
+                  {usage?.confirmedToday ?? 0} confirmed today
+                  {bestStreak && bestStreak >= 7 ? " · flame lit" : ""}
+                </div>
+              </div>
               {isPremium ? (
                 <Pill variant="gold">
                   <Crown className="w-3 h-3" /> Premium
                 </Pill>
               ) : (
-                <button onClick={onOpenPremium} className="ml-auto">
+                <button onClick={onOpenPremium}>
                   <Pill variant="gold" className="cursor-pointer hover:bg-gold/20">
                     <Crown className="w-3 h-3" /> Go Premium
                   </Pill>

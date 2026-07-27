@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
+import { useHaptics } from "@/hooks/use-haptics";
 
 type BreathPattern = "4-7-8" | "box" | "coherent";
 
@@ -52,6 +53,7 @@ export function BreathingPacer({
   const [phaseIdx, setPhaseIdx] = React.useState(0);
   const config = PATTERNS[pattern];
   const phase = config.phases[phaseIdx];
+  const haptics = useHaptics();
 
   // Advance phases only when active
   React.useEffect(() => {
@@ -59,11 +61,12 @@ export function BreathingPacer({
       setPhaseIdx(0);
       return;
     }
+    haptics("tick");
     const t = setTimeout(() => {
       setPhaseIdx((i) => (i + 1) % config.phases.length);
     }, phase.sec * 1000);
     return () => clearTimeout(t);
-  }, [active, phaseIdx, phase.sec, config.phases.length]);
+  }, [active, phaseIdx, phase.sec, config.phases.length, haptics]);
 
   if (!active) return null;
 

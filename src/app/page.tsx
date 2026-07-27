@@ -13,12 +13,19 @@ import { FrequencyView } from "@/features/frequency/frequency-view";
 import { PremiumView } from "@/features/premium/premium-view";
 import StatsView from "@/features/stats/stats-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
+import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
 
 export default function Page() {
   const api = useApi();
   const tab = useAppStore((s) => s.tab);
   const setTab = useAppStore((s) => s.setTab);
   const [premiumOpen, setPremiumOpen] = React.useState(false);
+  const [onboarded, setOnboarded] = React.useState(true);
+
+  // Check onboarding on mount (client-only)
+  React.useEffect(() => {
+    setOnboarded(hasOnboarded());
+  }, []);
 
   // hydrate tab from ?tab= query (for PWA shortcuts)
   React.useEffect(() => {
@@ -44,6 +51,10 @@ export default function Page() {
 
   const isPremium = !!data?.device?.isPremium;
   const remaining = data?.usage?.remainingTarot ?? null;
+
+  if (!onboarded) {
+    return <Onboarding onDone={() => setOnboarded(true)} />;
+  }
 
   return (
     <div className="lum-aurora relative min-h-[100dvh] flex flex-col bg-black">

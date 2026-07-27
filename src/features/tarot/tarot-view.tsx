@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
+import { useHaptics } from "@/hooks/use-haptics";
 import { SPREADS, type SpreadType } from "@/lib/limits";
 import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
 import { CardDetailModal } from "./card-detail-modal";
@@ -46,6 +47,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
   const [detailCard, setDetailCard] = React.useState<{ card: TarotCard; reversed: boolean } | null>(null);
 
   const currentSpread = SPREADS.find((s) => s.id === spread)!;
+  const haptics = useHaptics();
 
   async function performReading() {
     if (!question.trim()) {
@@ -55,6 +57,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
     setPhase("shuffling");
     setReading(null);
     setRevealedIdx(0);
+    haptics("draw");
 
     // Minimum shuffle animation time for ritual feel
     const minDelay = new Promise((r) => setTimeout(r, 2200));
@@ -86,9 +89,11 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
       for (let i = 0; i < total; i++) {
         await new Promise((r) => setTimeout(r, 650));
         setRevealedIdx(i + 1);
+        haptics("reveal");
       }
       await new Promise((r) => setTimeout(r, 400));
       setPhase("result");
+      haptics("complete");
     } catch (e: any) {
       setPhase("ask");
       toast({ title: "Connection issue", description: e.message });

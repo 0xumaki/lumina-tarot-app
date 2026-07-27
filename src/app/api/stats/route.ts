@@ -212,6 +212,20 @@ export async function GET(req: Request) {
       frequencySec: freqByDay.get(d) ?? 0,
     }));
 
+    // ── Energy Insight: a narrative summary derived from usage patterns.
+    const insight = buildInsight({
+      totalReadings,
+      readingsThisWeek,
+      mostUsedSpread,
+      totalConfirmations,
+      bestStreak,
+      bestStreakGoalTitle,
+      totalMinutes,
+      mostUsedIntention,
+      achievedGoals,
+      activeGoals,
+    });
+
     return NextResponse.json({
       memberSince: device.createdAt,
       readings: {
@@ -238,10 +252,97 @@ export async function GET(req: Request) {
         mostUsedIntentionHz,
         minutesThisWeek,
       },
+      insight,
       activity,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
+}
+
+/**
+ * Build a short, evocative "energy insight" — a narrative reading of the
+ * user's patterns. Not AI-generated (deterministic, instant) but written to
+ * feel personal. Returns a title + body + accent color + signature card glyph.
+ */
+function buildInsight(d: {
+  totalReadings: number;
+  readingsThisWeek: number;
+  mostUsedSpread: string | null;
+  totalConfirmations: number;
+  bestStreak: number;
+  bestStreakGoalTitle: string | null;
+  totalMinutes: number;
+  mostUsedIntention: string | null;
+  achievedGoals: number;
+  activeGoals: number;
+}): { title: string; body: string; accent: string; glyph: string } {
+  // Brand-new user
+  if (d.totalReadings === 0 && d.totalConfirmations === 0 && d.totalMinutes === 0) {
+    return {
+      title: "A blank canvas",
+      body: "Your energy signature is unwritten. Draw a card, set a goal, or tune a tone — your pattern will reveal itself here.",
+      accent: "#7A8680",
+      glyph: "✦",
+    };
+  }
+
+  // Dominant dimension
+  const tarotWeight = d.totalReadings * 2;
+  const manifestWeight = d.totalConfirmations + d.bestStreak * 3;
+  const freqWeight = d.totalMinutes;
+
+  if (d.achievedGoals > 0) {
+    return {
+      title: "The manifester",
+      body: `You've manifested ${d.achievedGoals} goal${d.achievedGoals > 1 ? "s" : ""} into being. The ritual works through you. ${d.bestStreak > 0 ? `Your ${d.bestStreak}-day streak on "${d.bestStreakGoalTitle}" is a living sigil.` : "Keep confirming to compound the signal."}`,
+      accent: "#B5CD7E",
+      glyph: "◉",
+    };
+  }
+
+  if (manifestWeight >= tarotWeight && manifestWeight >= freqWeight) {
+    return {
+      title: "The devoted",
+      body: `Manifestation is your home frequency. ${d.totalConfirmations} confirmation${d.totalConfirmations !== 1 ? "s" : ""} and a ${d.bestStreak}-day streak${d.bestStreakGoalTitle ? ` on "${d.bestStreakGoalTitle}"` : ""} — you build the future one day at a time.`,
+      accent: "#B5CD7E",
+      glyph: "🜃",
+    };
+  }
+
+  if (freqWeight >= tarotWeight && freqWeight >= manifestWeight) {
+    const intentionLabel = d.mostUsedIntention || "intention";
+    return {
+      title: "The resonator",
+      body: `You lean into sound. ${d.totalMinutes} minute${d.totalMinutes !== 1 ? "s" : ""} of ${intentionLabel} resonance — your body knows the frequency before the mind does.`,
+      accent: "#9E8AC9",
+      glyph: "〰",
+    };
+  }
+
+  if (d.mostUsedSpread === "Celtic Cross") {
+    return {
+      title: "The seeker of depth",
+      body: `${d.totalReadings} readings, and you favour the Celtic Cross — you don't ask small questions. The deep layers answer you back.`,
+      accent: "#C5A87C",
+      glyph: "✦",
+    };
+  }
+
+  if (d.totalReadings > 0) {
+    return {
+      title: "The cartomancer",
+      body: `${d.totalReadings} reading${d.totalReadings !== 1 ? "s" : ""} drawn${d.mostUsedSpread ? `, mostly via ${d.mostUsedSpread}` : ""}. You read the world in symbols and trust what the cards mirror back.`,
+      accent: "#C5A87C",
+      glyph: "✦",
+    };
+  }
+
+  return {
+    title: "Finding your rhythm",
+    body: "Your pattern is still emerging. Keep reading, confirming, and resonating — the insight will sharpen.",
+    accent: "#C5A87C",
+    glyph: "✦",
+  };
 }
