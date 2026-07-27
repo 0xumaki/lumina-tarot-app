@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { SPREADS, type SpreadType } from "@/lib/limits";
 import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
+import { CardDetailModal } from "./card-detail-modal";
 import {
   GlassCard,
   ShellCard,
@@ -18,6 +19,7 @@ import {
 } from "@/components/lumina/primitives";
 import { useAppStore } from "@/lib/store";
 import { PremiumModal } from "@/features/premium/premium-modal";
+import type { TarotCard } from "@/lib/tarot-data";
 
 type Reading = {
   id: string;
@@ -41,6 +43,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
   const [reading, setReading] = React.useState<Reading | null>(null);
   const [revealedIdx, setRevealedIdx] = React.useState(0);
   const [showHistory, setShowHistory] = React.useState(false);
+  const [detailCard, setDetailCard] = React.useState<{ card: TarotCard; reversed: boolean } | null>(null);
 
   const currentSpread = SPREADS.find((s) => s.id === spread)!;
 
@@ -251,14 +254,20 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     <div key={i} className="flex flex-col items-center gap-1.5">
                       <AnimatePresence mode="wait">
                         {revealed ? (
-                          <motion.div
+                          <motion.button
                             key="face"
                             initial={{ rotateY: 180, opacity: 0 }}
                             animate={{ rotateY: 0, opacity: 1 }}
                             transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+                            onClick={() => setDetailCard({ card: c.card, reversed: c.reversed })}
+                            className="relative group"
+                            aria-label={`View details for ${c.card.name}`}
                           >
                             <TarotCardFace card={c.card} reversed={c.reversed} size="md" />
-                          </motion.div>
+                            <div className="absolute inset-0 rounded-[14px] bg-gold/0 group-hover:bg-gold/10 transition-colors flex items-end justify-center pb-1.5 opacity-0 group-hover:opacity-100">
+                              <span className="text-[8px] uppercase tracking-[0.14em] text-gold font-medium">Tap for meaning</span>
+                            </div>
+                          </motion.button>
                         ) : (
                           <motion.div key="back" exit={{ opacity: 0 }}>
                             <TarotCardBack size="md" />
@@ -351,6 +360,12 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
       </AnimatePresence>
 
       <HistorySheet open={showHistory} onOpenChange={setShowHistory} />
+      <CardDetailModal
+        card={detailCard?.card ?? null}
+        reversed={detailCard?.reversed ?? false}
+        open={!!detailCard}
+        onOpenChange={(o) => !o && setDetailCard(null)}
+      />
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
     </div>
   );

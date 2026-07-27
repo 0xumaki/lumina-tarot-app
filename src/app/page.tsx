@@ -11,6 +11,7 @@ import { TarotView } from "@/features/tarot/tarot-view";
 import { ManifestView } from "@/features/manifest/manifest-view";
 import { FrequencyView } from "@/features/frequency/frequency-view";
 import { PremiumView } from "@/features/premium/premium-view";
+import StatsView from "@/features/stats/stats-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
 
 export default function Page() {
@@ -24,7 +25,7 @@ export default function Page() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
-    if (t && ["home", "tarot", "manifest", "frequency", "premium"].includes(t)) {
+    if (t && ["home", "tarot", "manifest", "frequency", "stats", "premium"].includes(t)) {
       setTab(t as any);
     }
   }, [setTab]);
@@ -73,7 +74,7 @@ export default function Page() {
       </header>
 
       {/* Tab content */}
-      <main className="flex-1 px-4 pb-32 pt-2 relative z-10">
+      <main className="flex-1 px-4 pb-44 pt-2 relative z-10">
         <div className="mx-auto max-w-md">
           <AnimatePresence mode="wait">
             <motion.div
@@ -88,6 +89,7 @@ export default function Page() {
               {tab === "manifest" && <ManifestView isPremium={isPremium} />}
               {tab === "frequency" && <FrequencyView isPremium={isPremium} />}
               {tab === "premium" && <PremiumView />}
+              {tab === "stats" && <StatsView />}
             </motion.div>
           </AnimatePresence>
         </div>

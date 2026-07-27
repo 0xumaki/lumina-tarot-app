@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Sparkles, Target, AudioLines, Crown } from "lucide-react";
+import { Home, Sparkles, Target, AudioLines, BarChart3, Crown } from "lucide-react";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "tarot", label: "Tarot", icon: Sparkles },
   { key: "manifest", label: "Manifest", icon: Target },
   { key: "frequency", label: "Tones", icon: AudioLines },
+  { key: "stats", label: "Stats", icon: BarChart3 },
   { key: "premium", label: "Premium", icon: Crown },
 ];
 

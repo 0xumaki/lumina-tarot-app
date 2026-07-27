@@ -105,9 +105,9 @@ function FaceSide({
   onImgError: () => void;
   onImgLoad: () => void;
 }) {
-  const pad = size === "sm" ? 6 : size === "md" ? 9 : 13;
+  const pad = size === "sm" ? 6 : size === "md" ? 10 : 14;
   const nameSize = size === "sm" ? 8 : size === "md" ? 11 : 13;
-  const glyphSize = size === "sm" ? 26 : size === "md" ? 44 : 64;
+  const glyphSize = size === "sm" ? 34 : size === "md" ? 58 : 82;
   const numSize = size === "sm" ? 9 : size === "md" ? 12 : 15;
 
   return (
@@ -153,19 +153,33 @@ function FaceSide({
 
           {/* Center glyph + name */}
           <div className="flex flex-col items-center gap-1.5 -mt-1">
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: glyphSize,
-                height: glyphSize,
-                background: `radial-gradient(circle at 50% 40%, ${meta.accent}22, transparent 70%)`,
-                border: `1px solid ${meta.accent}30`,
-                color: meta.color,
-                fontSize: glyphSize * 0.5,
-                lineHeight: 1,
-              }}
-            >
-              {card.symbol}
+            <div className="relative flex items-center justify-center" style={{ width: glyphSize, height: glyphSize }}>
+              {/* outer glow ring */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: `radial-gradient(circle at 50% 45%, ${meta.accent}33 0%, ${meta.accent}08 50%, transparent 75%)`,
+                  filter: "blur(2px)",
+                }}
+              />
+              {/* decorative ring */}
+              <svg className="absolute inset-0 w-full h-full" style={{ color: meta.accent }} aria-hidden>
+                <circle cx="50%" cy="50%" r="47%" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="0.8" />
+                <circle cx="50%" cy="50%" r="40%" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="0.5" strokeDasharray="2 3" />
+              </svg>
+              {/* the symbol */}
+              <span
+                style={{
+                  color: meta.color,
+                  fontSize: glyphSize * 0.46,
+                  lineHeight: 1,
+                  textShadow: `0 0 12px ${meta.accent}66`,
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
+                {card.symbol}
+              </span>
             </div>
           </div>
 

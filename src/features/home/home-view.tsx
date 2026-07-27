@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
+import { CardOfDay } from "@/components/lumina/card-of-day";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
 
@@ -68,7 +69,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
             </p>
 
             {/* Daily streak strip */}
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               <Pill variant="leaf">
                 <Flame className="w-3 h-3" />
                 {usage?.confirmedToday ?? 0} confirmed today
@@ -78,7 +79,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
                   <Crown className="w-3 h-3" /> Premium
                 </Pill>
               ) : (
-                <button onClick={onOpenPremium}>
+                <button onClick={onOpenPremium} className="ml-auto">
                   <Pill variant="gold" className="cursor-pointer hover:bg-gold/20">
                     <Crown className="w-3 h-3" /> Go Premium
                   </Pill>
@@ -152,7 +153,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
       <InstallHint />
 
       {/* Daily card */}
-      <DailyCard onClick={() => setTab("tarot")} />
+      <CardOfDay />
 
       {!isPremium && (
         <ShellCard className="p-4 lum-glow-gold">
@@ -231,25 +232,6 @@ function WidgetPreview({ isPremium, confirmedToday }: { isPremium: boolean; conf
         </div>
       </div>
     </div>
-  );
-}
-
-function DailyCard({ onClick }: { onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="block w-full text-left">
-      <GlassCard className="p-4 hover:border-gold/30 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-gold" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">Card of the moment</div>
-            <div className="text-[14px] font-medium text-ink mt-0.5">Draw one card for instant guidance</div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-ink-muted" />
-        </div>
-      </GlassCard>
-    </button>
   );
 }
 

@@ -4,7 +4,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  AudioLines, Play, Pause, Lock, Activity, Waves, Brain, Sparkles, RotateCcw, Info,
+  AudioLines, Play, Pause, Lock, Activity, Waves, Brain, Sparkles, RotateCcw, Info, Wind,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { PremiumModal } from "@/features/premium/premium-modal";
 import { useFrequencyEngine } from "./audio-engine";
+import { BreathingPacer } from "./breathing-pacer";
 
 export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const api = useApi();
@@ -101,23 +102,28 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
             <div className="text-[11px] uppercase tracking-[0.2em] text-gold/80 font-medium">
               {secondsLeft ? "Now resonating" : "Selected"}
             </div>
-            <div className="mt-1 text-[34px] font-light leading-none lum-text-gold tabular-nums">
-              {selected.glyph}
-              <span className="text-[15px] text-ink-muted ml-1">Hz</span>
+
+            {/* Frequency display with circular progress ring */}
+            <div className="relative mt-2 w-[120px] h-[120px] flex items-center justify-center">
+              {secondsLeft !== null && (
+                <TimerRing
+                  progress={1 - secondsLeft / (isPremium ? 600 : 30)}
+                  color={selected.color}
+                  timeLabel={isPremium ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : `${secondsLeft}s`}
+                />
+              )}
+              <div className="flex flex-col items-center">
+                <div className="text-[32px] font-light leading-none lum-text-gold tabular-nums">
+                  {selected.glyph}
+                </div>
+                <div className="text-[11px] text-ink-muted mt-0.5">Hz</div>
+              </div>
             </div>
-            <div className="mt-1 text-[14px] text-ink">{selected.label}</div>
+
+            <div className="mt-2 text-[14px] text-ink">{selected.label}</div>
             <div className="mt-0.5 text-[11px] text-ink-muted">
               {BRAINWAVE_LABELS[selected.beatType]} · {selected.binauralBeatHz}Hz beat
             </div>
-
-            {secondsLeft !== null && (
-              <div className="mt-3 flex items-center gap-2">
-                <Pill variant="leaf">
-                  <Activity className="w-3 h-3" />
-                  {isPremium ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : `${secondsLeft}s`}
-                </Pill>
-              </div>
-            )}
 
             <div className="mt-4 flex items-center gap-2">
               {secondsLeft === null ? (
@@ -135,6 +141,19 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
           </div>
         </div>
       </ShellCard>
+
+      {/* Breathing pacer (only during active session) */}
+      {secondsLeft !== null && (
+        <GlassCard className="p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Wind className="w-3.5 h-3.5 text-gold" />
+            <span className="text-[11px] uppercase tracking-[0.16em] text-gold/80 font-medium">
+              Breath guide
+            </span>
+          </div>
+          <BreathingPacer active={!!secondsLeft} color={selected.color} />
+        </GlassCard>
+      )}
 
       {/* Mode selector */}
       <div className="grid grid-cols-3 gap-2">
@@ -207,7 +226,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
                   <span className="w-2 h-2 rounded-full" style={{ background: p.color, opacity: active ? 1 : 0.4 }} />
                 </div>
                 <div className="text-[12px] font-medium text-ink mt-1 leading-[15px]">{p.label}</div>
-                <div className="text-[10px] text-ink-muted leading-[13px] mt-0.5 line-clamp-2">{p.description}</div>
+                <div className="text-[10px] text-ink-muted leading-[14px] mt-0.5 line-clamp-3">{p.description}</div>
               </button>
             );
           })}
@@ -260,5 +279,43 @@ function Visualizer({
         transition={active ? { duration: 60 / Math.max(beat, 1), repeat: Infinity, ease: "easeInOut" } : {}}
       />
     </div>
+  );
+}
+
+/** Circular progress ring showing session time remaining. */
+function TimerRing({
+  progress,
+  color,
+  timeLabel,
+}: {
+  progress: number;
+  color: string;
+  timeLabel: string;
+}) {
+  const size = 120;
+  const stroke = 2.5;
+  const r = (size - stroke * 2) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(1, progress)));
+  return (
+    <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`${color}20`} strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: "stroke-dashoffset 1s linear", filter: `drop-shadow(0 0 4px ${color}66)` }}
+      />
+      <text x={size / 2} y={size - 4} textAnchor="middle" fill={color} fontSize="9" fontWeight="500" opacity="0.7">
+        {timeLabel}
+      </text>
+    </svg>
   );
 }
