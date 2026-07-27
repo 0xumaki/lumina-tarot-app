@@ -822,3 +822,81 @@ All views remain 8.5-9.5/10. The new Settings view consolidates premium/data/abo
 4. Add a "share stats" feature (export stats summary as image).
 5. Add dark/light theme toggle in Settings (currently dark-only by design).
 6. Add export/import data feature (backup readings + goals as JSON).
+
+---
+Task ID: cron-review-10
+Agent: main (webDevReview cron, 10th round)
+Task: Refine insight interaction, data export, websocket reminder mini-service
+
+## Current Project Status Assessment
+Project stable from round 9. All views 8.5-9.5/10. Top priorities from worklog: websocket reminders, "refine insight" interaction (thumbs up/down), data export. The AI insights (energy signature + weekly reflection) had no feedback mechanism — users couldn't signal if the archetype resonated. No way to export user data. Goal reminders were permission-only with no scheduled delivery.
+
+## Completed Modifications
+
+### Feature 1: Refine Insight Interaction (Thumbs Up/Down)
+- **New DB model** `InsightFeedback` (id, deviceId, type, rating, note, createdAt) + Device.insightFeedback relation.
+- **New API** `/api/feedback` (POST): accepts {type: "energy_signature"|"weekly_reflection", rating: "up"|"down", note?}. Validates type + rating. Creates feedback record.
+- **RefineInsight component** in stats view:
+  - "Helpful?" label + thumbs up (leaf hover) + thumbs down (destructive hover) buttons.
+  - On submit: POST to /api/feedback, shows "Thanks ✦" (up) or "Noted — we'll refine" (down).
+  - One-shot (can't change once submitted).
+  - Wired into both Energy Insight card and Weekly Reflection card.
+- **Verified**: POST /api/feedback 200, returns created record. UI shows "Thanks ✦" after thumbs up.
+
+### Feature 2: Export Data as JSON
+- **New API** `/api/export` (GET): runs 5 parallel Prisma queries (readings, goals, confirmations, frequencySessions, moods). Enriches readings with card names (parses cardsJson, maps to TAROT_DECK names). Returns full export with stats summary.
+- **Settings → Data & privacy → "Export your data"** row:
+  - Fetches /api/export, creates Blob, triggers download as `lumina-export-YYYY-MM-DD.json`.
+  - Toast confirmation: "Data exported — N readings, N goals, N moods."
+- **Verified**: API returns 1 reading, 0 goals, 1 mood for test device. Download triggered.
+
+### Feature 3: Websocket Reminder Mini-Service
+- **New mini-service** at `mini-services/reminder-service/` (port 3003):
+  - Socket.io server with `path: "/"` (for Caddy gateway compatibility).
+  - Client connects via `io("/?XTransformPort=3003")`.
+  - On connection: client emits "register" with deviceId → service tracks socketId→deviceId.
+  - Polls DB every 30s for active goals whose `reminderTime` matches current HH:mm.
+  - Skips goals already confirmed today (checks Confirmation unique constraint).
+  - Emits "reminder" event to the connected socket with goal details (title, statement, intention, frequencyHz).
+  - PrismaClient connects to the same SQLite DB.
+- **Client hook** `useReminderService`:
+  - Connects to `/?XTransformPort=3003` via socket.io-client.
+  - Registers deviceId on connect.
+  - On "reminder" event: shows browser Notification (if granted) + in-app toast callback.
+  - Auto-reconnect with 5s delay.
+- **Page.tsx integration**: wires the hook with a toast callback showing `✦ [goal title]` + statement.
+- **Verified**: Service running on port 3003, socket connections + device registration confirmed in logs.
+
+### Infrastructure
+- New Prisma model: InsightFeedback + Device.insightFeedback relation.
+- New packages: socket.io (mini-service), socket.io-client (frontend).
+- Mini-service started in background: `bun run dev` in `mini-services/reminder-service/`.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: POST /api/feedback 200, GET /api/export 200; reminder service logs show socket connections.
+- **agent-browser QA** (iPhone 15, premium + data):
+  - Stats: "Helpful?" with thumbs up/down visible on Energy Insight + Weekly Reflection. Thumbs up → "Thanks ✦".
+  - Settings: "Export your data" row → toast "Data exported" + JSON download.
+  - Reminder service: socket connected, device registered.
+- **API verification**:
+  - /api/feedback: returns `{feedback: {id, deviceId, type, rating, note, createdAt}}`.
+  - /api/export: returns `{exportedAt, device, stats, readings, goals, confirmations, frequencySessions, moods}`.
+
+## Cumulative VLM Scorecard
+All views remain 8.5-9.5/10. New features add depth without disrupting the existing design.
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Reminder service requires app open**: Websocket only works while the PWA is open. True background push needs a service worker + push subscription (future enhancement).
+3. **Feedback not yet used to refine**: The thumbs up/down is collected but not fed back into the LLM prompt yet (could use for few-shot examples in future).
+4. **Export is download-only**: No import/restore feature yet (would need file upload + parse).
+5. **Dev server stability**: Required restart after Prisma client update for InsightFeedback model.
+
+## Priority Recommendations for Next Phase
+1. Use collected feedback to refine the LLM insight prompt (few-shot examples from "up" rated insights).
+2. Add import/restore data feature (upload JSON → restore readings/goals/moods).
+3. Service worker push notifications for background goal reminders (true PWA push).
+4. Download real RWS card art via alternative source.
+5. Add a "share stats" feature (export stats summary as image for social sharing).
+6. Add dark/light theme toggle in Settings (currently dark-only by design).

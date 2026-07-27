@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Info,
   X,
+  ThumbsUp,
+  ThumbsDown,
   type LucideIcon,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
@@ -633,6 +635,54 @@ function WhyThisTooltip({ triggers }: { triggers: { label: string; value: string
 }
 
 /* ------------------------------------------------------------------ */
+/* Refine insight — thumbs up/down feedback                            */
+/* ------------------------------------------------------------------ */
+
+function RefineInsight({ type }: { type: "energy_signature" | "weekly_reflection" }) {
+  const api = useApi();
+  const [rating, setRating] = React.useState<"up" | "down" | null>(null);
+
+  async function submit(r: "up" | "down") {
+    if (rating) return; // already submitted
+    setRating(r);
+    try {
+      await api("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({ type, rating: r }),
+      });
+    } catch {}
+  }
+
+  if (rating) {
+    return (
+      <span className="text-[10px] text-ink-muted/70 italic">
+        {rating === "up" ? "Thanks ✦" : "Noted — we'll refine"}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[10px] text-ink-muted mr-1">Helpful?</span>
+      <button
+        onClick={() => submit("up")}
+        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-leaf hover:bg-leaf/10 transition-colors"
+        aria-label="Thumbs up"
+      >
+        <ThumbsUp className="w-3 h-3" />
+      </button>
+      <button
+        onClick={() => submit("down")}
+        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
+        aria-label="Thumbs down"
+      >
+        <ThumbsDown className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Main view                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -776,16 +826,19 @@ export default function StatsView() {
                     <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
                       {effectiveInsight?.body ?? "Your pattern is still emerging."}
                     </p>
-                    {/* Why this? — transparency tooltip */}
+                    {/* Why this? — transparency tooltip + refine insight */}
                     {llmActive && (
-                      <WhyThisTooltip
-                        triggers={[
-                          { label: "Readings", value: `${data.readings.total} total` },
-                          { label: "Goals", value: `${data.goals.active} active` },
-                          { label: "Streak", value: `${data.goals.bestStreak}d` },
-                          { label: "Mood", value: data.mood.average ? `${data.mood.average}/5` : "—" },
-                        ]}
-                      />
+                      <div className="flex items-center gap-3 mt-2">
+                        <WhyThisTooltip
+                          triggers={[
+                            { label: "Readings", value: `${data.readings.total} total` },
+                            { label: "Goals", value: `${data.goals.active} active` },
+                            { label: "Streak", value: `${data.goals.bestStreak}d` },
+                            { label: "Mood", value: data.mood.average ? `${data.mood.average}/5` : "—" },
+                          ]}
+                        />
+                        <RefineInsight type="energy_signature" />
+                      </div>
                     )}
                   </>
                 )}
@@ -1079,6 +1132,9 @@ function WeeklyReflection() {
                 {r.stats.moodAvg}/5
               </span>
             )}
+          </div>
+          <div className="mt-3">
+            <RefineInsight type="weekly_reflection" />
           </div>
         </div>
       </div>

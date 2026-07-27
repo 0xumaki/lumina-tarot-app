@@ -15,6 +15,9 @@ import StatsView from "@/features/stats/stats-view";
 import { SettingsView } from "@/features/settings/settings-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
 import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
+import { useReminderService } from "@/hooks/use-reminder-service";
+import { useToast } from "@/hooks/use-toast";
+import { getOrCreateDeviceId } from "@/hooks/use-api";
 
 export default function Page() {
   const api = useApi();
@@ -49,6 +52,20 @@ export default function Page() {
     },
     refetchInterval: 30000,
   });
+
+  // Reminder service — websocket connection for goal reminders
+  const { toast } = useToast();
+  const deviceId = typeof window !== "undefined" ? getOrCreateDeviceId() : null;
+  const handleReminder = React.useCallback(
+    (r: any) => {
+      toast({
+        title: `✦ ${r.title}`,
+        description: r.statement,
+      });
+    },
+    [toast]
+  );
+  useReminderService(deviceId, handleReminder);
 
   const isPremium = !!data?.device?.isPremium;
   const remaining = data?.usage?.remainingTarot ?? null;

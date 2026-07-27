@@ -1,0 +1,12 @@
+{
+  "name": "lumina-reminder-service",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.9.1",
+    "socket.io": "^4.8.3"
+  }
+}

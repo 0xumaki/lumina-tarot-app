@@ -26,6 +26,7 @@ model Device {
   usageLogs         UsageLog[]
   confirmations     Confirmation[]
   moods             Mood[]
+  insightFeedback   InsightFeedback[]
 }
 
 /// A tarot reading session.
@@ -125,4 +126,17 @@ model Mood {
 
   @@unique([deviceId, date])
   @@index([deviceId, date])
+}
+
+/// User feedback on AI-generated insights (thumbs up/down).
+model InsightFeedback {
+  id        String   @id @default(cuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type      String   // "energy_signature" | "weekly_reflection"
+  rating    String   // "up" | "down"
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([deviceId, type, createdAt])
 }

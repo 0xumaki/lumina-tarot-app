@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Crown, RotateCcw, Trash2, ShieldCheck, Bell, Smartphone,
-  Sparkles, Target, AudioLines, ChevronRight, Check, AlertCircle, Info, BarChart3,
+  Sparkles, Target, AudioLines, ChevronRight, Check, AlertCircle, Info, BarChart3, Download,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +69,28 @@ export function SettingsView() {
     try { localStorage.removeItem("lumina.onboarded"); } catch {}
     toast({ title: "Onboarding reset", description: "Reloading…" });
     setTimeout(() => window.location.reload(), 600);
+  }
+
+  async function exportData() {
+    try {
+      const res = await api("/api/export");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lumina-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Data exported",
+        description: `${data.stats.totalReadings} readings, ${data.stats.totalGoals} goals, ${data.stats.totalMoodEntries} moods.`,
+      });
+    } catch {
+      toast({ title: "Export failed", description: "Please try again." });
+    }
   }
 
   return (
@@ -169,6 +191,13 @@ export function SettingsView() {
             label="Your data is local"
             desc="Stored on this device only. No account, no email."
             onClick={() => toast({ title: "Private by design", description: "Your readings never leave this device's database." })}
+          />
+          <Divider />
+          <SettingsRow
+            icon={Download}
+            label="Export your data"
+            desc="Download all readings, goals & moods as JSON"
+            onClick={exportData}
           />
           <Divider />
           <SettingsRow
