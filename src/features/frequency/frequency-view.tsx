@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AudioLines, Play, Pause, Lock, Activity, Waves, Brain, Sparkles, RotateCcw, Info, Wind,
+  CloudRain, Trees, Droplets, Mountain, Music,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
@@ -14,8 +15,18 @@ import {
 } from "@/lib/frequencies";
 import { useAppStore } from "@/lib/store";
 import { PremiumModal } from "@/features/premium/premium-modal";
-import { useFrequencyEngine } from "./audio-engine";
+import { useFrequencyEngine, type AmbientBed } from "./audio-engine";
 import { BreathingPacer } from "./breathing-pacer";
+
+const AMBEDIENT_BEDS: { id: AmbientBed; label: string; icon: React.ElementType; desc: string }[] = [
+  { id: "ambient", label: "Ambient", icon: Music, desc: "Warm evolving drone" },
+  { id: "rain", label: "Rain", icon: CloudRain, desc: "Gentle rainfall" },
+  { id: "ocean", label: "Ocean", icon: Waves, desc: "Rolling waves" },
+  { id: "wind", label: "Wind", icon: Wind, desc: "Soft breeze" },
+  { id: "forest", label: "Forest", icon: Trees, desc: "Birds & leaves" },
+  { id: "stream", label: "Stream", icon: Droplets, desc: "Bubbling brook" },
+  { id: "none", label: "None", icon: Mountain, desc: "Pure tone only" },
+];
 
 export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const api = useApi();
@@ -26,6 +37,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
 
   const [selected, setSelected] = React.useState<FrequencyPreset>(FREQUENCY_PRESETS[0]);
   const [mode, setMode] = React.useState<"pure" | "binaural" | "pad">("binaural");
+  const [ambient, setAmbient] = React.useState<AmbientBed>("ambient");
   const [secondsLeft, setSecondsLeft] = React.useState<number | null>(null);
 
   const engine = useFrequencyEngine();
@@ -49,6 +61,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
           binauralBeatHz: preset.binauralBeatHz,
           mode: m,
           durationSec: dur,
+          ambient,
           onTick: (s) => setSecondsLeft(s),
           onEnd: () => {
             setSecondsLeft(null);
@@ -75,7 +88,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
         startingRef.current = false;
       }
     },
-    [engine, isPremium, api, qc, toast]
+    [engine, isPremium, api, qc, toast, ambient]
   );
 
   const stopSession = React.useCallback(() => {
@@ -167,6 +180,46 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
           <BreathingPacer active={!!secondsLeft} color={selected.color} />
         </GlassCard>
       )}
+
+      {/* Ambient bed selector */}
+      <div>
+        <div className="flex items-center justify-between mb-2.5">
+          <label className="text-[11px] uppercase tracking-[0.18em] text-gold/70 font-medium">
+            Ambient bed
+          </label>
+          <span className="text-[10px] text-ink-muted">
+            {secondsLeft !== null ? "Playing" : "Choose your soundscape"}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {AMBEDIENT_BEDS.map((bed) => {
+            const isActive = ambient === bed.id;
+            const Icon = bed.icon;
+            return (
+              <button
+                key={bed.id}
+                onClick={() => setAmbient(bed.id)}
+                disabled={secondsLeft !== null}
+                className={`relative rounded-xl p-2.5 border transition-all text-center ${
+                  isActive
+                    ? "border-gold/50 bg-gold/[0.10]"
+                    : "border-white/6 bg-white/[0.015] hover:border-white/12"
+                } ${secondsLeft !== null ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <Icon
+                  className={`w-4 h-4 mx-auto ${isActive ? "text-gold" : "text-ink-muted"}`}
+                />
+                <div className={`text-[10px] font-medium mt-1 ${isActive ? "text-gold" : "text-ink"}`}>
+                  {bed.label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-ink-muted mt-1.5 leading-[13px]">
+          {AMBEDIENT_BEDS.find((b) => b.id === ambient)?.desc}
+        </p>
+      </div>
 
       {/* Mode selector */}
       <div className="grid grid-cols-3 gap-2">
