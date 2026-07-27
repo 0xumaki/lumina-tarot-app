@@ -664,3 +664,87 @@ Project stable from round 6. All views 8.5-9.5/10. Top priorities from worklog: 
 4. Weekly reflection auto-summary (Sundays) combining mood + readings + goals.
 5. 30-day mood history view (tappable from the 7-day sparkline).
 6. Download real RWS card art via alternative source.
+
+---
+Task ID: cron-review-8
+Agent: main (webDevReview cron, 8th round)
+Task: LLM insight loading state, Why this? transparency tooltip, weekly reflection digest
+
+## Current Project Status Assessment
+Project stable from round 7. All views 8.5-9.5/10. Top priorities from worklog: LLM insight loading state (shimmer), "Why this?" transparency tooltip, weekly reflection auto-summary. The LLM Energy Insight had a 2-3s latency with no loading feedback, and users couldn't see why the AI chose a particular archetype (black-box trust issue). Weekly reflection was a missing retention feature.
+
+## Completed Modifications
+
+### Feature 1: LLM Insight Loading State
+- Added `isLoading: llmLoading` from the `useQuery` hook for `/api/stats/insight`.
+- While loading: the glyph orb shows a spinning ✦ (2s linear rotation), the label changes to "Reading your pattern…", and 3 pulsing skeleton bars replace the title/body.
+- `llmActive` flag ensures the "AI" badge only shows once the LLM response arrives (not during loading).
+- Eliminates the "flash of rule-based insight → swap to LLM" jarring effect.
+
+### Feature 2: "Why this?" Transparency Tooltip
+- **WhyThisTooltip component**: Small "Why this?" button (Info icon) below the AI insight body.
+- Tap → glass-float popover showing "Based on your pattern" with 4 data triggers:
+  - Readings: N total
+  - Goals: N active
+  - Streak: Nd
+  - Mood: X.X/5
+- Closes with backdrop tap. Italic footnote: "The AI weaves these signals into your archetype."
+- Only shows when `llmActive` (AI insight is in use, not rule-based).
+- **VLM**: "the MVP feature — transforms the AI from oracle to analyst. Addresses the black-box problem directly."
+
+### Feature 3: Weekly Reflection Auto-Summary
+- **New API endpoint** `/api/stats/weekly` (runtime=nodejs, maxDuration=30):
+  - Gathers last-7-days data: readings (with questions), confirmations, frequency sessions, moods (with notes), active goals.
+  - Returns early with `{ reflection: null, reason: "no-activity" }` if no data.
+  - Builds a compact summary and sends to z-ai-web-dev-sdk LLM with a "Sunday-evening reflective guide" system prompt.
+  - LLM generates: a short theme title + 3-4 sentence flowing prose weaving together tarot questions, manifestation practice, frequency use, and mood.
+  - Returns `{ reflection: { theme, body, weekRange, stats } }`.
+  - Available to ALL users (free + premium) — a retention feature.
+  - Graceful fallback: returns null if LLM fails.
+
+- **WeeklyReflection component** in stats view (at the bottom):
+  - Loading state: pulsing skeleton bars.
+  - Renders a ShellCard with lum-glow-gold: "WEEKLY REFLECTION / AI" badge + theme (gold text) + body prose + quick-stats footer (readings · confirmations · frequency min · mood avg).
+  - 10-min staleTime cache.
+  - Doesn't render if no activity or LLM failed (graceful absence).
+
+- **Verified**: Premium user with 1 reading + 1 goal + mood 4 ("creative day") → LLM returned:
+  - Theme: "The Quiet Ask"
+  - Body: "This week you turned to the cards with a single, potent question about focus, while abundance quietly stirred in the background of your manifestation practice. Though your frequency practice remained untouched, that one 'creative day' logged in your mood notes suggests inspiration found its own way through. As you move forward, perhaps the invitation is not to force more rituals, but to notice how creativity and abundance are already dancing together in the spaces between your intentional actions."
+  - The LLM referenced the actual mood note ("creative day") in the reflection.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: `/api/stats/insight` + `/api/stats/weekly` both 200.
+- **agent-browser QA** (iPhone 15, premium + data):
+  - Stats top: "TODAY'S ENERGY / Page of Pentacles" → "YOUR ENERGY SIGNATURE / AI / The Aspirant" with "Why this?" tooltip showing 4 data triggers.
+  - Stats bottom: "WEEKLY REFLECTION / AI / The Quiet Ask" with personalized narrative + quick stats footer.
+  - Loading states: shimmer skeleton while LLM generates.
+- **VLM**: 8.5/10 — "transparency tooltip is the MVP feature, transforms AI from oracle to analyst. Loading states reinforce real-time computation."
+
+## Cumulative VLM Scorecard
+| View | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 |
+|------|-----|-----|-----|-----|-----|-----|-----|-----|
+| Home | 7.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 |
+| Tarot setup | — | — | — | 8.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Tarot result | 7.5 | 7.5 | 7.5 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Manifest | — | 7.5 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Frequency | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (empty) | 6.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (data) | — | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5+ | 8.5+ |
+| Premium | 8.0 | 8.0 | 9.5 | 9.5 | 9.5 | 9.5 | 9.5 | 9.5 |
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **LLM cost**: Two LLM endpoints now (insight + weekly). Both have staleTime caching (5min + 10min).
+4. **Weekly reflection position**: At the bottom of Stats — VLM noted it may be scrolled past. Could add a home-screen teaser.
+5. **Tooltip specificity**: VLM wanted even more specific triggers (e.g., "You selected 'study' 3 times"). Current triggers are aggregate stats.
+
+## Priority Recommendations for Next Phase
+1. Add weekly reflection teaser on Home (mini-card linking to Stats).
+2. Websocket mini-service for scheduled manifestation goal reminders.
+3. 30-day mood history view (tappable from the 7-day sparkline).
+4. Download real RWS card art via alternative source.
+5. Add "refine insight" interaction (let users rate the AI archetype — thumbs up/down).
+6. Add a settings/profile screen (manage premium, replay onboarding, clear data).

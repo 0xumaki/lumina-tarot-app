@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion, type Variants } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sparkles,
@@ -13,6 +13,7 @@ import {
   CalendarDays,
   AlertCircle,
   ChevronRight,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
@@ -583,6 +584,54 @@ function TodaysEnergy() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Why this? — transparency tooltip for AI insight                     */
+/* ------------------------------------------------------------------ */
+
+function WhyThisTooltip({ triggers }: { triggers: { label: string; value: string }[] }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative mt-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-[10px] text-ink-muted hover:text-gold/80 transition-colors"
+      >
+        <Info className="w-3 h-3" />
+        Why this?
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.96 }}
+              transition={{ duration: 0.18 }}
+              className="absolute z-50 top-full mt-1.5 left-0 w-[240px] rounded-xl lum-glass-float p-3"
+            >
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gold/80 font-medium mb-2">
+                Based on your pattern
+              </div>
+              <div className="space-y-1.5">
+                {triggers.map((t) => (
+                  <div key={t.label} className="flex items-center justify-between">
+                    <span className="text-[11px] text-ink-muted">{t.label}</span>
+                    <span className="text-[11px] text-ink font-medium tabular-nums">{t.value}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-ink-muted/70 mt-2 leading-[14px] italic">
+                The AI weaves these signals into your archetype.
+              </p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Main view                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -605,7 +654,7 @@ export default function StatsView() {
 
   // Fetch LLM insight for premium users (only if not empty state)
   const hasNoData = data && data.readings.total === 0 && data.goals.totalConfirmations === 0 && data.frequency.totalSessions === 0;
-  const { data: llmInsightData } = useQuery({
+  const { data: llmInsightData, isLoading: llmLoading } = useQuery({
     queryKey: ["llm-insight"],
     queryFn: async () => (await api("/api/stats/insight")).json(),
     enabled: isPremium && !hasNoData,
@@ -614,6 +663,7 @@ export default function StatsView() {
 
   // Use LLM insight if available, otherwise the rule-based one
   const effectiveInsight = llmInsightData?.insight ?? data?.insight;
+  const llmActive = isPremium && !hasNoData && llmInsightData?.insight;
 
   const memberSince = data ? new Date(data.memberSince) : null;
   const memberSinceStr = memberSince
@@ -678,32 +728,63 @@ export default function StatsView() {
           <div className="relative p-4" style={{ background: `linear-gradient(135deg, ${effectiveInsight?.accent ?? "#C5A87C"}14 0%, transparent 70%)` }}>
             <div className="flex items-start gap-3">
               <div
-                className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-[20px]"
+                className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-[20px] ${llmLoading ? "animate-pulse" : ""}`}
                 style={{
                   background: `radial-gradient(circle at 50% 40%, ${effectiveInsight?.accent ?? "#C5A87C"}33, transparent 70%)`,
                   border: `1px solid ${effectiveInsight?.accent ?? "#C5A87C"}44`,
                   color: effectiveInsight?.accent ?? "#C5A87C",
                 }}
               >
-                {effectiveInsight?.glyph ?? "✦"}
+                {llmLoading ? (
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="inline-block"
+                  >
+                    ✦
+                  </motion.span>
+                ) : (
+                  effectiveInsight?.glyph ?? "✦"
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: effectiveInsight?.accent ?? "#C5A87C" }}>
-                    Your energy signature
+                    {llmLoading ? "Reading your pattern…" : "Your energy signature"}
                   </div>
-                  {llmInsightData?.insight && (
+                  {llmActive && !llmLoading && (
                     <span className="text-[8px] uppercase tracking-[0.14em] text-gold/60 border border-gold/20 rounded-full px-1.5 py-0.5">
                       AI
                     </span>
                   )}
                 </div>
-                <div className="text-[16px] font-medium text-ink mt-0.5 leading-[20px]">
-                  {effectiveInsight?.title ?? "Finding your rhythm"}
-                </div>
-                <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
-                  {effectiveInsight?.body ?? "Your pattern is still emerging."}
-                </p>
+                {llmLoading ? (
+                  <div className="mt-1.5 space-y-2">
+                    <div className="h-4 w-32 bg-white/8 rounded animate-pulse" />
+                    <div className="h-3 w-full bg-white/6 rounded animate-pulse" />
+                    <div className="h-3 w-4/5 bg-white/6 rounded animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[16px] font-medium text-ink mt-0.5 leading-[20px]">
+                      {effectiveInsight?.title ?? "Finding your rhythm"}
+                    </div>
+                    <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
+                      {effectiveInsight?.body ?? "Your pattern is still emerging."}
+                    </p>
+                    {/* Why this? — transparency tooltip */}
+                    {llmActive && (
+                      <WhyThisTooltip
+                        triggers={[
+                          { label: "Readings", value: `${data.readings.total} total` },
+                          { label: "Goals", value: `${data.goals.active} active` },
+                          { label: "Streak", value: `${data.goals.bestStreak}d` },
+                          { label: "Mood", value: data.mood.average ? `${data.mood.average}/5` : "—" },
+                        ]}
+                      />
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -908,7 +989,90 @@ export default function StatsView() {
             </GlassCard>
           </motion.div>
         )}
+
+      {/* Weekly reflection — LLM-generated digest */}
+      <motion.div variants={itemVariants}>
+        <WeeklyReflection />
+      </motion.div>
     </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Weekly reflection — LLM digest                                      */
+/* ------------------------------------------------------------------ */
+
+function WeeklyReflection() {
+  const api = useApi();
+  const { data, isLoading } = useQuery({
+    queryKey: ["weekly-reflection"],
+    queryFn: async () => (await api("/api/stats/weekly")).json(),
+    staleTime: 600000, // 10 min cache
+  });
+
+  if (isLoading) {
+    return (
+      <ShellCard className="overflow-hidden">
+        <div className="p-4 space-y-2">
+          <div className="h-3 w-28 bg-white/8 rounded animate-pulse" />
+          <div className="h-4 w-40 bg-white/6 rounded animate-pulse" />
+          <div className="h-3 w-full bg-white/6 rounded animate-pulse mt-2" />
+          <div className="h-3 w-4/5 bg-white/6 rounded animate-pulse" />
+        </div>
+      </ShellCard>
+    );
+  }
+
+  if (!data?.reflection) {
+    // Don't render if no activity or LLM failed
+    return null;
+  }
+
+  const r = data.reflection;
+  return (
+    <ShellCard className="overflow-hidden">
+      <div className="relative p-4 lum-glow-gold">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <CalendarDays className="w-3.5 h-3.5 text-gold" />
+            <span className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+              Weekly reflection
+            </span>
+            <span className="text-[8px] uppercase tracking-[0.14em] text-gold/60 border border-gold/20 rounded-full px-1.5 py-0.5 ml-auto">
+              AI
+            </span>
+          </div>
+          <div className="text-[16px] font-medium text-ink leading-[20px] lum-text-gold">
+            {r.theme}
+          </div>
+          <p className="text-[13px] leading-[20px] text-ink mt-2">
+            {r.body}
+          </p>
+          {/* Quick stats footer */}
+          <Divider className="my-3" />
+          <div className="flex items-center gap-4 text-[10px] text-ink-muted">
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {r.stats.readings} readings
+            </span>
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              {r.stats.confirmations} confirmations
+            </span>
+            <span className="flex items-center gap-1">
+              <AudioLines className="w-3 h-3" />
+              {r.stats.frequencyMin} min
+            </span>
+            {r.stats.moodAvg && (
+              <span className="flex items-center gap-1">
+                <Flame className="w-3 h-3" />
+                {r.stats.moodAvg}/5
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </ShellCard>
   );
 }
 
