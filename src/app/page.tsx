@@ -12,6 +12,7 @@ import { ManifestView } from "@/features/manifest/manifest-view";
 import { FrequencyView } from "@/features/frequency/frequency-view";
 import { PremiumView } from "@/features/premium/premium-view";
 import StatsView from "@/features/stats/stats-view";
+import { SettingsView } from "@/features/settings/settings-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
 import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
 
@@ -32,7 +33,7 @@ export default function Page() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
-    if (t && ["home", "tarot", "manifest", "frequency", "stats", "premium"].includes(t)) {
+    if (t && ["home", "tarot", "manifest", "frequency", "stats", "premium", "settings"].includes(t)) {
       setTab(t as any);
     }
   }, [setTab]);
@@ -72,7 +73,12 @@ export default function Page() {
             </div>
           </div>
           {isPremium ? (
-            <span className="lum-pill-gold text-[10px]">✦ Premium</span>
+            <button
+              onClick={() => setTab("settings")}
+              className="lum-pill-gold text-[10px] hover:bg-gold/20 transition-colors"
+            >
+              ✦ Premium
+            </button>
           ) : (
             <button
               onClick={() => setTab("premium")}
@@ -101,6 +107,7 @@ export default function Page() {
               {tab === "frequency" && <FrequencyView isPremium={isPremium} />}
               {tab === "premium" && <PremiumView />}
               {tab === "stats" && <StatsView />}
+              {tab === "settings" && <SettingsView />}
             </motion.div>
           </AnimatePresence>
         </div>

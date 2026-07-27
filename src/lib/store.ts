@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type TabKey = "home" | "tarot" | "manifest" | "frequency" | "stats" | "premium";
+export type TabKey = "home" | "tarot" | "manifest" | "frequency" | "stats" | "premium" | "settings";
 
 interface AppState {
   tab: TabKey;

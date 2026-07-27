@@ -12,6 +12,7 @@ import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divi
 import { CardOfDay } from "@/components/lumina/card-of-day";
 import { StreakRing } from "@/components/lumina/streak-ring";
 import { MoodCheckIn } from "@/components/lumina/mood-check-in";
+import { WeeklyTeaser } from "@/components/lumina/weekly-teaser";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
 
@@ -185,6 +186,9 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
 
       {/* Install hint */}
       <InstallHint />
+
+      {/* Weekly reflection teaser */}
+      <WeeklyTeaser />
 
       {/* Daily card */}
       <CardOfDay />

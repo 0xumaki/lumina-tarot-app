@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ChevronRight,
   Info,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
@@ -638,6 +639,9 @@ function WhyThisTooltip({ triggers }: { triggers: { label: string; value: string
 export default function StatsView() {
   const api = useApi();
 
+  // Mood history sheet state (declared first, before any early return)
+  const [moodHistoryOpen, setMoodHistoryOpen] = React.useState(false);
+
   const { data, isLoading, isError } = useQuery<StatsData>({
     queryKey: ["stats"],
     queryFn: async () => (await api("/api/stats")).json(),
@@ -794,22 +798,25 @@ export default function StatsView() {
       {/* Mood trend — inline sparkline under the signature (Option C) */}
       {data.mood.daysLogged > 0 && (
         <motion.div variants={itemVariants}>
-          <GlassCard className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
-                  This week's tone
+          <button onClick={() => setMoodHistoryOpen(true)} className="block w-full text-left">
+            <GlassCard className="p-4 hover:border-gold/30 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+                    This week's tone
+                  </div>
+                  <div className="text-[13px] font-medium text-ink mt-0.5">
+                    {moodLabel(data.mood.average)} · avg {data.mood.average?.toFixed(1)}/5
+                  </div>
                 </div>
-                <div className="text-[13px] font-medium text-ink mt-0.5">
-                  {moodLabel(data.mood.average)} · avg {data.mood.average?.toFixed(1)}/5
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-gold/60">30-day</span>
+                  <ChevronRight className="w-3 h-3 text-gold/60" />
                 </div>
               </div>
-              <div className="text-[10px] text-ink-muted">
-                {data.mood.daysLogged}/7 days
-              </div>
-            </div>
-            <MoodSparkline week={data.mood.week} />
-          </GlassCard>
+              <MoodSparkline week={data.mood.week} />
+            </GlassCard>
+          </button>
         </motion.div>
       )}
 
@@ -994,6 +1001,9 @@ export default function StatsView() {
       <motion.div variants={itemVariants}>
         <WeeklyReflection />
       </motion.div>
+
+      {/* 30-day mood history sheet */}
+      <MoodHistorySheet open={moodHistoryOpen} onOpenChange={setMoodHistoryOpen} />
     </motion.div>
   );
 }
@@ -1085,4 +1095,182 @@ function buildMoodInsight(withReadings: number, withoutReadings: number): string
     return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${diff.toFixed(1)} points brighter than days without (${withoutReadings.toFixed(1)}/5). The cards lift you.`;
   }
   return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${Math.abs(diff).toFixed(1)} points lower than days without (${withoutReadings.toFixed(1)}/5). You may be seeking the cards when you need them most.`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 30-day mood history sheet                                           */
+/* ------------------------------------------------------------------ */
+
+function MoodHistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const api = useApi();
+  const { data, isLoading } = useQuery({
+    queryKey: ["mood-history"],
+    queryFn: async () => (await api("/api/mood/history")).json(),
+    enabled: open,
+  });
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+          onClick={() => onOpenChange(false)}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            className="relative w-full max-w-md m-3 lum-glass-float rounded-t-[28px] sm:rounded-[28px] max-h-[82vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/8">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-gold" />
+                <h3 className="text-[15px] font-medium text-ink">30-Day Mood History</h3>
+              </div>
+              <button onClick={() => onOpenChange(false)} className="text-ink-muted hover:text-ink">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 lum-no-scrollbar">
+              {isLoading ? (
+                <div className="text-center py-8 text-ink-muted text-[13px]">Loading…</div>
+              ) : !data || data.daysLogged === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-3">
+                    <Flame className="w-5 h-5 text-gold/60" />
+                  </div>
+                  <div className="text-[14px] font-medium text-ink">No mood data yet</div>
+                  <p className="text-[12px] text-ink-muted mt-1 max-w-[240px] mx-auto leading-[16px]">
+                    Check in daily on the home screen to build your 30-day mood pattern.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Summary */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-gold/80 font-medium">
+                        {data.daysLogged}/30 days logged
+                      </div>
+                      <div className="text-[20px] font-light text-ink mt-0.5">
+                        avg {data.average?.toFixed(1)}/5 · {moodLabel(data.average)}
+                      </div>
+                    </div>
+                    {data.trend && (
+                      <div className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${
+                        data.trend === "rising" ? "text-leaf border-leaf/30 bg-leaf/10" :
+                        data.trend === "falling" ? "text-destructive border-destructive/30 bg-destructive/10" :
+                        "text-ink-muted border-white/10 bg-white/[0.03]"
+                      }`}>
+                        {data.trend === "rising" ? "↑ rising" : data.trend === "falling" ? "↓ falling" : "→ steady"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 30-day chart */}
+                  <MoodHistoryChart days={data.days} />
+
+                  {/* Recent notes */}
+                  {data.days.some((d: any) => d.note) && (
+                    <>
+                      <Divider className="my-4" />
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-gold/80 font-medium mb-2">
+                        Recent notes
+                      </div>
+                      <div className="space-y-2">
+                        {data.days
+                          .filter((d: any) => d.note)
+                          .slice(-4)
+                          .reverse()
+                          .map((d: any, i: number) => (
+                            <div key={i} className="rounded-lg bg-white/[0.03] border border-white/8 p-2.5">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[11px] text-ink-muted">
+                                  {new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </span>
+                                <span className="text-[14px]">{MOOD_GLYPHS[Math.min(4, Math.max(0, d.mood - 1))]}</span>
+                              </div>
+                              <p className="text-[12px] text-ink italic">"{d.note}"</p>
+                            </div>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function MoodHistoryChart({ days }: { days: { date: string; mood: number | null; note: string | null }[] }) {
+  const W = 320;
+  const H = 120;
+  const padTop = 8;
+  const padBottom = 16;
+  const chartH = H - padTop - padBottom;
+  const colW = W / days.length;
+
+  // Build the line path for connected mood points
+  const points = days
+    .map((d, i) => (d.mood !== null ? { x: colW * i + colW / 2, y: padTop + chartH - ((d.mood - 1) / 4) * chartH, mood: d.mood } : null))
+    .filter((p): p is { x: number; y: number; mood: number } => p !== null);
+
+  const pathD = points.length > 1
+    ? points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ")
+    : "";
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
+        {/* Grid lines for mood levels 1-5 */}
+        {[1, 2, 3, 4, 5].map((lvl) => {
+          const y = padTop + chartH - ((lvl - 1) / 4) * chartH;
+          return (
+            <g key={lvl}>
+              <line x1={0} x2={W} y1={y} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />
+              <text x={2} y={y - 2} fill="rgba(122,134,128,0.5)" fontSize={7}>{lvl}</text>
+            </g>
+          );
+        })}
+        {/* Connecting line */}
+        {pathD && (
+          <path d={pathD} fill="none" stroke="#C5A87C" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+        )}
+        {/* Points */}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={2.5}
+            fill={MOOD_COLORS[Math.min(4, Math.max(0, p.mood - 1))]}
+            stroke="#000"
+            strokeWidth={0.5}
+          />
+        ))}
+      </svg>
+      {/* Day labels (every 5th day) */}
+      <div className="flex justify-between mt-1 px-1">
+        {days.map((d, i) => {
+          if (i % 5 !== 0 && i !== days.length - 1) return null;
+          const date = new Date(d.date + "T00:00:00");
+          return (
+            <span key={i} className="text-[8px] text-ink-muted">
+              {date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" })}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

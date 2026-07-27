@@ -748,3 +748,77 @@ Project stable from round 7. All views 8.5-9.5/10. Top priorities from worklog: 
 4. Download real RWS card art via alternative source.
 5. Add "refine insight" interaction (let users rate the AI archetype — thumbs up/down).
 6. Add a settings/profile screen (manage premium, replay onboarding, clear data).
+
+---
+Task ID: cron-review-9
+Agent: main (webDevReview cron, 9th round)
+Task: Settings/Profile screen, weekly reflection teaser on home, 30-day mood history
+
+## Current Project Status Assessment
+Project stable from round 8. All views 8.5-9.5/10. Top priorities from worklog: settings/profile screen (manage premium, replay onboarding, clear data), weekly reflection teaser on home, 30-day mood history. The app had no central settings hub — premium management was split across the Premium tab and header. The weekly reflection was buried at the bottom of Stats. Mood data only showed 7 days.
+
+## Completed Modifications
+
+### Feature 1: Settings/Profile Screen (replaces Premium tab in bottom nav)
+- **New "More" tab** in bottom nav (Settings icon) — replaces "Premium" tab. Premium management moves into Settings.
+- **SettingsView component** (`src/features/settings/settings-view.tsx`):
+  - **Premium status card**: Crown orb (gold gradient if premium, outline if free), status label, feature summary, "Upgrade to Premium" / "Manage subscription" button.
+  - **Practice summary**: 2×2 grid of today's stats (readings today, active goals, confirmed today, frequency seconds) + member-since date.
+  - **Quick links**: Replay the intro, Premium comparison (→ Premium tab), Your stats (→ Stats tab).
+  - **Data & privacy**: "Your data is local" info row (toast on tap explaining privacy), "Clear all data" destructive row → confirmation modal.
+  - **About**: App name, description, version 1.0 · PWA.
+  - **ClearDataModal**: Destructive confirmation with AlertCircle icon, "Yes, erase everything" / "Keep my data" buttons. Clears localStorage + reloads.
+- **Header update**: Premium users' "✦ Premium" pill now navigates to Settings (was static).
+
+### Feature 2: Weekly Reflection Teaser on Home
+- **WeeklyTeaser component** (`src/components/lumina/weekly-teaser.tsx`):
+  - Compact card on Home (between InstallHint and CardOfDay).
+  - Shows the weekly reflection theme (gold text) + "This week" label + "AI" badge.
+  - Fetches `/api/stats/weekly` with 10-min staleTime (shares cache with Stats view).
+  - Tapping navigates to Stats tab.
+  - Graceful absence: doesn't render if no reflection (no activity or LLM failed).
+  - Verified: shows "Testing Grounds" theme after data populated.
+
+### Feature 3: 30-Day Mood History View
+- **New API endpoint** `/api/mood/history`:
+  - Returns last 30 days of mood data (date, mood, note per day).
+  - Computes average, daysLogged, and trend (rising/falling/steady by comparing last-7-days avg to previous-7-days avg).
+- **MoodHistorySheet component** in Stats view:
+  - Triggered by tapping the 7-day mood sparkline card (now shows "30-day →" hint).
+  - Summary: "N/30 days logged · avg X.X/5 · [label]" + trend pill (↑ rising green / ↓ falling red / → steady gray).
+  - **MoodHistoryChart**: Custom SVG line chart — 30-day x-axis, mood levels 1-5 y-axis with grid lines, connecting gold line + color-coded points (moon-color per mood level). Day labels every 5th day.
+  - **Recent notes**: Last 4 mood notes with date + moon glyph + italic text.
+  - Empty state: "No mood data yet" with guidance.
+  - Verified: opened sheet → "1/30 DAYS LOGGED / avg 4.0/5 · Light" + chart + "Good day" note.
+
+### Infrastructure
+- TabKey type updated: added "settings".
+- Bottom nav: 6 tabs (Today, Tarot, Manifest, Tones, Stats, More).
+- Page.tsx: renders SettingsView for "settings" tab; tab query hydration includes "settings".
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: all API routes 200; `/api/mood/history` confirmed.
+- **agent-browser QA** (iPhone 15, premium + data):
+  - More tab: "MORE / Your space / Free tier → Upgrade to Premium" (or "Premium → Manage subscription" if premium). Practice summary, quick links, data & privacy, about all render.
+  - Home: Weekly teaser shows theme ("Testing Grounds") + AI badge, tapping → Stats.
+  - Stats: Mood sparkline card shows "30-day →" hint, tapping → MoodHistorySheet with 30-day chart + trend + notes.
+- All 6 tabs work without errors.
+
+## Cumulative VLM Scorecard
+All views remain 8.5-9.5/10. The new Settings view consolidates premium/data/about management into a clean hub.
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **Clear data is client-side only**: Clears localStorage (device id) but doesn't delete server DB records (the old device id becomes orphaned). Acceptable for anonymous device model.
+4. **Mood history chart sparse with 1 day**: Line chart needs 2+ points to connect. Shows single point gracefully.
+5. **LLM cost**: Three LLM endpoints now (tarot interpretation, energy insight, weekly reflection). All have staleTime caching.
+
+## Priority Recommendations for Next Phase
+1. Websocket mini-service for scheduled manifestation goal reminders.
+2. Add "refine insight" interaction (thumbs up/down on AI archetype).
+3. Download real RWS card art via alternative source.
+4. Add a "share stats" feature (export stats summary as image).
+5. Add dark/light theme toggle in Settings (currently dark-only by design).
+6. Add export/import data feature (backup readings + goals as JSON).
