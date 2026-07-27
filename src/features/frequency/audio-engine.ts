@@ -62,11 +62,18 @@ export function useFrequencyEngine() {
       if (ctx.state === "suspended") ctx.resume();
 
       const now = ctx.currentTime;
-      const fade = 1.2; // seconds fade in/out
+      const fade = 1.5; // seconds fade in/out — longer for smoother entry
       const master = ctx.createGain();
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.18, now + fade);
+      master.gain.exponentialRampToValueAtTime(0.45, now + fade); // increased from 0.18 → 0.45
       master.connect(ctx.destination);
+
+      // Add a gentle lowpass filter for warmth
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 5000;
+      filter.Q.value = 0.5;
+      filter.connect(master);
 
       const created: { oscillators: OscillatorNode[]; lfos?: OscillatorNode[] } = { oscillators: [] };
 
@@ -78,49 +85,86 @@ export function useFrequencyEngine() {
       };
 
       if (opts.mode === "pure") {
-        const o = mkOsc(opts.carrierHz);
-        o.connect(master);
-        o.start(now);
-        created.oscillators.push(o);
+        // Rich pure tone: fundamental + subtle octave harmonic for fullness
+        const fundamental = mkOsc(opts.carrierHz, "sine");
+        const fundGain = ctx.createGain();
+        fundGain.gain.value = 0.7;
+        fundamental.connect(fundGain);
+        fundGain.connect(filter);
+        fundamental.start(now);
+
+        const harmonic = mkOsc(opts.carrierHz * 2, "sine");
+        const harmGain = ctx.createGain();
+        harmGain.gain.value = 0.15;
+        harmonic.connect(harmGain);
+        harmGain.connect(filter);
+        harmonic.start(now);
+
+        created.oscillators.push(fundamental, harmonic);
       } else if (opts.mode === "binaural") {
-        // stereo splitter
+        // Stereo binaural with richer per-channel harmonics
         const merger = ctx.createChannelMerger(2);
         const leftGain = ctx.createGain();
         const rightGain = ctx.createGain();
-        leftGain.gain.value = 0.5;
-        rightGain.gain.value = 0.5;
+        leftGain.gain.value = 0.6;
+        rightGain.gain.value = 0.6;
         const beat = opts.binauralBeatHz || 7;
         const leftFreq = opts.carrierHz - beat / 2;
         const rightFreq = opts.carrierHz + beat / 2;
-        const left = mkOsc(leftFreq);
-        const right = mkOsc(rightFreq);
+
+        // Left channel: fundamental + harmonic
+        const left = mkOsc(leftFreq, "sine");
+        const leftHarm = mkOsc(leftFreq * 2, "sine");
+        const leftHarmGain = ctx.createGain();
+        leftHarmGain.gain.value = 0.12;
         left.connect(leftGain);
-        right.connect(rightGain);
+        leftHarm.connect(leftHarmGain);
+        leftHarmGain.connect(leftGain);
         leftGain.connect(merger, 0, 0);
-        rightGain.connect(merger, 0, 1);
-        merger.connect(master);
         left.start(now);
+        leftHarm.start(now);
+
+        // Right channel: fundamental + harmonic
+        const right = mkOsc(rightFreq, "sine");
+        const rightHarm = mkOsc(rightFreq * 2, "sine");
+        const rightHarmGain = ctx.createGain();
+        rightHarmGain.gain.value = 0.12;
+        right.connect(rightGain);
+        rightHarm.connect(rightHarmGain);
+        rightHarmGain.connect(rightGain);
+        rightGain.connect(merger, 0, 1);
         right.start(now);
-        created.oscillators.push(left, right);
+        rightHarm.start(now);
+
+        merger.connect(filter);
+        created.oscillators.push(left, right, leftHarm, rightHarm);
       } else {
-        // pad — layered detuned sines + a perfect fifth, with slow vibrato LFO
+        // pad — layered detuned oscillators with triangle wave for warmth
         const fifth = opts.carrierHz * 1.5;
         const oct = opts.carrierHz * 2;
-        const freqs = [opts.carrierHz, opts.carrierHz * 1.005, fifth, oct * 0.5];
+        const freqs = [
+          { freq: opts.carrierHz, type: "sine" as OscillatorType, gain: 0.5 },
+          { freq: opts.carrierHz * 1.005, type: "sine" as OscillatorType, gain: 0.3 },
+          { freq: fifth, type: "sine" as OscillatorType, gain: 0.25 },
+          { freq: oct * 0.5, type: "triangle" as OscillatorType, gain: 0.15 },
+        ];
         const padGain = ctx.createGain();
-        padGain.gain.value = 0.32;
-        padGain.connect(master);
+        padGain.gain.value = 0.4;
+        padGain.connect(filter);
         const lfo = ctx.createOscillator();
         lfo.frequency.value = 0.12;
         const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 1.2;
+        lfoGain.gain.value = 1.5;
         lfo.connect(lfoGain);
         lfo.start(now);
         created.lfos = [lfo];
         for (const f of freqs) {
-          const o = mkOsc(f, "sine");
+          const o = mkOsc(f.freq, f.type);
+          const g = ctx.createGain();
+          g.gain.value = f.gain;
           lfoGain.connect(o.frequency);
-          o.connect(padGain);
+          o.connect(g);
+          g.connect(padGain);
           o.start(now);
           created.oscillators.push(o);
         }
@@ -131,9 +175,9 @@ export function useFrequencyEngine() {
         try {
           master.gain.cancelScheduledValues(t);
           master.gain.setValueAtTime(master.gain.value, t);
-          master.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+          master.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
         } catch {}
-        const killAt = t + 0.5;
+        const killAt = t + 0.6;
         for (const o of created.oscillators) {
           try { o.stop(killAt); } catch {}
         }

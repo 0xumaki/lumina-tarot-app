@@ -9,7 +9,7 @@ import {
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useSound } from "@/hooks/use-sound";
-import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
+import { GlassCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { MilestoneCelebration, isMilestone } from "@/components/lumina/milestone-celebration";
 import { getPreset, type IntentionKey } from "@/lib/frequencies";
 import { useAppStore } from "@/lib/store";
@@ -88,8 +88,12 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
       />
 
       {goals.length === 0 && !isLoading ? (
-        <ShellCard className="p-6 text-center">
-          <div className="flex flex-col items-center gap-3">
+        <div className="lum-glass rounded-2xl p-6 text-center relative overflow-hidden">
+          <div
+            className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(197,168,124,0.06), transparent 70%)" }}
+          />
+          <div className="relative flex flex-col items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center">
               <Target className="w-5 h-5 text-gold" />
             </div>
@@ -104,7 +108,7 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
               Set Your First Goal
             </GoldButton>
           </div>
-        </ShellCard>
+        </div>
       ) : (
         <>
           <div className="space-y-3">
@@ -176,8 +180,13 @@ function GoalCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
     >
-      <ShellCard className="overflow-hidden">
-        <div className="p-4">
+      <div className="lum-glass rounded-2xl overflow-hidden relative">
+        {/* Subtle intention-colored glow */}
+        <div
+          className="absolute -top-10 -right-10 w-28 h-28 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${preset.color}0d, transparent 70%)` }}
+        />
+        <div className="relative p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -300,7 +309,7 @@ function GoalCard({
             )}
           </AnimatePresence>
         </div>
-      </ShellCard>
+      </div>
     </motion.div>
   );
 }

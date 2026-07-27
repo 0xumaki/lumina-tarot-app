@@ -13,7 +13,6 @@ import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
 import { CardDetailModal } from "./card-detail-modal";
 import {
   GlassCard,
-  ShellCard,
   GoldButton,
   GhostButton,
   Pill,
@@ -135,11 +134,17 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
-            <ShellCard className="p-4">
-              <div className="space-y-4">
+            {/* Premium question card — no ShellCard, refined glass design */}
+            <div className="lum-glass rounded-2xl p-5 relative overflow-hidden">
+              {/* Subtle gold glow */}
+              <div
+                className="absolute -top-12 -right-12 w-32 h-32 rounded-full pointer-events-none"
+                style={{ background: "radial-gradient(circle, rgba(197,168,124,0.08), transparent 70%)" }}
+              />
+              <div className="relative space-y-4">
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] uppercase tracking-[0.18em] text-ink-muted font-medium">
+                    <label className="text-[11px] uppercase tracking-[0.18em] text-gold/70 font-medium">
                       Your question
                     </label>
                     {question.trim().length > 0 && (
@@ -155,13 +160,13 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     onChange={(e) => setQuestion(e.target.value)}
                     placeholder="What does your heart need to know?"
                     rows={2}
-                    className="mt-2 w-full bg-transparent resize-none text-[15px] leading-[22px] text-ink placeholder:text-ink-muted/60 focus:outline-none"
+                    className="mt-2 w-full bg-transparent resize-none text-[16px] leading-[24px] text-ink placeholder:text-ink-muted/50 focus:outline-none"
                   />
                 </div>
                 <Divider />
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[11px] uppercase tracking-[0.18em] text-ink-muted font-medium">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <label className="text-[11px] uppercase tracking-[0.18em] text-gold/70 font-medium">
                       Spread
                     </label>
                     <Pill variant="gold">
@@ -185,8 +190,8 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                           }}
                           className={`relative text-left rounded-xl p-3 border transition-all ${
                             selected
-                              ? "border-gold/60 bg-gold/[0.12] shadow-[0_0_0_1px_rgba(197,168,124,0.3)]"
-                              : "border-white/8 bg-white/[0.02] hover:border-white/15"
+                              ? "border-gold/50 bg-gold/[0.10]"
+                              : "border-white/6 bg-white/[0.015] hover:border-white/12"
                           }`}
                         >
                           {/* Selected checkmark — top-right, consistent position */}
@@ -222,7 +227,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                   Reading History
                 </GhostButton>
               </div>
-            </ShellCard>
+            </div>
 
             <SpreadHint spread={currentSpread.id} />
           </motion.div>
@@ -333,7 +338,12 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     <YesNoBanner interpretation={reading.interpretation} />
                   )}
 
-                  <ShellCard className="p-4">
+                  <div className="lum-glass rounded-2xl p-5 relative overflow-hidden">
+                    {/* Gold glow accent */}
+                    <div
+                      className="absolute -top-12 -left-12 w-32 h-32 rounded-full pointer-events-none"
+                      style={{ background: "radial-gradient(circle, rgba(197,168,124,0.06), transparent 70%)" }}
+                    />
                     {/* Header with card name merged in */}
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles className="w-3.5 h-3.5 text-gold" />
@@ -395,7 +405,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     {/* Affirmation with copy button */}
                     <Divider className="my-4" />
                     <AffirmationCard affirmation={reading.cards[0].card.affirmation} />
-                  </ShellCard>
+                  </div>
 
                   <div className="flex gap-2">
                     <GoldButton onClick={reset} className="flex-1">

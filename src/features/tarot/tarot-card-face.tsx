@@ -18,8 +18,6 @@ const SUIT_META: Record<
 
 function roman(n: number): string {
   const map: [number, string][] = [
-    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
-    [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
     [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
   ];
   let res = "";
@@ -29,9 +27,9 @@ function roman(n: number): string {
 }
 
 /**
- * TarotCardFace — renders a tarot card face.
- * Attempts to load /tarot/{slug}.jpg; falls back to an elegant SVG composition
- * keyed off the card's data. Reversed cards are visually flipped.
+ * TarotCardFace — premium award-winning card design.
+ * Shows full-color RWS art with a gold gradient border frame,
+ * subtle inner glow, and elegant typography overlay.
  */
 export function TarotCardFace({
   card,
@@ -63,15 +61,23 @@ export function TarotCardFace({
         className
       )}
     >
-      <FaceSide
-        card={card}
-        meta={meta}
-        size={size}
-        reversed={reversed}
-        showImage={showImage && imgOk !== false}
-        onImgError={() => setImgOk(false)}
-        onImgLoad={() => setImgOk(true)}
-      />
+      {/* Outer gold gradient border frame */}
+      <div
+        className="absolute inset-0 rounded-[16px] p-[1.5px]"
+        style={{
+          background: `linear-gradient(135deg, ${meta.accent}aa 0%, ${meta.accent}33 40%, rgba(255,255,255,0.08) 70%, ${meta.accent}44 100%)`,
+        }}
+      >
+        <FaceSide
+          card={card}
+          meta={meta}
+          size={size}
+          reversed={reversed}
+          showImage={showImage && imgOk !== false}
+          onImgError={() => setImgOk(false)}
+          onImgLoad={() => setImgOk(true)}
+        />
+      </div>
       {reversed && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -104,43 +110,108 @@ function FaceSide({
   onImgError: () => void;
   onImgLoad: () => void;
 }) {
-  const pad = size === "sm" ? 6 : size === "md" ? 10 : 14;
-  const nameSize = size === "sm" ? 8 : size === "md" ? 11 : 13;
+  const nameSize = size === "sm" ? 8 : size === "md" ? 10 : 12;
   const glyphSize = size === "sm" ? 34 : size === "md" ? 58 : 82;
-  const numSize = size === "sm" ? 9 : size === "md" ? 12 : 15;
+  const numSize = size === "sm" ? 9 : size === "md" ? 11 : 14;
+  const showImageLayer = showImage;
 
   return (
     <div
-      className="absolute inset-0 rounded-[14px] overflow-hidden"
+      className="relative w-full h-full rounded-[14.5px] overflow-hidden"
       style={{
-        background: "linear-gradient(160deg, #0d110f 0%, #070908 100%)",
-        border: `1px solid ${meta.accent}40`,
-        boxShadow: `0 0 0 1px rgba(255,255,255,0.04) inset, 0 8px 24px -10px rgba(0,0,0,0.8)`,
+        background: "linear-gradient(165deg, #1a1410 0%, #0a0806 100%)",
       }}
     >
-      {/* gold filigree corner frame */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
-        <rect x="3" y="3" rx="11" ry="11" width="calc(100% - 6px)" height="calc(100% - 6px)"
-          fill="none" stroke={meta.accent} strokeOpacity="0.18" strokeWidth="0.6" />
-      </svg>
-
-      {showImage && (
-        <img
-          src={`/tarot/${card.id}.jpg`}
-          alt={card.name}
-          loading="lazy"
-          onError={onImgError}
-          onLoad={onImgLoad}
-          className="absolute inset-0 w-full h-full object-cover opacity-90"
-          style={{ mixBlendMode: "luminosity" }}
-        />
+      {/* Full-color card image — NO mixBlendMode, full color preserved */}
+      {showImageLayer && (
+        <>
+          <img
+            src={`/tarot/${card.id}.jpg`}
+            alt={card.name}
+            loading="lazy"
+            onError={onImgError}
+            onLoad={onImgLoad}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Subtle vignette to blend edges into the dark frame */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,0.45) 100%)`,
+            }}
+          />
+          {/* Bottom gradient for name legibility */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[35%] pointer-events-none"
+            style={{
+              background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)",
+            }}
+          />
+          {/* Top gradient for numeral legibility */}
+          <div
+            className="absolute inset-x-0 top-0 h-[20%] pointer-events-none"
+            style={{
+              background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)",
+            }}
+          />
+          {/* Top-left: roman numeral / number */}
+          <div
+            className="absolute top-1.5 left-2 z-10 font-medium"
+            style={{
+              color: meta.accent,
+              fontSize: numSize,
+              letterSpacing: "0.06em",
+              textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+            }}
+          >
+            {card.arcana === "major" ? roman(card.number) : card.number}
+          </div>
+          {/* Top-right: suit glyph */}
+          <div
+            className="absolute top-1.5 right-2 z-10"
+            style={{
+              color: meta.accent,
+              fontSize: numSize,
+              opacity: 0.8,
+              textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+            }}
+          >
+            {meta.glyph}
+          </div>
+          {/* Bottom: card name */}
+          <div className="absolute bottom-1.5 inset-x-1.5 z-10 text-center">
+            <div
+              className="font-medium text-white"
+              style={{
+                fontSize: nameSize,
+                lineHeight: 1.2,
+                textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+                letterSpacing: "0.01em",
+              }}
+            >
+              {card.nameShort}
+            </div>
+            {size !== "sm" && (
+              <div
+                className="uppercase tracking-[0.16em] mt-0.5"
+                style={{
+                  fontSize: nameSize * 0.6,
+                  color: meta.accent,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                }}
+              >
+                {meta.label.split(" · ")[0]}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* SVG composition overlay (always rendered as the design layer; becomes the fallback when no image) */}
-      {!showImage && (
+      {/* SVG composition fallback (when no image) */}
+      {!showImageLayer && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-between"
-          style={{ padding: pad }}
+          style={{ padding: size === "sm" ? 6 : 10 }}
         >
           {/* Top: roman numeral + suit glyph */}
           <div className="w-full flex items-center justify-between" style={{ color: meta.accent }}>
@@ -150,10 +221,9 @@ function FaceSide({
             <span style={{ fontSize: numSize, opacity: 0.8 }}>{meta.glyph}</span>
           </div>
 
-          {/* Center glyph + name */}
+          {/* Center glyph */}
           <div className="flex flex-col items-center gap-1.5 -mt-1">
             <div className="relative flex items-center justify-center" style={{ width: glyphSize, height: glyphSize }}>
-              {/* outer glow ring */}
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
@@ -161,12 +231,10 @@ function FaceSide({
                   filter: "blur(2px)",
                 }}
               />
-              {/* decorative ring */}
               <svg className="absolute inset-0 w-full h-full" style={{ color: meta.accent }} aria-hidden>
                 <circle cx="50%" cy="50%" r="47%" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="0.8" />
                 <circle cx="50%" cy="50%" r="40%" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="0.5" strokeDasharray="2 3" />
               </svg>
-              {/* the symbol — rotated 180° when reversed (artwork flip, text stays upright) */}
               <motion.span
                 animate={{ rotate: reversed ? 180 : 0 }}
                 transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
@@ -203,12 +271,11 @@ function FaceSide({
         </div>
       )}
 
-      {/* subtle gradient sheen on top */}
+      {/* Inner highlight for premium depth */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 rounded-[14.5px] pointer-events-none"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.5) 100%)",
+          boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.08)",
         }}
       />
     </div>
@@ -231,21 +298,25 @@ export function TarotCardBack({
   return (
     <div
       className={cn(
-        "relative shrink-0 overflow-hidden rounded-[14px]",
+        "relative shrink-0 overflow-hidden rounded-[16px] p-[1.5px]",
         sizes[size],
         className
       )}
       style={{
-        background: "linear-gradient(160deg, #0d110f 0%, #050706 100%)",
-        border: "1px solid rgba(197,168,124,0.3)",
+        background: "linear-gradient(135deg, rgba(197,168,124,0.6) 0%, rgba(255,255,255,0.03) 40%, rgba(197,168,124,0.3) 100%)",
       }}
     >
-      <img
-        src="/tarot/card-back.png"
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="relative w-full h-full rounded-[14.5px] overflow-hidden"
+        style={{ background: "linear-gradient(165deg, #1a1410 0%, #050706 100%)" }}
+      >
+        <img
+          src="/tarot/card-back.png"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/20" />
+      </div>
     </div>
   );
 }
