@@ -83,8 +83,10 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
 
             {/* Daily streak + status strip */}
             <div className="mt-5 flex items-center gap-3">
-              <StreakRing streak={bestStreak ?? 0} size={56} />
-              <div className="flex-1 min-w-0">
+              <button onClick={() => setTab("manifest")} className="shrink-0" aria-label="View your manifestation goals">
+                <StreakRing streak={bestStreak ?? 0} size={56} />
+              </button>
+              <button onClick={() => setTab("manifest")} className="flex-1 min-w-0 text-left">
                 <div className="text-[13px] font-medium text-ink leading-[16px]">
                   {bestStreak && bestStreak > 0 ? `${bestStreak}-day streak` : "Begin a streak today"}
                 </div>
@@ -92,7 +94,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
                   {usage?.confirmedToday ?? 0} confirmed today
                   {bestStreak && bestStreak >= 7 ? " · flame lit" : ""}
                 </div>
-              </div>
+              </button>
               {isPremium ? (
                 <Pill variant="gold">
                   <Crown className="w-3 h-3" /> Premium

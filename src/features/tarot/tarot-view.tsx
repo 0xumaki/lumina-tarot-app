@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useHaptics } from "@/hooks/use-haptics";
+import { useShare } from "@/hooks/use-share";
 import { SPREADS, type SpreadType } from "@/lib/limits";
 import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
 import { CardDetailModal } from "./card-detail-modal";
@@ -357,6 +358,9 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                       History
                     </GhostButton>
                   </div>
+
+                  {/* Share reading */}
+                  <ShareButton reading={reading} />
                 </motion.div>
               )}
             </div>
@@ -506,5 +510,46 @@ function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function ShareButton({ reading }: { reading: Reading }) {
+  const share = useShare();
+  const { toast } = useToast();
+  const haptics = useHaptics();
+  const [shared, setShared] = React.useState(false);
+
+  async function handleShare() {
+    haptics("tap");
+    const result = await share({
+      question: reading.question,
+      spreadType: reading.spreadType,
+      cards: reading.cards.map((c) => ({
+        name: c.card.name,
+        reversed: c.reversed,
+        position: c.position,
+      })),
+      interpretation: reading.interpretation,
+    });
+    if (result === "shared") {
+      // native sheet opened — no toast needed
+    } else if (result === "copied") {
+      setShared(true);
+      haptics("complete");
+      toast({ title: "Copied to clipboard", description: "Your reading is ready to share." });
+      setTimeout(() => setShared(false), 2500);
+    } else {
+      toast({ title: "Couldn't share", description: "Please try again." });
+    }
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] text-gold/80 hover:text-gold tracking-wide transition-colors"
+    >
+      {shared ? <Check className="w-3.5 h-3.5 text-leaf" /> : <Share2 className="w-3.5 h-3.5" />}
+      {shared ? "Copied!" : "Share this reading"}
+    </button>
   );
 }

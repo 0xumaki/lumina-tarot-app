@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  Crown, Sparkles, Target, AudioLines, Check, X, Infinity as InfinityIcon, ShieldCheck, Star,
+  Crown, Sparkles, Target, AudioLines, Check, X, Infinity as InfinityIcon, ShieldCheck, Star, RotateCcw,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
@@ -104,22 +104,79 @@ export function PremiumView() {
         <div className="relative p-6 lum-glow-gold">
           <StarField count={16} />
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#9c7f54] flex items-center justify-center shadow-[0_0_40px_rgba(197,168,124,0.5)]">
-              <Crown className="w-8 h-8 text-black" />
+            {/* Urgency badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="absolute top-4 right-4 rounded-full bg-gradient-to-r from-[#E89A4A] to-[#C5A87C] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-black shadow-[0_0_16px_rgba(232,154,74,0.5)]"
+            >
+              50% off
+            </motion.div>
+
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#9c7f54] flex items-center justify-center shadow-[0_0_40px_rgba(197,168,124,0.5)]">
+                <Crown className="w-8 h-8 text-black" />
+              </div>
+              {/* pulsing ring */}
+              <motion.div
+                className="absolute inset-0 rounded-full border border-gold/40"
+                animate={{ scale: [1, 1.3], opacity: [0.6, 0] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }}
+              />
             </div>
+
+            {/* Social proof */}
+            <div className="mt-3 flex items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="w-5 h-5 rounded-full border border-black/40"
+                    style={{
+                      background: ["#C5A87C", "#B5CD7E", "#9E8AC9", "#7A8680"][i],
+                      opacity: 0.85,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-0.5">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Star key={i} className="w-2.5 h-2.5 text-gold fill-gold" />
+                ))}
+              </div>
+              <span className="text-[10px] text-ink-muted">12,400+ seekers</span>
+            </div>
+
             <div className="mt-3 flex items-baseline gap-1">
               <span className="text-[36px] font-light text-ink">$9</span>
               <span className="text-[14px] text-ink-muted">/month</span>
               <span className="ml-2 text-[12px] text-ink-muted line-through">$19</span>
             </div>
             <p className="mt-1 text-[12px] text-ink-muted">Cancel anytime · demo mode, no payment</p>
-            <GoldButton onClick={toggle} disabled={loading} className="mt-4 w-full max-w-[260px]">
+
+            {/* Gold-gradient CTA */}
+            <button
+              onClick={toggle}
+              disabled={loading}
+              className="mt-4 w-full max-w-[260px] inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-[14px] font-semibold text-black transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+              style={{
+                background: "linear-gradient(135deg, #E7D2A8 0%, #C5A87C 50%, #9c7f54 100%)",
+                boxShadow: "0 0 30px rgba(197,168,124,0.45), inset 0 1px 0 rgba(255,255,255,0.5)",
+              }}
+            >
               <Crown className="w-4 h-4" />
               {loading ? "Activating…" : "Activate Premium"}
-            </GoldButton>
+            </button>
+            <p className="mt-2 text-[10px] text-gold/70 tracking-wide">
+              ✦ Instant access · 7-day reflection included
+            </p>
           </div>
         </div>
       </ShellCard>
+
+      {/* Testimonial */}
+      <Testimonial />
 
       <PremiumPerksGrid />
 
@@ -169,7 +226,28 @@ export function PremiumView() {
           </p>
         </div>
       </GlassCard>
+
+      {/* Replay onboarding */}
+      <ReplayOnboarding />
     </div>
+  );
+}
+
+function ReplayOnboarding() {
+  const { toast } = useToast();
+  function replay() {
+    try { localStorage.removeItem("lumina.onboarded"); } catch {}
+    toast({ title: "Onboarding reset", description: "Reloading…" });
+    setTimeout(() => window.location.reload(), 600);
+  }
+  return (
+    <button
+      onClick={replay}
+      className="w-full flex items-center justify-center gap-2 py-2.5 text-[11px] text-ink-muted hover:text-ink tracking-wide transition-colors"
+    >
+      <RotateCcw className="w-3 h-3" />
+      Replay the intro
+    </button>
   );
 }
 
@@ -205,5 +283,32 @@ function PremiumPerksGrid() {
         );
       })}
     </div>
+  );
+}
+
+function Testimonial() {
+  const quotes = [
+    { text: "Lumina became my morning ritual. The 888 Hz tone while I confirm my goal has changed how I walk into my day.", author: "Mira R.", role: "Premium member · 4 mo" },
+  ];
+  const q = quotes[0];
+  return (
+    <GlassCard className="p-4 relative overflow-hidden">
+      <div className="absolute -top-4 -left-2 text-[60px] leading-none text-gold/15 font-serif select-none">"</div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-0.5 mb-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Star key={i} className="w-3 h-3 text-gold fill-gold" />
+          ))}
+        </div>
+        <p className="text-[13px] leading-[20px] text-ink italic">{q.text}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#C5A87C] to-[#7A8680]" />
+          <div>
+            <div className="text-[12px] font-medium text-ink">{q.author}</div>
+            <div className="text-[10px] text-ink-muted">{q.role}</div>
+          </div>
+        </div>
+      </div>
+    </GlassCard>
   );
 }

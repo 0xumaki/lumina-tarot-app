@@ -203,6 +203,42 @@ function GoalCard({
             </span>
           </div>
 
+          {/* Visual streak progress bar */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-[0.14em] text-ink-muted font-medium">
+                {goal.streak >= 7 ? "Flame lit" : goal.streak >= 3 ? "Building" : "Begin"}
+              </span>
+              <span className="text-[10px] text-ink-muted tabular-nums">
+                {goal.streak}/7d
+              </span>
+            </div>
+            <div className="flex gap-1">
+              {Array.from({ length: 7 }).map((_, i) => {
+                const filled = i < Math.min(goal.streak, 7);
+                const isToday = goal.streak === i && !goal.confirmedToday;
+                return (
+                  <div
+                    key={i}
+                    className="h-1.5 flex-1 rounded-full transition-all"
+                    style={{
+                      background: filled
+                        ? goal.streak >= 7
+                          ? "linear-gradient(90deg, #E89A4A, #C5A87C)"
+                          : goal.streak >= 3
+                            ? "#B5CD7E"
+                            : "#7A8680"
+                        : isToday
+                          ? "rgba(197,168,124,0.3)"
+                          : "rgba(255,255,255,0.06)",
+                      boxShadow: filled && goal.streak >= 7 ? "0 0 6px rgba(232,154,74,0.5)" : "none",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
           <div className="mt-3 flex gap-2">
             <GoldButton
               onClick={onConfirm}
@@ -419,20 +455,57 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function DailyRitualInfo() {
+  const [open, setOpen] = React.useState(false);
   return (
-    <GlassCard className="p-4">
-      <div className="flex items-start gap-3">
+    <GlassCard className="overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-3 p-4 text-left"
+        aria-expanded={open}
+      >
         <div className="w-8 h-8 rounded-full bg-leaf/10 border border-leaf/20 flex items-center justify-center shrink-0">
           <Flame className="w-4 h-4 text-leaf" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-[13px] font-medium text-ink">The daily ritual</div>
-          <p className="text-[12px] text-ink-muted mt-0.5 leading-[17px]">
-            Each day at your chosen time, Lumina nudges you to confirm your statement aloud.
-            Repetition + emotion + frequency compounds the signal toward manifestation.
-          </p>
+          <div className="text-[11px] text-ink-muted mt-0.5">
+            How confirmation compounds the signal
+          </div>
         </div>
-      </div>
+        <ChevronRight className={`w-4 h-4 text-ink-muted transition-transform shrink-0 ${open ? "rotate-90" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1 space-y-2.5">
+              <Divider />
+              <div className="space-y-2 pt-1">
+                {[
+                  { step: "1", title: "Set your statement", desc: "Write your desire in the present tense, as if it already is." },
+                  { step: "2", title: "Confirm daily", desc: "At your chosen time, speak the statement aloud with feeling." },
+                  { step: "3", title: "Tune the frequency", desc: "Resonate with the auto-tuned tone while you confirm to deepen the signal." },
+                  { step: "4", title: "Build the streak", desc: "Each consecutive day compounds. 3 days unlocks reflection; 7 lights the flame." },
+                ].map((s) => (
+                  <div key={s.step} className="flex gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-leaf/15 border border-leaf/30 flex items-center justify-center shrink-0 text-[10px] font-medium text-leaf">
+                      {s.step}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-medium text-ink">{s.title}</div>
+                      <div className="text-[11px] text-ink-muted leading-[15px] mt-0.5">{s.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </GlassCard>
   );
 }
