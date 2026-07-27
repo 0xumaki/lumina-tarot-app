@@ -1,0 +1,46 @@
+{
+  "name": "Lumina — Tarot · Manifest · Frequencies",
+  "short_name": "Lumina",
+  "description": "AI tarot readings, manifestation rituals, and intention-tuned frequency tones. A mystical daily companion for clarity, desire, and resonance.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["lifestyle", "wellness", "entertainment"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Draw a Tarot Card",
+      "short_name": "Tarot",
+      "description": "Ask the cards a question",
+      "url": "/?tab=tarot&source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Manifestation Ritual",
+      "short_name": "Manifest",
+      "description": "Confirm your daily intention",
+      "url": "/?tab=manifest&source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Frequencies",
+      "short_name": "Tones",
+      "description": "Tune into intention frequencies",
+      "url": "/?tab=frequency&source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

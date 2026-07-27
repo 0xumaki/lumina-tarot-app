@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Lumina — Tarot · Manifestation · Frequencies
+// Prisma schema (SQLite)
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +10,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+/// Anonymous device-based identity. No email/password friction.
+model Device {
+  id          String   @id @default(cuid())
+  deviceId    String   @unique // client-generated stable id (localStorage)
+  displayName String?
+  isPremium   Boolean  @default(false)
+  premiumSince DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  readings          Reading[]
+  goals             Goal[]
+  frequencySessions FrequencySession[]
+  usageLogs         UsageLog[]
+  confirmations     Confirmation[]
 }
 
-model Post {
+/// A tarot reading session.
+model Reading {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  question    String
+  spreadType  String   // "yes-no" | "single" | "three-card" | "celtic-cross" | "relationship" | "career"
+  cardsJson   String   // JSON array of { id, reversed, position }
+  interpretation String // AI-generated interpretation (markdown-ish)
+  isPremium   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+}
+
+/// A manifestation goal.
+model Goal {
+  id            String   @id @default(cuid())
+  deviceId      String
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  title         String
+  intention     String   // e.g. "abundance", "love", "health"
+  statement     String   // the full affirmation the user confirms daily
+  reminderTime  String   // "HH:mm" local time
+  targetDate    DateTime?
+  frequencyHz   Int?     // suggested frequency
+  status        String   @default("active") // "active" | "achieved" | "archived"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  confirmations Confirmation[]
+
+  @@index([deviceId, status])
+}
+
+/// Daily confirmation log for a goal.
+model Confirmation {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  date      String   // "YYYY-MM-DD" — one confirmation per goal per day
+  note      String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([goalId, date])
+  @@index([deviceId, date])
+}
+
+/// Frequency listening session.
+model FrequencySession {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  intention   String   // "abundance", "love", ...
+  frequencyHz Int
+  baseHz      Int?     // carrier for binaural
+  beatHz      Int?     // binaural beat frequency
+  mode        String   // "pure" | "binaural" | "pad"
+  durationSec Int
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+}
+
+/// Daily usage tracking for free-tier limits.
+/// One row per device per day.
+model UsageLog {
+  id            String   @id @default(cuid())
+  deviceId      String
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date          String   // "YYYY-MM-DD"
+  tarotReadings Int      @default(0)
+  frequencySec  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([deviceId, date])
 }
