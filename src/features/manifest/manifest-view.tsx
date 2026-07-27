@@ -9,6 +9,7 @@ import {
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
+import { MilestoneCelebration, isMilestone } from "@/components/lumina/milestone-celebration";
 import { getPreset, type IntentionKey } from "@/lib/frequencies";
 import { useAppStore } from "@/lib/store";
 import { PremiumModal } from "@/features/premium/premium-modal";
@@ -36,6 +37,7 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
   const setPending = useAppStore((s) => s.setPendingPremiumAction);
   const [premiumOpen, setPremiumOpen] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
+  const [milestoneStreak, setMilestoneStreak] = React.useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["goals"],
@@ -49,9 +51,13 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
   const confirmMutation = useMutation({
     mutationFn: async (goalId: string) =>
       (await api("/api/manifest/confirm", { method: "POST", body: JSON.stringify({ goalId }) })).json(),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["goals"] });
       qc.invalidateQueries({ queryKey: ["me"] });
+      // Check for milestone celebration
+      if (res?.streak && isMilestone(res.streak)) {
+        setMilestoneStreak(res.streak);
+      }
     },
   });
 
@@ -133,6 +139,11 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
       <DailyRitualInfo />
 
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
+      <MilestoneCelebration
+        streak={milestoneStreak ?? 0}
+        open={milestoneStreak !== null}
+        onClose={() => setMilestoneStreak(null)}
+      />
     </div>
   );
 }

@@ -581,3 +581,86 @@ Project stable from round 5. All views 8.5-9.5/10. Top priorities from worklog: 
 4. Add "streak milestone" celebrations (confetti/haptic at 3, 7, 14, 30 days).
 5. Download real RWS card art via alternative source.
 6. Add a "weekly reflection" auto-generated summary (Sundays) combining mood + readings + goals.
+
+---
+Task ID: cron-review-7
+Agent: main (webDevReview cron, 7th round)
+Task: LLM-enriched Energy Insight for premium, streak milestone celebrations
+
+## Current Project Status Assessment
+Project stable from round 6. All views 8.5-9.5/10. Top priorities from worklog: LLM-enriched Energy Insight, streak milestone celebrations, weekly reflection. The Energy Insight was rule-based (6 archetypes) — upgrading to LLM-generated narratives using actual user data would make it deeply personal and premium-worthy. Streak milestones add gamified retention.
+
+## Completed Modifications
+
+### Feature 1: LLM-Enriched Energy Insight (Premium)
+- **New API endpoint** `/api/stats/insight` (runtime=nodejs, maxDuration=30):
+  - Gathers the user's actual data: recent tarot questions, active/achieved goals, best streak, total confirmations, frequency minutes + top intentions, mood average, member-since date.
+  - Builds a compact data summary and sends it to z-ai-web-dev-sdk LLM with a system prompt that positions Lumina as "an insightful mystical guide who reads patterns like an astrologer reads a birth chart."
+  - LLM generates a 2-3 sentence "energy signature" with a named archetype + specific details from the user's data + an actionable invitation.
+  - Parses the **bold** archetype name from the response.
+  - Graceful fallback: returns null if LLM fails (stats view falls back to rule-based insight).
+  - Only accessible to premium users (403 for free tier).
+
+- **Stats view update**:
+  - Fetches `/api/me` for premium status.
+  - If premium + has data, fetches `/api/stats/insight` (5-min staleTime cache — LLM doesn't need to refresh often).
+  - Uses `effectiveInsight = llmInsightData?.insight ?? data?.insight` (LLM if available, rule-based fallback).
+  - "AI" badge (gold pill) appears next to "YOUR ENERGY SIGNATURE" when LLM insight is used.
+  - All accent colors/glyphs flow through from the insight response.
+
+- **Verified**: Premium user with 1 reading + 1 goal + mood 4 → LLM returned:
+  - Title: "The Seeker"
+  - Body: "You're at the threshold of abundance, asking 'what to focus on' yet standing just one day from your manifestation streak. Your high mood reveals you're ready to commit beyond questioning. Invite one small action today that aligns with abundance."
+  - The LLM used the user's actual question, goal title, mood value, and streak count to craft the narrative.
+
+- **VLM assessment** (8.5/10): "more valuable for engagement, creates narrative investment — users develop a relationship with their archetype. The specific reference to 'standing just one day from your manifestation streak' suggests it's pulling real behavioral data, which justifies the AI label."
+
+### Feature 2: Streak Milestone Celebrations
+- **MilestoneCelebration component** (`milestone-celebration.tsx`):
+  - Full-screen overlay with confetti particles (24 gold/leaf/sage/purple/amber dots bursting outward + falling with gravity + rotation).
+  - Center card: pulsing glyph orb (milestone-specific), streak number with flame icon, milestone title + description.
+  - 6 milestones: 3 days ("Three days kindled" 🔥), 7 ("The flame is lit" ✦), 14 ("A fortnight of devotion" ◉), 30 ("Thirty days sealed" 🌟), 60 ("Two moons" ☽), 90 ("A season of practice" ☀).
+  - Auto-closes after 4.5s or on tap.
+  - Spring-animated entrance, glow shadow matching milestone color.
+
+- **Manifest view integration**:
+  - `confirmMutation.onSuccess` checks `isMilestone(res.streak)` — if the new streak is a milestone, sets `milestoneStreak` state.
+  - `MilestoneCelebration` renders with the streak number, triggers the overlay.
+  - `isMilestone()` helper exported for reuse.
+
+- **Verified**: Confirm API returns `streak` field. Code properly wired (lint clean, no runtime errors). Will trigger on 3rd, 7th, 14th, 30th, 60th, 90th consecutive confirmation.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: `/api/stats/insight` compiling + returning 200; LLM response confirmed.
+- **agent-browser QA** (iPhone 15, premium + data):
+  - Stats: "YOUR ENERGY SIGNATURE / AI" badge + "The Seeker" archetype with personalized LLM narrative referencing actual user data.
+  - Manifest: goal cards render, confirm works, milestone celebration code wired (will trigger at 3-day streak).
+- **VLM**: 8.5/10 — "contextual depth, actionable specificity, emotional resonance. Creates narrative investment."
+
+## Cumulative VLM Scorecard
+| View | R1 | R2 | R3 | R4 | R5 | R6 | R7 |
+|------|-----|-----|-----|-----|-----|-----|-----|
+| Home | 7.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 |
+| Tarot setup | — | — | — | 8.0 | 9.0 | 9.0 | 9.0 |
+| Tarot result | 7.5 | 7.5 | 7.5 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Manifest | — | 7.5 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Frequency | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (empty) | 6.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (data) | — | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5+ |
+| Premium | 8.0 | 8.0 | 9.5 | 9.5 | 9.5 | 9.5 | 9.5 |
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **Milestone testing**: Can't test 3-day milestone in a single session (confirmations are 1/day). Code is wired but untested in production.
+4. **LLM insight latency**: Takes ~2-3s to generate. Currently loads after the rule-based insight (graceful fallback). Could add a loading shimmer.
+5. **LLM insight cost**: Each premium stats view triggers an LLM call (5-min cache mitigates this).
+
+## Priority Recommendations for Next Phase
+1. Add LLM insight loading state (shimmer while waiting for AI response).
+2. Websocket mini-service for scheduled manifestation goal reminders.
+3. Add "Why this?" expandable tooltip on AI insight (show 2-3 data points that generated the archetype — VLM recommended for transparency).
+4. Weekly reflection auto-summary (Sundays) combining mood + readings + goals.
+5. 30-day mood history view (tappable from the 7-day sparkline).
+6. Download real RWS card art via alternative source.

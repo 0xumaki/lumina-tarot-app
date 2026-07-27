@@ -596,6 +596,25 @@ export default function StatsView() {
     refetchOnWindowFocus: true,
   });
 
+  // Fetch premium status to decide whether to use LLM insight
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => (await api("/api/me")).json(),
+  });
+  const isPremium = !!meData?.device?.isPremium;
+
+  // Fetch LLM insight for premium users (only if not empty state)
+  const hasNoData = data && data.readings.total === 0 && data.goals.totalConfirmations === 0 && data.frequency.totalSessions === 0;
+  const { data: llmInsightData } = useQuery({
+    queryKey: ["llm-insight"],
+    queryFn: async () => (await api("/api/stats/insight")).json(),
+    enabled: isPremium && !hasNoData,
+    staleTime: 300000, // 5 min cache — LLM insight doesn't need to refresh often
+  });
+
+  // Use LLM insight if available, otherwise the rule-based one
+  const effectiveInsight = llmInsightData?.insight ?? data?.insight;
+
   const memberSince = data ? new Date(data.memberSince) : null;
   const memberSinceStr = memberSince
     ? memberSince.toLocaleDateString("en-US", {
@@ -653,30 +672,37 @@ export default function StatsView() {
         <TodaysEnergy />
       </motion.div>
 
-      {/* Energy Insight — AI-style narrative summary */}
+      {/* Energy Insight — AI-generated (premium) or rule-based narrative */}
       <motion.div variants={itemVariants}>
         <ShellCard className="overflow-hidden">
-          <div className="relative p-4" style={{ background: `linear-gradient(135deg, ${data.insight.accent}14 0%, transparent 70%)` }}>
+          <div className="relative p-4" style={{ background: `linear-gradient(135deg, ${effectiveInsight?.accent ?? "#C5A87C"}14 0%, transparent 70%)` }}>
             <div className="flex items-start gap-3">
               <div
                 className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-[20px]"
                 style={{
-                  background: `radial-gradient(circle at 50% 40%, ${data.insight.accent}33, transparent 70%)`,
-                  border: `1px solid ${data.insight.accent}44`,
-                  color: data.insight.accent,
+                  background: `radial-gradient(circle at 50% 40%, ${effectiveInsight?.accent ?? "#C5A87C"}33, transparent 70%)`,
+                  border: `1px solid ${effectiveInsight?.accent ?? "#C5A87C"}44`,
+                  color: effectiveInsight?.accent ?? "#C5A87C",
                 }}
               >
-                {data.insight.glyph}
+                {effectiveInsight?.glyph ?? "✦"}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: data.insight.accent }}>
-                  Your energy signature
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: effectiveInsight?.accent ?? "#C5A87C" }}>
+                    Your energy signature
+                  </div>
+                  {llmInsightData?.insight && (
+                    <span className="text-[8px] uppercase tracking-[0.14em] text-gold/60 border border-gold/20 rounded-full px-1.5 py-0.5">
+                      AI
+                    </span>
+                  )}
                 </div>
                 <div className="text-[16px] font-medium text-ink mt-0.5 leading-[20px]">
-                  {data.insight.title}
+                  {effectiveInsight?.title ?? "Finding your rhythm"}
                 </div>
                 <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
-                  {data.insight.body}
+                  {effectiveInsight?.body ?? "Your pattern is still emerging."}
                 </p>
               </div>
             </div>
