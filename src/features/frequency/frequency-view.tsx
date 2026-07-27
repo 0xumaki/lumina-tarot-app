@@ -31,34 +31,49 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const engine = useFrequencyEngine();
   const maxSeconds = isPremium ? Infinity : 30;
 
+  // Use a ref to track if we're starting to avoid double-starts
+  const startingRef = React.useRef(false);
+
   const startSession = React.useCallback(
-    (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
+    async (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
+      if (startingRef.current) return;
+      startingRef.current = true;
+
       const dur = isPremium ? 600 : 30; // premium: 10-min auto-stop, free: 30s
-      engine.start({
-        carrierHz: preset.carrierHz,
-        binauralBeatHz: preset.binauralBeatHz,
-        mode: m,
-        durationSec: dur,
-        onTick: (s) => setSecondsLeft(s),
-        onEnd: () => {
-          setSecondsLeft(null);
-          // log session
-          api("/api/frequency/session", {
-            method: "POST",
-            body: JSON.stringify({
-              intention: preset.key,
-              frequencyHz: preset.carrierHz,
-              baseHz: m === "binaural" ? preset.carrierHz : null,
-              beatHz: m === "binaural" ? preset.binauralBeatHz : null,
-              mode: m,
-              durationSec: dur,
-              completed: true,
-            }),
-          }).then(() => qc.invalidateQueries({ queryKey: ["me"] }));
-          toast({ title: "Session complete", description: `${preset.label} · ${dur}s` });
-        },
-      });
+      // Set the timer display immediately for responsiveness
       setSecondsLeft(dur);
+
+      try {
+        await engine.start({
+          carrierHz: preset.carrierHz,
+          binauralBeatHz: preset.binauralBeatHz,
+          mode: m,
+          durationSec: dur,
+          onTick: (s) => setSecondsLeft(s),
+          onEnd: () => {
+            setSecondsLeft(null);
+            // log session
+            api("/api/frequency/session", {
+              method: "POST",
+              body: JSON.stringify({
+                intention: preset.key,
+                frequencyHz: preset.carrierHz,
+                baseHz: m === "binaural" ? preset.carrierHz : null,
+                beatHz: m === "binaural" ? preset.binauralBeatHz : null,
+                mode: m,
+                durationSec: dur,
+                completed: true,
+              }),
+            }).then(() => qc.invalidateQueries({ queryKey: ["me"] }));
+            toast({ title: "Session complete", description: `${preset.label} · ${dur}s` });
+          },
+        });
+      } catch (err) {
+        console.error("Engine start failed:", err);
+        setSecondsLeft(null);
+      } finally {
+        startingRef.current = false;
+      }
     },
     [engine, isPremium, api, qc, toast]
   );
@@ -79,8 +94,6 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
     }
     setSecondsLeft(null);
   }, [engine, api, qc, selected, mode]);
-
-  React.useEffect(() => () => engine.stop(), [engine]);
 
   return (
     <div className="space-y-5">

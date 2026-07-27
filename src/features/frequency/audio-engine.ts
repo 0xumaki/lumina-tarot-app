@@ -5,33 +5,8 @@ import * as Tone from "tone";
 
 /**
  * Lumina Frequency Engine — powered by Tone.js.
- *
- * Research-driven decision: Selected Tone.js over alternatives based on:
- *
- * | Library          | License | Stars  | Weekly DLs | Bundle  | Binaural | Solfeggio | Web Audio |
- * |------------------|---------|--------|------------|---------|----------|-----------|-----------|
- * | Tone.js          | MIT     | 14.7k  | 254k       | ~100KB* | ✅ (stereo) | ✅       | ✅ Native |
- * | Superpowered SDK | Proprietary | —   | —          | WASM    | ✅       | ✅        | ✅ WASM   |
- * | ZenTone          | Apache-2| 370    | —          | Android | ❌       | ❌        | ❌ Android|
- * | 1ps0/binaural    | None    | <50    | —          | Vanilla | ✅       | ✅        | ✅ Raw    |
- * | Raw Web Audio    | N/A     | N/A    | N/A        | 0KB     | DIY      | DIY       | ✅ Native |
- *
- * *Tone.js supports tree-shaking; importing just Oscillator + Gain + Filter
- * brings the actual payload to ~40-60KB gzip.
- *
- * Decision: Tone.js
- * - MIT license (unlike Superpowered's proprietary case-by-case licensing)
- * - 14.7k stars, 254k weekly downloads, actively maintained (last push Jul 2026)
- * - Native Web Audio (no WASM overhead, unlike Superpowered)
- * - Supports binaural (stereo channel merging), filters, LFOs, envelopes
- * - Cross-browser compatible (unlike ZenTone which is Android-only)
- * - Well-documented Oscillator, Gain, Filter, Merge nodes
- *
- * Rejected alternatives:
- * - Superpowered: Proprietary license, WASM complexity, overkill for tone generation
- * - ZenTone: Android-only (Kotlin/Java), not web-compatible
- * - 1ps0/binaural: No license, unmaintained, no npm package
- * - Raw Web Audio: Already implemented but lacked Tone.js's envelope/filter abstractions
+ * MIT license, 14.7k stars, 254k weekly downloads.
+ * Provides Oscillator, Gain, Filter, LFO, Merge abstractions over Web Audio.
  */
 
 type Mode = "pure" | "binaural" | "pad";
@@ -49,55 +24,80 @@ export function useFrequencyEngine() {
   const nodesRef = React.useRef<{
     oscillators: Tone.Oscillator[];
     gains: Tone.Gain[];
-    lfos?: Tone.LFO[];
-    filter?: Tone.Filter;
-    merger?: Tone.Merge;
+    lfos: Tone.LFO[];
+    filter: Tone.Filter | null;
+    merger: Tone.Merge | null;
   } | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = React.useState({ current: 0 })[0] as any;
-  const startedRef = React.useRef(false);
+  const startTimeRef = React.useRef(0);
+
+  // Use a ref to hold the latest stop function so cleanup doesn't change identity
+  const stopRef = React.useRef<() => number>(() => 0);
 
   const stop = React.useCallback(() => {
-    const nodes = nodesRef.current;
+    // Clear the timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    const nodes = nodesRef.current;
     if (nodes) {
       try {
-        // Fade out then dispose
+        // Fade out gains
         nodes.gains.forEach((g) => {
-          try { g.gain.rampTo(0.0001, 0.5); } catch {}
+          try {
+            g.gain.cancelScheduledValues(Tone.now());
+            g.gain.setValueAtTime(g.gain.value, Tone.now());
+            g.gain.rampTo(0.0001, 0.4);
+          } catch {}
         });
+        // Dispose after fade
         setTimeout(() => {
           nodes.oscillators.forEach((o) => {
-            try { o.stop(); o.dispose(); } catch {}
+            try { o.stop(); } catch {}
+            try { o.dispose(); } catch {}
+          });
+          nodes.lfos.forEach((l) => {
+            try { l.stop(); } catch {}
+            try { l.dispose(); } catch {}
           });
           nodes.gains.forEach((g) => {
             try { g.dispose(); } catch {}
           });
-          nodes.lfos?.forEach((l) => {
-            try { l.stop(); l.dispose(); } catch {}
-          });
-          nodes.filter?.dispose();
-          nodes.merger?.dispose();
-        }, 600);
+          try { nodes.filter?.dispose(); } catch {}
+          try { nodes.merger?.dispose(); } catch {}
+        }, 500);
       } catch {}
       nodesRef.current = null;
     }
+
     const played = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : 0;
     startTimeRef.current = 0;
-    startedRef.current = false;
     return played;
   }, []);
 
+  // Keep the ref in sync (in useEffect to avoid updating ref during render)
+  React.useEffect(() => {
+    stopRef.current = stop;
+  }, [stop]);
+
   const start = React.useCallback(
     async (opts: StartOptions) => {
-      // stop any existing
+      // Stop any existing session first (synchronously)
       stop();
 
-      // Ensure Tone.js audio context is started (requires user gesture)
-      await Tone.start();
+      // Ensure audio context is running — don't use Tone.start() as it can hang
+      // Instead, directly resume the context (Tone.js uses the same AudioContext)
+      try {
+        const ctx = Tone.getContext();
+        if (ctx.state !== "running") {
+          // Fire and forget — don't await, just try to resume
+          ctx.resume().catch(() => {});
+        }
+      } catch (err) {
+        console.error("[Lumina Audio] Context resume failed:", err);
+      }
 
       const fade = 1.5;
 
@@ -111,10 +111,10 @@ export function useFrequencyEngine() {
       const oscillators: Tone.Oscillator[] = [];
       const gains: Tone.Gain[] = [];
       const lfos: Tone.LFO[] = [];
+      let merger: Tone.Merge | null = null;
 
       if (opts.mode === "pure") {
-        // Rich pure tone: fundamental + octave harmonic
-        const fundGain = new Tone.Gain(0.7).connect(filter);
+        const fundGain = new Tone.Gain(0).connect(filter);
         gains.push(fundGain);
 
         const fundamental = new Tone.Oscillator({
@@ -125,7 +125,7 @@ export function useFrequencyEngine() {
         fundamental.start();
         oscillators.push(fundamental);
 
-        const harmGain = new Tone.Gain(0.15).connect(filter);
+        const harmGain = new Tone.Gain(0).connect(filter);
         gains.push(harmGain);
 
         const harmonic = new Tone.Oscillator({
@@ -137,20 +137,17 @@ export function useFrequencyEngine() {
         oscillators.push(harmonic);
 
         // Fade in
-        fundGain.gain.setValueAtTime(0, Tone.now());
         fundGain.gain.rampTo(0.7, fade);
-        harmGain.gain.setValueAtTime(0, Tone.now());
         harmGain.gain.rampTo(0.15, fade);
       } else if (opts.mode === "binaural") {
-        // Stereo binaural with per-channel harmonics
-        const merger = new Tone.Merge(2).connect(filter);
+        merger = new Tone.Merge(2).connect(filter);
 
         const beat = opts.binauralBeatHz || 7;
         const leftFreq = opts.carrierHz - beat / 2;
         const rightFreq = opts.carrierHz + beat / 2;
 
         // Left channel
-        const leftGain = new Tone.Gain(0.6).connect(merger, 0, 0);
+        const leftGain = new Tone.Gain(0).connect(merger, 0, 0);
         gains.push(leftGain);
 
         const left = new Tone.Oscillator({
@@ -161,7 +158,7 @@ export function useFrequencyEngine() {
         left.start();
         oscillators.push(left);
 
-        const leftHarmGain = new Tone.Gain(0.12).connect(leftGain);
+        const leftHarmGain = new Tone.Gain(0).connect(leftGain);
         gains.push(leftHarmGain);
         const leftHarm = new Tone.Oscillator({
           frequency: leftFreq * 2,
@@ -172,7 +169,7 @@ export function useFrequencyEngine() {
         oscillators.push(leftHarm);
 
         // Right channel
-        const rightGain = new Tone.Gain(0.6).connect(merger, 0, 1);
+        const rightGain = new Tone.Gain(0).connect(merger, 0, 1);
         gains.push(rightGain);
 
         const right = new Tone.Oscillator({
@@ -183,7 +180,7 @@ export function useFrequencyEngine() {
         right.start();
         oscillators.push(right);
 
-        const rightHarmGain = new Tone.Gain(0.12).connect(rightGain);
+        const rightHarmGain = new Tone.Gain(0).connect(rightGain);
         gains.push(rightHarmGain);
         const rightHarm = new Tone.Oscillator({
           frequency: rightFreq * 2,
@@ -194,13 +191,11 @@ export function useFrequencyEngine() {
         oscillators.push(rightHarm);
 
         // Fade in
-        leftGain.gain.setValueAtTime(0, Tone.now());
         leftGain.gain.rampTo(0.6, fade);
-        rightGain.gain.setValueAtTime(0, Tone.now());
         rightGain.gain.rampTo(0.6, fade);
       } else {
-        // pad — layered detuned oscillators with triangle warmth + LFO vibrato
-        const padGain = new Tone.Gain(0.4).connect(filter);
+        // pad
+        const padGain = new Tone.Gain(0).connect(filter);
         gains.push(padGain);
 
         const freqs = [
@@ -222,7 +217,6 @@ export function useFrequencyEngine() {
           osc.start();
           oscillators.push(osc);
 
-          // LFO vibrato
           const lfo = new Tone.LFO({
             frequency: 0.12,
             min: f.freq - 1.5,
@@ -233,16 +227,17 @@ export function useFrequencyEngine() {
         }
 
         // Fade in
-        padGain.gain.setValueAtTime(0, Tone.now());
         padGain.gain.rampTo(0.4, fade);
       }
 
-      nodesRef.current = { oscillators, gains, lfos, filter };
+      // Store all nodes
+      nodesRef.current = { oscillators, gains, lfos, filter, merger };
 
+      // Set up timer
       startTimeRef.current = Date.now();
-      startedRef.current = true;
       let remaining = opts.durationSec;
       opts.onTick?.(remaining);
+
       timerRef.current = setInterval(() => {
         remaining = Math.max(0, remaining - 1);
         opts.onTick?.(remaining);
@@ -255,7 +250,12 @@ export function useFrequencyEngine() {
     [stop]
   );
 
-  React.useEffect(() => () => stop(), [stop]);
+  // Cleanup on unmount only — use empty deps + ref
+  React.useEffect(() => {
+    return () => {
+      stopRef.current();
+    };
+  }, []);
 
   return { start, stop };
 }
