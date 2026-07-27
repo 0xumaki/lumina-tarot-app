@@ -60,6 +60,15 @@ type StatsData = {
     confirmations: number;
     frequencySec: number;
   }[];
+  mood: {
+    week: (number | null)[];
+    average: number | null;
+    daysLogged: number;
+    correlation: {
+      withReadings: number | null;
+      withoutReadings: number | null;
+    };
+  };
   insight: {
     title: string;
     body: string;
@@ -306,6 +315,67 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Mood sparkline + helpers                                            */
+/* ------------------------------------------------------------------ */
+
+const MOOD_GLYPHS = ["🌑", "🌒", "🌓", "🌔", "🌕"];
+const MOOD_COLORS = ["#7A8680", "#8AA8C9", "#C5A87C", "#B5CD7E", "#E7D2A8"];
+const MOOD_LABELS = ["Heavy", "Low", "Neutral", "Light", "Bright"];
+
+function moodLabel(avg: number | null): string {
+  if (avg === null) return "—";
+  const idx = Math.min(4, Math.max(0, Math.round(avg) - 1));
+  return MOOD_LABELS[idx];
+}
+
+function MoodSparkline({ week }: { week: (number | null)[] }) {
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-1.5 h-[60px]">
+        {week.map((m, i) => {
+          const hasMood = m !== null;
+          const idx = hasMood ? Math.min(4, Math.max(0, m! - 1)) : 0;
+          const height = hasMood ? 20 + idx * 10 : 6;
+          const color = hasMood ? MOOD_COLORS[idx] : "rgba(255,255,255,0.06)";
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div className="flex-1 flex items-end w-full justify-center">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height }}
+                  transition={{ delay: i * 0.05, duration: 0.4, ease: "easeOut" }}
+                  className="w-full max-w-[28px] rounded-full"
+                  style={{
+                    height,
+                    background: hasMood ? `${color}` : color,
+                    opacity: hasMood ? 1 : 0.5,
+                    boxShadow: hasMood ? `0 0 8px ${color}44` : "none",
+                  }}
+                />
+              </div>
+              <span className="text-[12px] leading-none" style={{ opacity: hasMood ? 1 : 0.3 }}>
+                {hasMood ? MOOD_GLYPHS[idx] : "·"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-7 mt-1.5">
+        {week.map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return (
+            <div key={i} className="text-center text-[9px] text-ink-muted font-medium">
+              {["S", "M", "T", "W", "T", "F", "S"][d.getDay()]}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Breakdown row                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -456,6 +526,63 @@ function StatsEmpty({ memberSinceStr }: { memberSinceStr: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Today's energy — card-of-day snippet                               */
+/* ------------------------------------------------------------------ */
+
+function TodaysEnergy() {
+  const api = useApi();
+  const { data } = useQuery({
+    queryKey: ["card-of-day"],
+    queryFn: async () => (await api("/api/tarot/card-of-day")).json(),
+    staleTime: 60000,
+  });
+
+  if (!data?.card) {
+    return (
+      <GlassCard className="p-3.5 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 animate-pulse">
+          <Sparkles className="w-4 h-4 text-gold/50" />
+        </div>
+        <div className="flex-1">
+          <div className="h-3 w-24 bg-white/5 rounded animate-pulse" />
+          <div className="h-2.5 w-40 bg-white/5 rounded mt-1.5 animate-pulse" />
+        </div>
+      </GlassCard>
+    );
+  }
+
+  const card = data.card;
+  const reversed = data.reversed;
+
+  return (
+    <GlassCard className="p-3.5 flex items-center gap-3">
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-[18px]"
+        style={{
+          background: "radial-gradient(circle at 50% 40%, rgba(197,168,124,0.25), transparent 70%)",
+          border: "1px solid rgba(197,168,124,0.35)",
+          color: "#C5A87C",
+        }}
+      >
+        {card.symbol}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+          Today's energy
+        </div>
+        <div className="text-[13px] font-medium text-ink mt-0.5 leading-[16px]">
+          {card.nameShort}
+          {reversed && <span className="text-gold/60 font-normal"> · Reversed</span>}
+        </div>
+        <div className="text-[11px] text-ink-muted line-clamp-1 mt-0.5">
+          {(reversed ? card.keywordsReversed : card.keywordsUpright).slice(0, 3).join(" · ")}
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Main view                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -521,6 +648,11 @@ export default function StatsView() {
         />
       </motion.div>
 
+      {/* Today's energy — card-of-day snippet */}
+      <motion.div variants={itemVariants}>
+        <TodaysEnergy />
+      </motion.div>
+
       {/* Energy Insight — AI-style narrative summary */}
       <motion.div variants={itemVariants}>
         <ShellCard className="overflow-hidden">
@@ -551,6 +683,28 @@ export default function StatsView() {
           </div>
         </ShellCard>
       </motion.div>
+
+      {/* Mood trend — inline sparkline under the signature (Option C) */}
+      {data.mood.daysLogged > 0 && (
+        <motion.div variants={itemVariants}>
+          <GlassCard className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+                  This week's tone
+                </div>
+                <div className="text-[13px] font-medium text-ink mt-0.5">
+                  {moodLabel(data.mood.average)} · avg {data.mood.average?.toFixed(1)}/5
+                </div>
+              </div>
+              <div className="text-[10px] text-ink-muted">
+                {data.mood.daysLogged}/7 days
+              </div>
+            </div>
+            <MoodSparkline week={data.mood.week} />
+          </GlassCard>
+        </motion.div>
+      )}
 
       {/* Summary tiles (2×2) */}
       <motion.div
@@ -705,6 +859,40 @@ export default function StatsView() {
           />
         </GlassCard>
       </motion.div>
+
+      {/* Mood-reading correlation insight */}
+      {data.mood.daysLogged >= 2 &&
+        data.mood.correlation.withReadings !== null &&
+        data.mood.correlation.withoutReadings !== null && (
+          <motion.div variants={itemVariants}>
+            <GlassCard className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center">
+                  <Sparkles className="w-3.5 h-3.5 text-gold" />
+                </div>
+                <div className="text-[14px] font-medium text-ink">Pattern</div>
+              </div>
+              <Divider className="my-1" />
+              <p className="text-[12px] leading-[18px] text-ink-muted py-2">
+                {buildMoodInsight(
+                  data.mood.correlation.withReadings,
+                  data.mood.correlation.withoutReadings
+                )}
+              </p>
+            </GlassCard>
+          </motion.div>
+        )}
     </motion.div>
   );
+}
+
+function buildMoodInsight(withReadings: number, withoutReadings: number): string {
+  const diff = Math.round((withReadings - withoutReadings) * 10) / 10;
+  if (Math.abs(diff) < 0.3) {
+    return `Your mood stays steady (avg ${withReadings.toFixed(1)}/5) whether or not you read the cards — the ritual is a companion, not a crutch.`;
+  }
+  if (diff > 0) {
+    return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${diff.toFixed(1)} points brighter than days without (${withoutReadings.toFixed(1)}/5). The cards lift you.`;
+  }
+  return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${Math.abs(diff).toFixed(1)} points lower than days without (${withoutReadings.toFixed(1)}/5). You may be seeking the cards when you need them most.`;
 }

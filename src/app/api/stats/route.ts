@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     // Personal datasets per device are small — fetch the fields we need in
     // parallel and aggregate in JS. This keeps the query surface simple and
     // avoids Prisma groupBy typing pitfalls.
-    const [readings, goals, confirmations, sessions] = await Promise.all([
+    const [readings, goals, confirmations, sessions, moods] = await Promise.all([
       db.reading.findMany({
         where: { deviceId: device.id },
         select: { spreadType: true, createdAt: true },
@@ -70,6 +70,10 @@ export async function GET(req: Request) {
           durationSec: true,
           createdAt: true,
         },
+      }),
+      db.mood.findMany({
+        where: { deviceId: device.id, date: { in: days } },
+        select: { date: true, mood: true, note: true },
       }),
     ]);
 
@@ -212,6 +216,32 @@ export async function GET(req: Request) {
       frequencySec: freqByDay.get(d) ?? 0,
     }));
 
+    // ── Mood: 7-day array + average + correlation with readings
+    const moodByDay = new Map<string, number>();
+    for (const m of moods) {
+      moodByDay.set(m.date, m.mood);
+    }
+    const moodWeek = days.map((d) => moodByDay.get(d) ?? null);
+    const moodValues = moodWeek.filter((m): m is number => m !== null);
+    const moodAvg = moodValues.length > 0
+      ? Math.round((moodValues.reduce((a, b) => a + b, 0) / moodValues.length) * 10) / 10
+      : null;
+    const moodDaysLogged = moodValues.length;
+
+    // Mood-reading correlation: on days with readings, was mood higher?
+    let moodWithReadings: number[] = [];
+    let moodWithoutReadings: number[] = [];
+    for (const d of days) {
+      const mood = moodByDay.get(d);
+      if (mood === undefined) continue;
+      const hadReading = (readByDay.get(d) ?? 0) > 0;
+      if (hadReading) moodWithReadings.push(mood);
+      else moodWithoutReadings.push(mood);
+    }
+    const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const moodWithReadingsAvg = moodWithReadings.length ? Math.round(avg(moodWithReadings) * 10) / 10 : null;
+    const moodWithoutReadingsAvg = moodWithoutReadings.length ? Math.round(avg(moodWithoutReadings) * 10) / 10 : null;
+
     // ── Energy Insight: a narrative summary derived from usage patterns.
     const insight = buildInsight({
       totalReadings,
@@ -251,6 +281,15 @@ export async function GET(req: Request) {
         mostUsedIntentionKey,
         mostUsedIntentionHz,
         minutesThisWeek,
+      },
+      mood: {
+        week: moodWeek,
+        average: moodAvg,
+        daysLogged: moodDaysLogged,
+        correlation: {
+          withReadings: moodWithReadingsAvg,
+          withoutReadings: moodWithoutReadingsAvg,
+        },
       },
       insight,
       activity,

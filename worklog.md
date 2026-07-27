@@ -511,3 +511,73 @@ Project stable from round 4. All views scoring 8.5-9.5/10. VLM assessment of tar
 4. Add mood-reading correlation insight ("Your brightest moods follow abundance readings").
 5. Download real RWS card art via alternative source.
 6. Add a "Today's energy" mini-forecast on Stats (card-of-day snippet).
+
+---
+Task ID: cron-review-6
+Agent: main (webDevReview cron, 6th round)
+Task: Mood trend in stats, today's energy forecast, mood-reading correlation insight
+
+## Current Project Status Assessment
+Project stable from round 5. All views 8.5-9.5/10. Top priorities from worklog: mood trend in stats, websocket reminders, LLM insights. VLM assessment of stats (8.5/10 with data) recommended Option C (inline mood sparkline under Energy Signature) as the best placement — connecting the qualitative archetype with quantitative mood proof. Also wanted a "today's energy" daily hook on stats.
+
+## Completed Modifications
+
+### Feature 1: 7-Day Mood Trend in Stats (Option C — inline sparkline)
+- **Stats API** (`/api/stats`): Added `mood` object to response — `week` (7-day array of mood values or null), `average` (0-5 rounded to 1 decimal), `daysLogged` (count), `correlation` ({withReadings, withoutReadings} averages). Queries the Mood model in parallel with other data.
+- **MoodSparkline component**: 7 vertical bars with moon glyphs (🌑→🌕) color-coded by mood level. Animated height fill (staggered 0.05s delay). Day labels (S/M/T/W/T/F/S). Glow on filled bars. Shows "This week's tone · [label] · avg X.X/5 · N/7 days".
+- **Placement**: Inline card directly under the Energy Insight signature (VLM's recommended Option C) — creates a narrative: "You are [archetype] and here's your mood evidence this week."
+- Only shows when `daysLogged > 0` (graceful absence for new users).
+
+### Feature 2: Today's Energy Mini-Forecast
+- **TodaysEnergy component**: Fetches `/api/tarot/card-of-day` and shows a compact card at the top of Stats (right after the header). Displays the card's symbol in a gold orb + "TODAY'S ENERGY" label + card name (+ "Reversed" if applicable) + top 3 keywords.
+- Gives users an instant daily hook when they open Stats — a reason to return.
+- Loading state: pulsing skeleton.
+
+### Feature 3: Mood-Reading Correlation Insight
+- **Stats API**: Computes correlation — averages mood on days with readings vs days without readings (over the last 7 days).
+- **Pattern card** at the bottom of Stats (after frequency breakdown): Shows a narrative insight based on the correlation:
+  - If mood is ~0.3+ points higher on reading days: "On days you read the cards, your mood averages X/5 — Y points brighter. The cards lift you."
+  - If mood is ~0.3+ points lower: "You may be seeking the cards when you need them most."
+  - If steady (< 0.3 diff): "The ritual is a companion, not a crutch."
+- Only shows when `daysLogged >= 2` AND both correlation averages exist (needs at least one reading day + one non-reading day with mood data).
+
+### Infrastructure
+- Stats API now runs 5 parallel Prisma queries (added Mood).
+- All mood data flows through the existing anonymous device-auth pattern.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: `SELECT main.Mood ... IN (7 days)` + `GET /api/stats 200` confirmed.
+- **agent-browser QA** (iPhone 15, premium + data populated):
+  - Stats shows: "TODAY'S ENERGY / King of Pentacles / abundance · mastery · stability" (card-of-day snippet).
+  - "THIS WEEK'S TONE / Light · avg 4.0/5 / 1/7 days" with moon sparkline (🌔 on today, · on empty days).
+  - "YOUR ENERGY SIGNATURE / The devoted" (manifestation-dominant archetype).
+  - Summary tiles, activity chart, breakdown cards all render.
+- **VLM**: "excellent cohesion, psychologically sound — users feel their daily draw is both personal and statistically meaningful."
+
+## Cumulative VLM Scorecard
+| View | R1 | R2 | R3 | R4 | R5 | R6 |
+|------|-----|-----|-----|-----|-----|-----|
+| Home | 7.5 | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 |
+| Tarot setup | — | — | — | 8.0 | 9.0 | 9.0 |
+| Tarot result | 7.5 | 7.5 | 7.5 | 9.0 | 9.0 | 9.0 |
+| Manifest | — | 7.5 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Frequency | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (empty) | 6.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (data) | — | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 |
+| Premium | 8.0 | 8.0 | 9.5 | 9.5 | 9.5 | 9.5 |
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **Mood sparkline sparse with 1 day**: Looks empty until 3+ days logged (expected — the feature is designed for ongoing use).
+4. **Energy insight scalability**: Still rule-based (6 archetypes). LLM enrichment for premium is future.
+5. **Dev server stability**: Required restart after .next cache clear (recurring issue).
+
+## Priority Recommendations for Next Phase
+1. Websocket mini-service for scheduled manifestation goal reminders (at each goal's reminderTime).
+2. LLM-enriched Energy Insight for premium users (deeper, personalized narrative using z-ai-web-dev-sdk).
+3. Add a 30-day mood history view (tappable from the 7-day sparkline).
+4. Add "streak milestone" celebrations (confetti/haptic at 3, 7, 14, 30 days).
+5. Download real RWS card art via alternative source.
+6. Add a "weekly reflection" auto-generated summary (Sundays) combining mood + readings + goals.
