@@ -23,9 +23,10 @@ const AMBEDIENT_BEDS: { id: AmbientBed; label: string; icon: React.ElementType; 
   { id: "rain", label: "Rain", icon: CloudRain, desc: "Gentle rainfall" },
   { id: "ocean", label: "Ocean", icon: Waves, desc: "Rolling waves" },
   { id: "wind", label: "Wind", icon: Wind, desc: "Soft breeze" },
-  { id: "forest", label: "Forest", icon: Trees, desc: "Birds & leaves" },
+  { id: "birds", label: "Birds", icon: Trees, desc: "Melodic bird songs" },
   { id: "stream", label: "Stream", icon: Droplets, desc: "Bubbling brook" },
-  { id: "none", label: "None", icon: Mountain, desc: "Pure tone only" },
+  { id: "river", label: "River", icon: Mountain, desc: "Flowing river with depth" },
+  { id: "none", label: "None", icon: AudioLines, desc: "Pure tone only" },
 ];
 
 export function FrequencyView({ isPremium }: { isPremium: boolean }) {

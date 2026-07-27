@@ -122,10 +122,16 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
         </div>
       </ShellCard>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-1 gap-2.5">
+      {/* Quick actions — premium image cards */}
+      <div className="grid grid-cols-1 gap-3">
         {quickActions.map((a, i) => {
           const Icon = a.icon;
+          const imageMap: Record<string, string> = {
+            tarot: "/images/action-tarot.jpg",
+            manifest: "/images/action-manifest.jpg",
+            frequency: "/images/action-frequency.jpg",
+          };
+          const img = imageMap[a.key] || "";
           return (
             <motion.button
               key={a.key}
@@ -133,21 +139,42 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 * i }}
               onClick={() => setTab(a.key)}
-              className="text-left"
+              className="text-left group"
             >
-              <GlassCard className="p-3.5 flex items-center gap-3 hover:border-white/15 transition-colors">
+              <div className="relative rounded-2xl overflow-hidden h-[100px] border border-white/8 hover:border-white/15 transition-all">
+                {/* Background image */}
+                <img
+                  src={img}
+                  alt={a.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                {/* Dark gradient overlay for text legibility */}
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: `${a.accent}1a`, border: `1px solid ${a.accent}40` }}
-                >
-                  <Icon className="w-4 h-4" style={{ color: a.accent }} />
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.3) 100%)",
+                  }}
+                />
+                {/* Accent glow on the right edge */}
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none"
+                  style={{ background: `radial-gradient(ellipse at right, ${a.accent}15, transparent 70%)` }}
+                />
+                {/* Content */}
+                <div className="relative z-10 h-full flex items-center gap-3 p-4">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm"
+                    style={{ background: `${a.accent}25`, border: `1px solid ${a.accent}55` }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: a.accent }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-medium text-white">{a.label}</div>
+                    <div className="text-[11px] text-white/60">{a.desc}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-medium text-ink">{a.label}</div>
-                  <div className="text-[11px] text-ink-muted">{a.desc}</div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-ink-muted" />
-              </GlassCard>
+              </div>
             </motion.button>
           );
         })}
