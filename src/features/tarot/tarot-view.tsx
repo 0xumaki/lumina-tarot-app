@@ -165,7 +165,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                 </div>
                 <Divider />
                 <div>
-                  <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center justify-between mb-3">
                     <label className="text-[11px] uppercase tracking-[0.18em] text-gold/70 font-medium">
                       Spread
                     </label>
@@ -173,10 +173,12 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                       {remaining === null ? "Premium" : `${remaining} left`}
                     </Pill>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {SPREADS.map((s) => {
                       const locked = !isPremium && s.premium;
-                      const selected = spread === s.id;
+                      const isSelected = spread === s.id;
+                      // Mini card icons showing the spread layout
+                      const cardIcons = Array.from({ length: Math.min(s.cardCount, 5) }, (_, i) => i);
                       return (
                         <button
                           key={s.id}
@@ -188,35 +190,92 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                             }
                             setSpread(s.id);
                           }}
-                          className={`relative text-left rounded-xl p-3 border transition-all ${
-                            selected
-                              ? "border-gold/50 bg-gold/[0.10]"
-                              : "border-white/6 bg-white/[0.015] hover:border-white/12"
+                          className={`relative text-left rounded-2xl p-3.5 border transition-all overflow-hidden ${
+                            isSelected
+                              ? "border-gold/50 bg-gold/[0.08] shadow-[0_0_20px_-4px_rgba(197,168,124,0.2)]"
+                              : "border-white/6 bg-white/[0.015] hover:border-white/15 hover:bg-white/[0.03]"
                           }`}
                         >
-                          {/* Selected checkmark — top-right, consistent position */}
-                          <div className="absolute top-2 right-2">
-                            {selected ? (
-                              <div className="w-4 h-4 rounded-full bg-gold flex items-center justify-center">
-                                <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />
+                          {/* Selected gradient glow */}
+                          {isSelected && (
+                            <div
+                              className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+                              style={{ background: "radial-gradient(circle, rgba(197,168,124,0.12), transparent 70%)" }}
+                            />
+                          )}
+
+                          {/* Top row: card-count visualization + status badge */}
+                          <div className="flex items-center justify-between mb-2.5">
+                            {/* Mini card stack visualization */}
+                            <div className="flex items-center gap-0.5">
+                              {cardIcons.map((i) => (
+                                <div
+                                  key={i}
+                                  className={`rounded-sm transition-all ${
+                                    isSelected
+                                      ? "bg-gold/40 border-gold/30"
+                                      : "bg-white/10 border-white/5"
+                                  }`}
+                                  style={{
+                                    width: 8,
+                                    height: 12,
+                                    borderWidth: 1,
+                                    marginLeft: i > 0 ? -3 : 0,
+                                    zIndex: cardIcons.length - i,
+                                  }}
+                                />
+                              ))}
+                              {s.cardCount > 5 && (
+                                <span className={`text-[9px] ml-1 ${isSelected ? "text-gold/70" : "text-ink-muted"}`}>
+                                  +{s.cardCount - 5}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status badge */}
+                            {isSelected ? (
+                              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#C5A87C] flex items-center justify-center shadow-[0_0_8px_rgba(197,168,124,0.5)]">
+                                <Check className="w-3 h-3 text-black" strokeWidth={3} />
                               </div>
                             ) : locked ? (
-                              <Lock className="w-3 h-3 text-ink-muted" />
+                              <div className="w-5 h-5 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                                <Lock className="w-2.5 h-2.5 text-ink-muted" />
+                              </div>
                             ) : null}
                           </div>
-                          <div className="flex items-center gap-1.5 pr-5">
-                            <span className={`text-[13px] font-medium ${selected ? "text-gold" : "text-ink"}`}>{s.name}</span>
+
+                          {/* Card name */}
+                          <div className={`text-[13px] font-medium leading-[16px] ${
+                            isSelected ? "text-gold" : "text-ink"
+                          }`}>
+                            {s.name}
                           </div>
-                          <div className="text-[11px] text-ink-muted mt-0.5 leading-[14px]">
-                            {s.cardCount} card{s.cardCount > 1 ? "s" : ""} · {s.premium ? "Premium" : "Free"}
+
+                          {/* Meta line */}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className={`text-[10px] ${isSelected ? "text-gold/50" : "text-ink-muted"}`}>
+                              {s.cardCount} card{s.cardCount > 1 ? "s" : ""}
+                            </span>
+                            <span className="text-ink-muted/30">·</span>
+                            <span className={`text-[10px] ${
+                              s.premium
+                                ? locked ? "text-ink-muted/50" : "text-gold/50"
+                                : "text-leaf/50"
+                            }`}>
+                              {s.premium ? "Premium" : "Free"}
+                            </span>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-[11px] text-ink-muted mt-2 leading-[15px]">
-                    {currentSpread.description}
-                  </p>
+
+                  {/* Spread description — animated swap */}
+                  <div className="mt-2.5 px-1">
+                    <p className="text-[11px] text-ink-muted leading-[15px]">
+                      {currentSpread.description}
+                    </p>
+                  </div>
                 </div>
                 <GoldButton onClick={performReading} className="w-full">
                   <Shuffle className="w-4 h-4" />

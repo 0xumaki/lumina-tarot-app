@@ -283,25 +283,24 @@ export function useFrequencyEngine() {
       noiseGain.gain.rampTo(0.08, 3);
       bedGain.gain.rampTo(0.8, 3);
     } else if (ambient === "birds") {
-      // === Bird Songs: gentle pink noise base + melodic bird chirps ===
-      // Soft background ambience
+      // === Bird Songs: gentle, pleasant birdsong with soft tonal whistles ===
+      // Pink noise base for garden ambience
       noise = new Tone.Noise("pink").start();
       noiseGain = new Tone.Gain(0).connect(bedGain);
       gains.push(noiseGain);
       noiseFilter = new Tone.Filter({
         type: "lowpass",
-        frequency: 600,
+        frequency: 500,
         Q: 0.3,
       }).connect(noiseGain);
       noise.connect(noiseFilter);
 
-      // Bird chirps — varied frequencies with melodic patterns
-      // Each bird has a base frequency, a chirp rate, and pitch variation
+      // Bird whistles — warm triangle waves at musical frequencies
+      // Using slow sine envelopes for gentle, natural-sounding chirps (NOT square waves)
       const birds = [
-        { baseFreq: 2200, chirpRate: 1.5, pitchVar: 200, gain: 0.018 },
-        { baseFreq: 2800, chirpRate: 2.3, pitchVar: 300, gain: 0.014 },
-        { baseFreq: 3400, chirpRate: 1.8, pitchVar: 250, gain: 0.012 },
-        { baseFreq: 1800, chirpRate: 0.9, pitchVar: 150, gain: 0.020 },
+        { baseFreq: 1320, chirpRate: 0.3, pitchVar: 80, gain: 0.012 },  // E6 — soft whistle
+        { baseFreq: 1760, chirpRate: 0.25, pitchVar: 100, gain: 0.010 }, // A6 — higher whistle
+        { baseFreq: 880, chirpRate: 0.4, pitchVar: 60, gain: 0.014 },   // A5 — lower coo
       ];
 
       for (const bird of birds) {
@@ -310,25 +309,26 @@ export function useFrequencyEngine() {
 
         const osc = new Tone.Oscillator({
           frequency: bird.baseFreq,
-          type: "sine",
-          volume: -22,
+          type: "triangle", // warmer than sine, gentler than square
+          volume: -16,
         }).connect(birdGain);
         osc.start();
         oscillators.push(osc);
 
-        // Chirp envelope — fast on/off for chirping quality
-        const chirpLfo = new Tone.LFO({
+        // Gentle amplitude envelope — slow sine wave, NOT square
+        // This creates a soft "coo" quality instead of harsh chirping
+        const ampLfo = new Tone.LFO({
           frequency: bird.chirpRate,
           min: 0,
           max: bird.gain,
-          type: "square",
+          type: "sine", // sine = smooth fade in/out, no clicks
         }).connect(birdGain.gain);
-        chirpLfo.start();
-        lfos.push(chirpLfo);
+        ampLfo.start();
+        lfos.push(ampLfo);
 
-        // Pitch variation — bird slides between notes
+        // Gentle pitch slide — bird slides between two notes
         const pitchLfo = new Tone.LFO({
-          frequency: bird.chirpRate * 0.7,
+          frequency: bird.chirpRate * 0.5,
           min: bird.baseFreq - bird.pitchVar,
           max: bird.baseFreq + bird.pitchVar,
           type: "sine",
@@ -336,88 +336,86 @@ export function useFrequencyEngine() {
         pitchLfo.start();
         lfos.push(pitchLfo);
 
-        // Occasional silence — birds don't chirp continuously
-        const onOffLfo = new Tone.LFO({
-          frequency: 0.08 + Math.random() * 0.06,
+        // Long pause envelope — bird sings in short bursts with gaps
+        // Very slow sine so the bird is quiet most of the time, sings occasionally
+        const pauseLfo = new Tone.LFO({
+          frequency: 0.04 + Math.random() * 0.03, // ~every 20-30 seconds a burst
           min: 0,
           max: bird.gain,
           type: "sine",
         }).connect(birdGain.gain);
-        onOffLfo.start();
-        lfos.push(onOffLfo);
+        pauseLfo.start();
+        lfos.push(pauseLfo);
       }
 
-      noiseGain.gain.rampTo(0.04, 3);
-      bedGain.gain.rampTo(0.7, 3);
+      noiseGain.gain.rampTo(0.03, 3);
+      bedGain.gain.rampTo(0.6, 3);
     } else if (ambient === "river") {
-      // === River: flowing water with depth — wide filtered noise + mid-frequency flow ===
-      noise = new Tone.Noise("brown").start();
+      // === River: continuous, smooth flowing water — NO amplitude modulation ===
+      // The key fix: keep the noise CONSTANT (no LFO on gain) to avoid "steam train" pulsing.
+      // Only the filter frequency slowly shifts to create natural variation.
+
+      // Main water body: pink noise through lowpass — constant, smooth flow
+      noise = new Tone.Noise("pink").start();
       noiseGain = new Tone.Gain(0).connect(bedGain);
       gains.push(noiseGain);
 
-      // Wide bandpass for the "flowing" quality of a river
+      // Lowpass filter — gives the "deep water" sound
       noiseFilter = new Tone.Filter({
-        type: "bandpass",
-        frequency: 800,
-        Q: 0.3,
+        type: "lowpass",
+        frequency: 900,
+        Q: 0.4,
       }).connect(noiseGain);
       noise.connect(noiseFilter);
 
-      // Slow filter sweep for the ebb and flow of water
-      const flowLfo = new Tone.LFO({
-        frequency: 0.06,
-        min: 500,
-        max: 1500,
+      // Very slow filter frequency drift — creates natural variation in the water sound
+      // WITHOUT any amplitude changes (which caused the steam-train effect)
+      const driftLfo = new Tone.LFO({
+        frequency: 0.02, // extremely slow — 50 second cycle
+        min: 700,
+        max: 1200,
         type: "sine",
       }).connect(noiseFilter.frequency);
-      flowLfo.start();
-      lfos.push(flowLfo);
+      driftLfo.start();
+      lfos.push(driftLfo);
 
-      // Amplitude variation — water surges and recedes
-      const surgeLfo = new Tone.LFO({
-        frequency: 0.04,
-        min: 0.05,
-        max: 0.12,
-        type: "sine",
-      }).connect(noiseGain.gain);
-      surgeLfo.start();
-      lfos.push(surgeLfo);
-
-      // High-frequency sparkle for water surface ripples
-      const sparkleNoise = new Tone.Noise("white").start();
-      const sparkleGain = new Tone.Gain(0).connect(bedGain);
-      gains.push(sparkleGain);
-      const sparkleFilter = new Tone.Filter({
+      // Second layer: higher-frequency "shallows" — white noise through highpass
+      // This adds the brighter "rushing" quality of water over stones
+      const shallowsNoise = new Tone.Noise("white").start();
+      const shallowsGain = new Tone.Gain(0).connect(bedGain);
+      gains.push(shallowsGain);
+      const shallowsFilter = new Tone.Filter({
         type: "highpass",
-        frequency: 3000,
-        Q: 0.5,
-      }).connect(sparkleGain);
-      sparkleNoise.connect(sparkleFilter);
+        frequency: 2500,
+        Q: 0.3,
+      }).connect(shallowsGain);
+      shallowsNoise.connect(shallowsFilter);
 
-      // Fast bubbly modulation for surface ripples
-      const bubbleLfo = new Tone.LFO({
-        frequency: 5,
-        min: 0.005,
-        max: 0.015,
+      // Very slow drift on shallows filter too
+      const shallowsDrift = new Tone.LFO({
+        frequency: 0.015,
+        min: 2000,
+        max: 3500,
         type: "sine",
-      }).connect(sparkleGain.gain);
-      bubbleLfo.start();
-      lfos.push(bubbleLfo);
+      }).connect(shallowsFilter.frequency);
+      shallowsDrift.start();
+      lfos.push(shallowsDrift);
 
-      // Low underwater rumble
-      const rumbleGain = new Tone.Gain(0.03).connect(bedGain);
+      // Deep bass rumble — the "weight" of the river
+      const rumbleGain = new Tone.Gain(0.025).connect(bedGain);
       gains.push(rumbleGain);
       const rumble = new Tone.Oscillator({
-        frequency: 60,
+        frequency: 55,
         type: "sine",
-        volume: -18,
+        volume: -16,
       }).connect(rumbleGain);
       rumble.start();
       oscillators.push(rumble);
 
-      // Fade in
-      noiseGain.gain.rampTo(0.1, 3);
-      bedGain.gain.rampTo(0.8, 3);
+      // Set CONSTANT gains (no LFO modulation on amplitude = no pulsing)
+      noiseGain.gain.rampTo(0.1, 3);     // constant water body
+      shallowsGain.gain.rampTo(0.02, 3); // constant shallows
+      bedGain.gain.rampTo(0.8, 3);       // constant bed level
     } else if (ambient === "stream") {
       // === Stream/brook: white noise with high-pass + bubbly modulation ===
       noise = new Tone.Noise("white").start();
