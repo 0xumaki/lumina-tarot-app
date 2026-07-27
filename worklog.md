@@ -352,3 +352,81 @@ Project stable from round 2. Lint clean, dev server healthy, all 6 tabs + onboar
 4. Download real RWS card art via alternative source (component supports drop-in).
 5. Add reading "save/favorite" feature (bookmark meaningful readings).
 6. Add a daily mood check-in (track emotional state alongside readings).
+
+---
+Task ID: cron-review-4
+Agent: main (webDevReview cron, 4th round)
+Task: Tarot result view redesign, reversed card fix, tappable keywords, save/favorite reading, copy affirmation
+
+## Current Project Status Assessment
+Project stable from round 3. All views scoring 8.5-9.5/10 except tarot result (stuck at 7.5/10 since round 1). VLM critical assessment identified: (1) card too small/floating in void, (2) "THE ANSWER" orphaned between card and reading box, (3) reversed card text upside-down (unreadable), (4) static keyword tags. Features wanted: tappable keyword tooltips, save/copy affirmation. Prisma client cache issue required .next cache clear + db:generate to pick up new `saved` column.
+
+## Completed Modifications
+
+### Bug Fix: Reversed Card Readability
+- **Before**: Entire card flipped with `rotateY: 180` → all text (name, numerals) upside-down and unreadable.
+- **After**: Only the central symbol rotates 180° (via `motion.span animate={{rotate: reversed ? 180 : 0}}`); all typography stays upright. RX badge upgraded: gold gradient pill with glow + spring entrance animation (was small flat black badge).
+
+### Tarot Result View Redesign (VLM 7.5 → 9.0/10 "substantial upgrade")
+1. **Larger hero card**: Single-card spreads now use `size="lg"` (200×300px) instead of `md` (140×210px) — card now commands ~40% screen height as the dominant focal point.
+2. **Yes/No answer banner**: New prominent verdict banner for yes-no spread — colored glyph circle (✓ green / ✕ amber / ? gold) + "THE CARDS SAY" label + large answer word. Spring-animated entrance.
+3. **Merged card title into reading header**: Removed orphaned "THE ANSWER" section. Card name + arcana/suit now sits as a header row inside "THE READING" container with a divider beneath, creating a logical card→interpretation bridge.
+4. **Interpretation cleanup**: For yes-no spread, strips the leading "YES/NO/MAYBE" from the interpretation text (it's now in the banner) to avoid duplication.
+5. **Tighter vertical rhythm**: Increased spacing from `space-y-4` to `space-y-5`, card-to-content gap from 4 to 5.
+
+### New Features (3)
+1. **Tappable Keyword Chips** (`KeywordChip` component):
+   - Keywords are now interactive buttons (not static pills).
+   - Tap → popover appears with card symbol + name + keyword label + the card's full meaning text.
+   - Gold-highlighted active state, glass-float popover with backdrop dismiss.
+   - Verified: tapping "imbalance" on Temperance Reversed shows "Temperance / IMBALANCE / Reversed, Temperance signals excess, impatience..."
+
+2. **Save/Favorite Reading** (`SaveButton` + `/api/tarot/save` + DB `saved` column):
+   - New `saved Boolean @default(false)` column on Reading model + index.
+   - POST /api/tarot/save toggles the saved state (findFirst by id+deviceId for ownership, then update).
+   - SaveButton: bookmark icon, toggles to "Saved" with gold fill + BookmarkCheck icon. Haptic feedback (complete pattern on save). Toast confirmation.
+   - Verified: POST /api/tarot/save 200, reading.saved updated to true.
+
+3. **Copy Affirmation** (`AffirmationCard` component):
+   - Affirmation card now has a "Copy" button (top-right) that copies `"<affirmation>" — via Lumina` to clipboard.
+   - Shows "Copied" with check icon for 2.5s. Sparkles icon + gold-tinted card.
+
+### Infrastructure
+- Added `saved` column to Reading model (Prisma schema + db:push + db:generate).
+- Cleared stale `.next` Turbopack cache that held old Prisma client without `saved` field.
+- Restarted dev server after cache clear.
+
+## Verification Results
+- **Lint**: clean (0 errors, 0 warnings).
+- **Dev log**: POST /api/tarot/save 200 confirmed; Prisma queries selecting `saved` field working.
+- **agent-browser QA** (iPhone 15, premium activated):
+  - Reading: "Is now the right time to begin?" → Yes/No spread → drew Nine of Wands → Yes/No banner "YES" with green ✓ glyph → interpretation with merged card title → tappable keywords → affirmation with Copy button → Save button toggled to "Saved".
+  - Keyword chip: tapped "imbalance" → popover with card meaning appeared.
+  - Save: clicked Save → toggled to "Saved" → POST 200 → DB updated.
+- **VLM scores**: Tarot result 7.5 → **9.0/10** ("substantial upgrade, clear F-pattern: Hero → Answer → Context → Details").
+
+## Cumulative VLM Scorecard
+| View | R1 | R2 | R3 | R4 |
+|------|-----|-----|-----|-----|
+| Home | 7.5 | 8.5 | 8.5 | 8.5 |
+| Tarot result | 7.5 | 7.5 | 7.5 | **9.0** |
+| Manifest | — | 7.5 | 9.0 | 9.0 |
+| Frequency | 9.0 | 9.0 | 9.0 | 9.0 |
+| Stats (empty) | 6.0 | 9.0 | 9.0 | 9.0 |
+| Stats (data) | — | 8.5 | 8.5 | 8.5 |
+| Premium | 8.0 | 8.0 | 9.5 | 9.5 |
+
+## Unresolved Issues / Risks
+1. **Card art**: Still custom SVG (Wikimedia rate-limited). Component remains image-ready.
+2. **Scheduled push notifications**: Websocket mini-service for goal reminder times not yet built.
+3. **Energy insight scalability**: Still rule-based (6 archetypes). LLM enrichment for premium is future.
+4. **Saved readings view**: Save works but there's no dedicated "Saved readings" filter in History yet (would need a tab/filter toggle).
+5. **Dev server stability**: Required manual restart after .next cache clear; system auto-restart should handle this in production.
+
+## Priority Recommendations for Next Phase
+1. Add "Saved" filter tab in Reading History sheet (show only saved=true readings).
+2. Websocket mini-service for scheduled manifestation goal reminders.
+3. LLM-enriched Energy Insight for premium users.
+4. Daily mood check-in feature (track emotional state alongside readings).
+5. Download real RWS card art via alternative source.
+6. Add reading "re-read" from history (load a past reading back into the result view).

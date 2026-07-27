@@ -62,29 +62,26 @@ export function TarotCardFace({
         sizes[size],
         className
       )}
-      style={{ perspective: "1000px" }}
     >
-      <motion.div
-        className="relative w-full h-full"
-        style={{ transformStyle: "preserve-3d" }}
-        animate={reversed ? { rotateY: 180 } : { rotateY: 0 }}
-        transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
-      >
-        {/* Front face */}
-        <FaceSide
-          card={card}
-          meta={meta}
-          size={size}
-          showImage={showImage && imgOk !== false}
-          onImgError={() => setImgOk(false)}
-          onImgLoad={() => setImgOk(true)}
-        />
-        {/* Reversed overlay marker (we keep the same face but show a small "RX" badge when reversed for clarity) */}
-      </motion.div>
+      <FaceSide
+        card={card}
+        meta={meta}
+        size={size}
+        reversed={reversed}
+        showImage={showImage && imgOk !== false}
+        onImgError={() => setImgOk(false)}
+        onImgLoad={() => setImgOk(true)}
+      />
       {reversed && (
-        <div className="absolute -top-2 -right-2 z-10 rounded-full bg-black/80 border border-gold/40 px-1.5 py-0.5 text-[9px] font-medium text-gold tracking-wider">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3, type: "spring", stiffness: 400, damping: 20 }}
+          className="absolute -top-2 -right-2 z-10 rounded-full px-2 py-0.5 text-[9px] font-bold text-black tracking-[0.1em] shadow-[0_0_12px_rgba(197,168,124,0.6)]"
+          style={{ background: "linear-gradient(135deg, #E7D2A8, #C5A87C)" }}
+        >
           RX
-        </div>
+        </motion.div>
       )}
     </div>
   );
@@ -94,6 +91,7 @@ function FaceSide({
   card,
   meta,
   size,
+  reversed,
   showImage,
   onImgError,
   onImgLoad,
@@ -101,6 +99,7 @@ function FaceSide({
   card: TarotCard;
   meta: { glyph: string; color: string; label: string; accent: string };
   size: "sm" | "md" | "lg";
+  reversed: boolean;
   showImage: boolean;
   onImgError: () => void;
   onImgLoad: () => void;
@@ -167,8 +166,10 @@ function FaceSide({
                 <circle cx="50%" cy="50%" r="47%" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="0.8" />
                 <circle cx="50%" cy="50%" r="40%" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="0.5" strokeDasharray="2 3" />
               </svg>
-              {/* the symbol */}
-              <span
+              {/* the symbol — rotated 180° when reversed (artwork flip, text stays upright) */}
+              <motion.span
+                animate={{ rotate: reversed ? 180 : 0 }}
+                transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
                 style={{
                   color: meta.color,
                   fontSize: glyphSize * 0.46,
@@ -176,10 +177,11 @@ function FaceSide({
                   textShadow: `0 0 12px ${meta.accent}66`,
                   position: "relative",
                   zIndex: 1,
+                  display: "inline-block",
                 }}
               >
                 {card.symbol}
-              </span>
+              </motion.span>
             </div>
           </div>
 

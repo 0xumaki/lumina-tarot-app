@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check } from "lucide-react";
+import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check, Copy, Bookmark, BookmarkCheck } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useHaptics } from "@/hooks/use-haptics";
@@ -243,7 +243,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
             key="result"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-5"
           >
             <GlassCard className="p-4">
               <div className="text-[11px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-1">
@@ -252,12 +252,14 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
               <p className="text-[15px] leading-[21px] text-ink italic">"{reading.question}"</p>
             </GlassCard>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-5">
+              {/* Hero card display — larger for single-card spreads */}
               <div className="flex flex-wrap items-end justify-center gap-3">
                 {reading.cards.map((c, i) => {
                   const revealed = i < revealedIdx || phase === "result";
+                  const isSolo = reading.cards.length === 1;
                   return (
-                    <div key={i} className="flex flex-col items-center gap-1.5">
+                    <div key={i} className="flex flex-col items-center gap-2">
                       <AnimatePresence mode="wait">
                         {revealed ? (
                           <motion.button
@@ -269,14 +271,14 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                             className="relative group"
                             aria-label={`View details for ${c.card.name}`}
                           >
-                            <TarotCardFace card={c.card} reversed={c.reversed} size="md" />
-                            <div className="absolute inset-0 rounded-[14px] bg-gold/0 group-hover:bg-gold/10 transition-colors flex items-end justify-center pb-1.5 opacity-0 group-hover:opacity-100">
-                              <span className="text-[8px] uppercase tracking-[0.14em] text-gold font-medium">Tap for meaning</span>
+                            <TarotCardFace card={c.card} reversed={c.reversed} size={isSolo ? "lg" : "md"} />
+                            <div className="absolute inset-0 rounded-[14px] bg-gold/0 group-hover:bg-gold/10 transition-colors flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100">
+                              <span className="text-[9px] uppercase tracking-[0.14em] text-gold font-medium">Tap for meaning</span>
                             </div>
                           </motion.button>
                         ) : (
                           <motion.div key="back" exit={{ opacity: 0 }}>
-                            <TarotCardBack size="md" />
+                            <TarotCardBack size={isSolo ? "lg" : "md"} />
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -286,9 +288,9 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                         </div>
                       )}
                       {revealed && (
-                        <div className="text-[11px] text-ink text-center max-w-[130px] leading-[13px]">
+                        <div className="text-[12px] text-ink text-center max-w-[160px] leading-[15px] font-medium">
                           {c.card.nameShort}
-                          {c.reversed && <span className="text-ink-muted"> · Rev</span>}
+                          {c.reversed && <span className="text-gold/70"> · Reversed</span>}
                         </div>
                       )}
                     </div>
@@ -303,18 +305,48 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                   transition={{ delay: 0.2 }}
                   className="w-full space-y-3"
                 >
+                  {/* Yes/No answer banner (for yes-no spread) */}
+                  {reading.spreadType === "yes-no" && reading.interpretation && (
+                    <YesNoBanner interpretation={reading.interpretation} />
+                  )}
+
                   <ShellCard className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
+                    {/* Header with card name merged in */}
+                    <div className="flex items-center gap-2 mb-3">
                       <Sparkles className="w-3.5 h-3.5 text-gold" />
                       <span className="text-[11px] uppercase tracking-[0.18em] text-gold/80 font-medium">
                         The Reading
                       </span>
                     </div>
-                    <div className="text-[14px] leading-[22px] text-ink whitespace-pre-wrap">
-                      <FormattedText text={reading.interpretation} />
+
+                    {/* Card title row (replaces orphaned "THE ANSWER") */}
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/8">
+                      <span className="text-xl leading-none">{reading.cards[0].card.symbol}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-medium text-ink leading-[17px]">
+                          {reading.cards[0].card.name}
+                          {reading.cards[0].reversed && (
+                            <span className="text-gold/70 font-normal"> · Reversed</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-ink-muted mt-0.5">
+                          {reading.cards[0].card.arcana === "major" ? "Major Arcana" : `Minor · ${cap(reading.cards[0].card.suit)}`}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Keywords + affirmation */}
+                    {/* Interpretation — strip the leading YES/NO/MAYBE for yes-no (it's in the banner) */}
+                    <div className="text-[14px] leading-[23px] text-ink whitespace-pre-wrap">
+                      <FormattedText
+                        text={
+                          reading.spreadType === "yes-no"
+                            ? reading.interpretation.replace(/^(YES|NO|MAYBE)[.\s]*/i, "")
+                            : reading.interpretation
+                        }
+                      />
+                    </div>
+
+                    {/* Tappable keywords */}
                     <Divider className="my-4" />
                     <div className="space-y-3">
                       {reading.cards.map((c, i) => (
@@ -325,11 +357,11 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                               {c.card.name}
                               {c.reversed && <span className="text-ink-muted"> (Reversed)</span>}
                             </div>
-                            <div className="flex flex-wrap gap-1 mt-1">
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
                               {(c.reversed ? c.card.keywordsReversed : c.card.keywordsUpright)
                                 .slice(0, 4)
                                 .map((k: string) => (
-                                  <Pill key={k}>{k}</Pill>
+                                  <KeywordChip key={k} keyword={k} card={c.card} reversed={c.reversed} />
                                 ))}
                             </div>
                           </div>
@@ -337,15 +369,9 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                       ))}
                     </div>
 
+                    {/* Affirmation with copy button */}
                     <Divider className="my-4" />
-                    <div className="rounded-xl bg-gold/[0.06] border border-gold/15 p-3">
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-1">
-                        Affirmation
-                      </div>
-                      <p className="text-[13px] leading-[18px] text-ink italic">
-                        "{reading.cards[0].card.affirmation}"
-                      </p>
-                    </div>
+                    <AffirmationCard affirmation={reading.cards[0].card.affirmation} />
                   </ShellCard>
 
                   <div className="flex gap-2">
@@ -359,8 +385,10 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     </GhostButton>
                   </div>
 
-                  {/* Share reading */}
-                  <ShareButton reading={reading} />
+                  <div className="flex gap-2">
+                    <SaveButton readingId={reading.id} />
+                    <ShareButton reading={reading} />
+                  </div>
                 </motion.div>
               )}
             </div>
@@ -546,10 +574,169 @@ function ShareButton({ reading }: { reading: Reading }) {
   return (
     <button
       onClick={handleShare}
-      className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] text-gold/80 hover:text-gold tracking-wide transition-colors"
+      className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[12px] text-gold/80 hover:text-gold tracking-wide transition-colors rounded-full border border-gold/20 hover:border-gold/40"
     >
       {shared ? <Check className="w-3.5 h-3.5 text-leaf" /> : <Share2 className="w-3.5 h-3.5" />}
-      {shared ? "Copied!" : "Share this reading"}
+      {shared ? "Copied!" : "Share"}
     </button>
   );
+}
+
+/** Save/bookmark a reading. */
+function SaveButton({ readingId }: { readingId: string }) {
+  const api = useApi();
+  const { toast } = useToast();
+  const haptics = useHaptics();
+  const [saved, setSaved] = React.useState(false);
+
+  async function toggle() {
+    haptics("tap");
+    try {
+      const res = await api("/api/tarot/save", {
+        method: "POST",
+        body: JSON.stringify({ readingId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.reading) {
+        setSaved(data.reading.saved);
+        haptics(data.reading.saved ? "complete" : "tap");
+        toast({
+          title: data.reading.saved ? "Reading saved" : "Removed",
+          description: data.reading.saved ? "Find it in your History." : undefined,
+        });
+      }
+    } catch {}
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[12px] tracking-wide transition-colors rounded-full border"
+      style={{
+        borderColor: saved ? "rgba(197,168,124,0.5)" : "rgba(255,255,255,0.1)",
+        color: saved ? "#E7D2A8" : "#7A8680",
+        background: saved ? "rgba(197,168,124,0.12)" : "transparent",
+      }}
+    >
+      {saved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+      {saved ? "Saved" : "Save"}
+    </button>
+  );
+}
+
+/** Yes/No answer banner — prominent verdict for yes-no spread. */
+function YesNoBanner({ interpretation }: { interpretation: string }) {
+  const match = interpretation.match(/^(YES|NO|MAYBE)/i);
+  if (!match) return null;
+  const answer = match[1].toUpperCase();
+  const config = {
+    YES: { color: "#B5CD7E", bg: "rgba(181,205,126,0.12)", border: "rgba(181,205,126,0.35)", glyph: "✓", label: "Yes" },
+    NO: { color: "#E89A4A", bg: "rgba(232,154,74,0.12)", border: "rgba(232,154,74,0.35)", glyph: "✕", label: "No" },
+    MAYBE: { color: "#C5A87C", bg: "rgba(197,168,124,0.12)", border: "rgba(197,168,124,0.35)", glyph: "?", label: "Maybe" },
+  }[answer] || { color: "#C5A87C", bg: "rgba(197,168,124,0.12)", border: "rgba(197,168,124,0.35)", glyph: "?", label: "Maybe" };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      className="rounded-2xl px-4 py-3 flex items-center gap-3"
+      style={{ background: config.bg, border: `1px solid ${config.border}` }}
+    >
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center text-[18px] font-bold shrink-0"
+        style={{ background: `${config.color}22`, border: `1.5px solid ${config.color}`, color: config.color }}
+      >
+        {config.glyph}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: config.color }}>
+          The cards say
+        </div>
+        <div className="text-[20px] font-light text-ink leading-[24px]">{config.label}</div>
+      </div>
+    </motion.div>
+  );
+}
+
+/** Tappable keyword chip — tap to see a micro-insight popover. */
+function KeywordChip({ keyword, card, reversed }: { keyword: string; card: any; reversed: boolean }) {
+  const [open, setOpen] = React.useState(false);
+  const meaning = reversed ? card.meaningReversed : card.meaningUpright;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border"
+        style={{
+          background: open ? "rgba(197,168,124,0.18)" : "rgba(255,255,255,0.04)",
+          borderColor: open ? "rgba(197,168,124,0.5)" : "rgba(255,255,255,0.1)",
+          color: open ? "#E7D2A8" : "#E8EBE9",
+        }}
+      >
+        {keyword}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.96 }}
+              transition={{ duration: 0.18 }}
+              className="absolute z-50 top-full mt-1.5 left-0 w-[220px] rounded-xl lum-glass-float p-3 text-left"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-sm">{card.symbol}</span>
+                <span className="text-[11px] font-medium text-ink">{card.name}</span>
+              </div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gold/70 font-medium mb-1">
+                {keyword}
+              </div>
+              <p className="text-[11px] leading-[15px] text-ink-muted">{meaning}</p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Affirmation card with copy-to-clipboard. */
+function AffirmationCard({ affirmation }: { affirmation: string }) {
+  const [copied, setCopied] = React.useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(`"${affirmation}" — via Lumina`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {}
+  }
+  return (
+    <div className="rounded-xl bg-gold/[0.06] border border-gold/15 p-3.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-gold/70" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+            Affirmation
+          </span>
+        </div>
+        <button
+          onClick={copy}
+          className="flex items-center gap-1 text-[10px] text-gold/70 hover:text-gold transition-colors"
+        >
+          {copied ? <Check className="w-3 h-3 text-leaf" /> : <Copy className="w-3 h-3" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="text-[14px] leading-[20px] text-ink italic">
+        "{affirmation}"
+      </p>
+    </div>
+  );
+}
+
+function cap(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

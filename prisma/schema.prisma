@@ -33,13 +33,15 @@ model Reading {
   deviceId    String
   device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   question    String
-  spreadType  String   // "yes-no" | "single" | "three-card" | "celtic-cross" | "relationship" | "career"
+  spreadType  String   // "yes-no" | "single" | "three-card" | "celtic-cross" | "relationship" | "career" | "card-of-day"
   cardsJson   String   // JSON array of { id, reversed, position }
   interpretation String // AI-generated interpretation (markdown-ish)
   isPremium   Boolean  @default(false)
+  saved       Boolean  @default(false) // bookmarked by user
   createdAt   DateTime @default(now())
 
   @@index([deviceId, createdAt])
+  @@index([deviceId, saved])
 }
 
 /// A manifestation goal.
