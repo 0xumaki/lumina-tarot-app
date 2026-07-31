@@ -364,15 +364,23 @@ export function PositivitySession({
                 {String(lineIdx + 1).padStart(2, "0")} · {String(script.lines.length).padStart(2, "0")}
               </div>
 
-              {/* The affirmation — large, centered, glowing */}
-              <p
-                className="text-[24px] md:text-[27px] font-light leading-[38px] text-white max-w-[360px] min-h-[180px] flex items-center justify-center"
-                style={{
-                  textShadow: `0 0 40px ${accent}60, 0 0 80px ${accent}30, 0 2px 16px rgba(0,0,0,0.4)`,
-                }}
-              >
-                {currentLine.text}
-              </p>
+              {/* The affirmation — word-by-word fade-in for cinematic effect */}
+              <div className="text-[24px] md:text-[27px] font-light leading-[38px] text-white max-w-[360px] min-h-[180px] flex items-center justify-center">
+                {currentLine.text.split(" ").map((word, wi) => (
+                  <motion.span
+                    key={wi}
+                    initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    transition={{ duration: 0.5, delay: 0.3 + wi * 0.08, ease: "easeOut" }}
+                    className="inline-block mr-[0.25em]"
+                    style={{
+                      textShadow: `0 0 30px ${accent}80, 0 0 60px ${accent}40, 0 2px 12px rgba(0,0,0,0.5)`,
+                    }}
+                  >
+                    {word}
+                  </motion.span>
+                ))}
+              </div>
 
               {/* Circular progress indicator */}
               <div className="relative w-16 h-16 mt-12">
