@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Volume2, VolumeX } from "lucide-react";
 import type { PositivityScript } from "@/lib/positivity";
@@ -159,12 +160,17 @@ export function PositivitySession({
     setTimeout(() => onClose(), 600);
   }
 
-  return (
+  // Use portal to escape parent stacking contexts (header, nav, animated tabs)
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: exiting ? 0 : 1 }}
       transition={{ duration: exiting ? 0.5 : 0.7, ease: exiting ? "easeIn" : "easeOut" }}
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden"
       style={{
         background: "radial-gradient(ellipse at 50% 50%, #0a0805 0%, #030201 80%)",
       }}
@@ -408,29 +414,19 @@ export function PositivitySession({
         )}
       </div>
 
-      {/* === MINIMAL PROGRESS DOTS (bottom, peripheral) === */}
+      {/* === MINIMAL PROGRESS — simple arc/ring, no dot clutter === */}
       {phase !== "countdown" && phase !== "complete" && (
-        <div className="absolute bottom-20 left-0 right-0 flex items-center justify-center gap-2 z-20">
-          {script.lines.map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all duration-500"
-              style={{
-                width: 5,
-                height: 5,
-                background: i < lineIdx
-                  ? `${accent}90`
-                  : i === lineIdx
-                  ? accent
-                  : "rgba(255,255,255,0.2)",
-                opacity: i <= lineIdx ? 0.8 : 0.35,
-                boxShadow: i === lineIdx ? `0 0 6px ${accent}80` : "none",
-              }}
-            />
-          ))}
+        <div className="absolute bottom-16 left-0 right-0 flex items-center justify-center z-20">
+          {/* Single thin progress arc — no dots */}
+          <div className="flex items-center gap-3">
+            <div className="text-[9px] text-white/20 tabular-nums tracking-wider">
+              {String(lineIdx + 1).padStart(2, "0")} / {String(script.lines.length).padStart(2, "0")}
+            </div>
+          </div>
         </div>
       )}
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
