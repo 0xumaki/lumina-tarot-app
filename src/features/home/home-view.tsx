@@ -136,7 +136,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
       </ShellCard>
 
       {/* Positivity Generator — start your day with intention */}
-      <PositivityGenerator />
+      <PositivityGenerator isPremium={isPremium} />
 
       {/* Moon Phase — lunar guidance */}
       <MoonPhase onSuggest={() => setTab("frequency")} />

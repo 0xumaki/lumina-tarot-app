@@ -4,12 +4,14 @@
  * Generates 1-3 minute positivity recitation scripts based on the user's
  * desired goal (Wealth, Health, Relationship, Career, Stress Release, etc.)
  *
+ * All scripts use ONLY "I" statements (first person) — never "you".
+ * This makes the affirmations personal and direct: "I am wealthy" not "You are wealthy".
+ *
  * Two-tier system:
  *   Tier 1: OpenRouter free LLM (if API key available) — personalized, rich
  *   Tier 2: Smart template-based scripts (always works, no LLM needed)
  *
- * Each script is broken into ~8-15 "affirmation lines" that display as
- * subtitles for ~6-10 seconds each, totaling 1-3 minutes of recitation.
+ * Free tier: 1 session/day. Premium: unlimited.
  */
 
 export type PositivityCategory =
@@ -148,7 +150,7 @@ export function detectCategory(text: string): PositivityCategory {
 
 export interface PositivityLine {
   text: string;
-  durationSec: number; // how long to display this line
+  durationSec: number;
 }
 
 export interface PositivityScript {
@@ -162,7 +164,7 @@ export interface PositivityScript {
 
 /* ============================================================
    TEMPLATE-BASED SCRIPT GENERATOR (always works, no LLM)
-   Produces ~90-150 seconds of recitation (12-15 lines × 8-10s each)
+   ALL scripts use ONLY "I" statements — first person, personal.
    ============================================================ */
 
 const TEMPLATES: Record<PositivityCategory, {
@@ -174,301 +176,301 @@ const TEMPLATES: Record<PositivityCategory, {
   wealth: {
     title: "Magnetizing Wealth",
     opening: [
-      "Breathe in. Feel the openness of abundance all around you.",
-      "Wealth is not something you chase. It is something you become.",
-      "You are a magnet for prosperity. The universe conspires in your favor.",
+      "I breathe in, and I feel the openness of abundance all around me.",
+      "I understand that wealth is not something I chase — it is something I become.",
+      "I am a magnet for prosperity, and the universe conspires in my favor.",
     ],
     affirmations: [
-      "Money flows to me easily, naturally, and in great abundance.",
+      "I allow money to flow to me easily, naturally, and in great abundance.",
       "I am worthy of unlimited wealth and financial freedom.",
-      "Every dollar I spend returns to me multiplied.",
-      "Opportunities to create wealth find me every single day.",
-      "I release all scarcity. There is more than enough for everyone.",
-      "My bank account grows while I sleep, while I eat, while I live.",
+      "I bless every dollar I spend, knowing it returns to me multiplied.",
+      "I attract opportunities to create wealth every single day.",
+      "I release all scarcity. I know there is more than enough for everyone.",
+      "I welcome prosperity as my natural state of being.",
       "I am surrounded by wealth — in nature, in people, in ideas.",
-      "Prosperity is my natural state. Lack is an illusion I have outgrown.",
-      "I bless the wealth of others, knowing mine is on its way.",
-      "The more I receive, the more I have to give. This is the cycle of abundance.",
+      "I release the illusion of lack. I step into my abundance now.",
+      "I celebrate the wealth of others, knowing mine is on its way.",
+      "I receive abundantly so I can give abundantly. This is my cycle.",
     ],
     closing: [
-      "Take a breath. Let this truth settle into your bones.",
-      "Today, you walk as a wealthy soul. Act accordingly.",
-      "And so it is. Welcome to your abundance.",
+      "I take a breath and let this truth settle into my bones.",
+      "I walk today as a wealthy soul, and I act accordingly.",
+      "I claim my abundance. And so it is.",
     ],
   },
   money: {
     title: "Attracting Money",
     opening: [
-      "Breathe deeply. Feel the energy of money as it moves toward you.",
-      "Money is energy. It flows to those who welcome it without fear.",
-      "You have a healthy, joyful relationship with money.",
+      "I breathe deeply, feeling the energy of money moving toward me.",
+      "I know that money is energy, and it flows to those who welcome it.",
+      "I have a healthy, joyful relationship with money.",
     ],
     affirmations: [
       "I welcome money into my life with open arms.",
-      "My income increases every day, in expected and unexpected ways.",
+      "I watch my income increase every day, in expected and unexpected ways.",
       "I am a wise steward of the money that comes to me.",
-      "Money loves me. Money seeks me. Money finds me.",
+      "I know that money loves me, seeks me, and finds me.",
       "I release all fear around money. I trust the flow.",
-      "Every interaction I have today brings me closer to financial freedom.",
+      "I attract financial opportunities in every interaction today.",
       "I am grateful for the money I have, and excited for what is coming.",
-      "My work is valuable, and I am paid well for it.",
-      "Money is a tool for good — and I use it wisely.",
+      "I value my work, and I am paid well for it.",
+      "I use money as a tool for good, and I use it wisely.",
       "I am financially free. I claim this as my reality now.",
     ],
     closing: [
-      "Feel the relief. Feel the freedom. This is yours.",
-      "Today, money moves toward you with ease.",
-      "And so it is. Your financial flow is open.",
+      "I feel the relief and the freedom. This is mine.",
+      "I move through today knowing money flows to me with ease.",
+      "I open my financial flow. And so it is.",
     ],
   },
   health: {
     title: "Radiant Health",
     opening: [
-      "Breathe into your body. Feel the life force moving through you.",
-      "Your body is a miracle. It heals itself constantly.",
-      "Every cell in your body is working for your highest good.",
+      "I breathe into my body and feel the life force moving through me.",
+      "I honor my body as a miracle that heals itself constantly.",
+      "I trust that every cell in my body works for my highest good.",
     ],
     affirmations: [
-      "My body is healthy, strong, and full of vitality.",
-      "Every cell in my body vibrates with healing energy.",
+      "I am healthy, strong, and full of vitality.",
+      "I feel every cell in my body vibrating with healing energy.",
       "I nourish my body, and my body nourishes me.",
-      "I release all dis-ease. I welcome vibrant health.",
-      "My immune system is powerful and protects me perfectly.",
-      "I sleep deeply, and wake restored and energized.",
-      "My body knows exactly how to heal itself. I trust it.",
+      "I release all dis-ease and welcome vibrant health.",
+      "I have a powerful immune system that protects me perfectly.",
+      "I sleep deeply and wake restored and energized.",
+      "I trust my body to know exactly how to heal itself.",
       "I am grateful for this body and all it does for me.",
-      "Health is my natural state. I return to it now.",
+      "I return to health as my natural state.",
       "I feel alive. I feel strong. I feel well.",
     ],
     closing: [
-      "Send gratitude to your body. It hears you.",
-      "Today, you move through the world in radiant health.",
-      "And so it is. Your body is whole and well.",
+      "I send gratitude to my body, knowing it hears me.",
+      "I move through today in radiant health.",
+      "I claim my wholeness. And so it is.",
     ],
   },
   relationship: {
     title: "Opening to Love",
     opening: [
-      "Breathe into your heart. Feel it soften and open.",
-      "Love is not something you find. It is something you embody.",
-      "You are worthy of deep, soul-nourishing connection.",
+      "I breathe into my heart and feel it soften and open.",
+      "I know that love is not something I find — it is something I embody.",
+      "I am worthy of deep, soul-nourishing connection.",
     ],
     affirmations: [
       "I am worthy of a love that is deep, true, and lasting.",
-      "My heart is open to giving and receiving love freely.",
+      "I keep my heart open to giving and receiving love freely.",
       "I attract people who see me, honor me, and cherish me.",
-      "I release the past. I welcome love that is meant for me.",
+      "I release the past and welcome love that is meant for me.",
       "I am a magnet for healthy, beautiful relationships.",
-      "Love flows to me easily and naturally.",
-      "I am enough — exactly as I am — for the right person.",
-      "I give love without expectation, and receive it without fear.",
-      "My relationships are sacred. I nurture them with presence.",
-      "I am surrounded by love — in my friendships, my family, my romance.",
+      "I allow love to flow to me easily and naturally.",
+      "I know I am enough — exactly as I am — for the right person.",
+      "I give love without expectation and receive it without fear.",
+      "I nurture my relationships with presence and care.",
+      "I am surrounded by love — in friendships, family, and romance.",
     ],
     closing: [
-      "Feel the warmth in your chest. That is love, already present.",
-      "Today, you move through the world as love itself.",
-      "And so it is. Your heart is open and ready.",
+      "I feel the warmth in my chest — that is love, already present.",
+      "I move through today as love itself.",
+      "I open my heart fully. And so it is.",
     ],
   },
   power: {
     title: "Embodying Power",
     opening: [
-      "Stand tall. Breathe deep. Feel your own strength.",
-      "Power is not domination. It is alignment with your truth.",
-      "You were born powerful. Today, you remember.",
+      "I stand tall, breathe deep, and feel my own strength.",
+      "I know that power is not domination — it is alignment with my truth.",
+      "I was born powerful. Today, I remember.",
     ],
     affirmations: [
       "I am powerful beyond measure.",
       "I stand in my truth without apology.",
-      "My voice matters. My presence changes the room.",
-      "I trust my instincts. I act with courage.",
-      "I am the author of my life. I write the story.",
-      "Fear does not control me. I move through it.",
+      "I know my voice matters and my presence changes the room.",
+      "I trust my instincts and act with courage.",
+      "I am the author of my life, and I write the story.",
+      "I refuse to let fear control me. I move through it.",
       "I command respect by the way I honor myself.",
       "I am bold. I am decisive. I am unstoppable.",
-      "My energy is sacred. I protect it fiercely.",
+      "I protect my energy fiercely because it is sacred.",
       "I step into my power fully, without hesitation.",
     ],
     closing: [
-      "Feel the strength in your spine. That is you.",
-      "Today, you walk as the powerful soul you are.",
-      "And so it is. Your power is claimed.",
+      "I feel the strength in my spine — that is me.",
+      "I walk today as the powerful soul I am.",
+      "I claim my power. And so it is.",
     ],
   },
   career: {
     title: "Career Alignment",
     opening: [
-      "Breathe. Feel the alignment between your work and your purpose.",
-      "Your career is not separate from your life. It is an expression of it.",
-      "You are meant to do work that matters — and you will.",
+      "I breathe and feel the alignment between my work and my purpose.",
+      "I know my career is not separate from my life — it is an expression of it.",
+      "I am meant to do work that matters, and I will.",
     ],
     affirmations: [
       "I am aligned with work that fulfills and inspires me.",
-      "My career is a reflection of my deepest values.",
+      "I let my career reflect my deepest values.",
       "I am recognized for my talents and contributions.",
-      "Opportunities find me because I am ready for them.",
+      "I attract opportunities because I am ready for them.",
       "I trust the unfolding of my professional path.",
       "I work with people who uplift and challenge me.",
-      "My work makes a positive impact on others.",
+      "I make a positive impact through my work.",
       "I am exactly where I need to be right now.",
-      "Success is natural for me. It flows without force.",
+      "I allow success to flow to me without force.",
       "I bring my full self to my work, and it shows.",
     ],
     closing: [
-      "Feel the rightness of your path. You are on it.",
-      "Today, you move closer to your highest professional expression.",
-      "And so it is. Your career is aligned and thriving.",
+      "I feel the rightness of my path — I am on it.",
+      "I move closer today to my highest professional expression.",
+      "I claim my aligned, thriving career. And so it is.",
     ],
   },
   promotion: {
     title: "Rising Higher",
     opening: [
-      "Breathe upward. Feel yourself rising above where you were.",
-      "You have outgrown your current level. The next is calling.",
-      "Promotion is not luck. It is readiness meeting opportunity.",
+      "I breathe upward and feel myself rising above where I was.",
+      "I know I have outgrown my current level — the next is calling.",
+      "I understand that promotion is readiness meeting opportunity.",
     ],
     affirmations: [
       "I am ready for the next level of my career.",
-      "My work is seen, valued, and rewarded.",
+      "I am seen, valued, and rewarded for my work.",
       "I rise naturally because I bring excellence to everything I do.",
-      "Leadership recognizes my contribution and promotes me.",
-      "I release competition. My path is mine alone, and it rises.",
+      "I am recognized by leadership and promoted for my contribution.",
+      "I release competition — my path is mine alone, and it rises.",
       "I am the obvious choice for advancement.",
-      "My skills grow daily, making me indispensable.",
+      "I grow my skills daily, making myself indispensable.",
       "I step into greater responsibility with confidence and grace.",
-      "The universe orchestrates my elevation.",
+      "I allow the universe to orchestrate my elevation.",
       "I claim my promotion — energetically, it is already mine.",
     ],
     closing: [
-      "Feel the elevation. You are already rising.",
-      "Today, someone sees your readiness. Today, you ascend.",
-      "And so it is. Your promotion is on its way.",
+      "I feel the elevation — I am already rising.",
+      "I move through today ascending, ready to be seen.",
+      "I welcome my promotion. And so it is.",
     ],
   },
   "stress-release": {
     title: "Releasing Stress",
     opening: [
-      "Breathe out. Let the tension leave with your exhale.",
-      "You do not need to carry it all. You can set it down.",
-      "This moment is enough. You are enough. Right now.",
+      "I breathe out and let the tension leave with my exhale.",
+      "I know I do not need to carry it all — I can set it down.",
+      "I accept that this moment is enough. I am enough. Right now.",
     ],
     affirmations: [
       "I release the tension I have been holding.",
-      "My shoulders drop. My jaw softens. My breath deepens.",
-      "I am safe in this moment. There is nothing to solve right now.",
+      "I let my shoulders drop, my jaw soften, my breath deepen.",
+      "I am safe in this moment — there is nothing to solve right now.",
       "I let go of what I cannot control.",
       "I trust that everything is working out for me.",
-      "My body is relaxing, layer by layer, breath by breath.",
+      "I feel my body relaxing, layer by layer, breath by breath.",
       "I give myself permission to rest.",
-      "The pressure I feel is temporary. This too shall pass.",
+      "I know the pressure I feel is temporary — this too shall pass.",
       "I am calm. I am centered. I am at peace.",
-      "I choose ease over effort. Flow over force.",
+      "I choose ease over effort, flow over force.",
     ],
     closing: [
-      "Feel the lightness. You have set down what was not yours to carry.",
-      "Today, you move with ease and grace.",
-      "And so it is. You are relaxed and at peace.",
+      "I feel the lightness — I have set down what was not mine to carry.",
+      "I move through today with ease and grace.",
+      "I claim my peace. And so it is.",
     ],
   },
   anxiety: {
     title: "Calming Anxiety",
     opening: [
-      "Breathe slowly. Count: in for four, hold for four, out for six.",
-      "You are safe. This feeling will pass. You are not in danger.",
-      "Your nervous system is recalibrating. You are okay.",
+      "I breathe slowly — in for four, hold for four, out for six.",
+      "I remind myself: I am safe. This feeling will pass. I am not in danger.",
+      "I feel my nervous system recalibrating. I am okay.",
     ],
     affirmations: [
       "I am safe in this moment, in this body, in this place.",
-      "My breath calms my mind. My mind calms my body.",
+      "I let my breath calm my mind, and my mind calm my body.",
       "I release the need to control the uncontrollable.",
-      "I have survived every anxious moment. I will survive this one too.",
-      "This feeling is a wave. I let it wash over me and pass.",
+      "I have survived every anxious moment — I will survive this one too.",
+      "I let this feeling be a wave that washes over me and passes.",
       "I am grounded. I am present. I am here, now.",
-      "My thoughts are just thoughts. They are not facts.",
+      "I remember that my thoughts are just thoughts — they are not facts.",
       "I trust my body to find its balance.",
-      "Peace is my natural state. I return to it now.",
+      "I return to peace as my natural state.",
       "I am okay. I am okay. I am okay.",
     ],
     closing: [
-      "Feel the stillness settling in. You are safe.",
-      "Today, you move through the world with calm and clarity.",
-      "And so it is. You are at peace.",
+      "I feel the stillness settling in — I am safe.",
+      "I move through today with calm and clarity.",
+      "I claim my peace. And so it is.",
     ],
   },
   worries: {
     title: "Releasing Worries",
     opening: [
-      "Breathe. Notice the worries without gripping them.",
-      "Worry is a prayer for what you don't want. Let's change the prayer.",
-      "You cannot control the future. You can choose peace now.",
+      "I breathe and notice my worries without gripping them.",
+      "I know that worry is a prayer for what I don't want — I change the prayer.",
+      "I accept that I cannot control the future, but I can choose peace now.",
     ],
     affirmations: [
       "I release my worries to something greater than myself.",
       "I trust the unfolding of my life.",
-      "What I worry about rarely comes to pass. I let it go.",
+      "I know that what I worry about rarely comes to pass — I let it go.",
       "I focus on what I can control: my breath, my choice, my now.",
-      "Faith is stronger than fear. I choose faith.",
-      "I surrender the outcome. I trust the process.",
-      "My mind is clear. My heart is light. My path is guided.",
+      "I choose faith over fear — faith is stronger.",
+      "I surrender the outcome and trust the process.",
+      "I keep my mind clear, my heart light, my path guided.",
       "I have everything I need for this moment.",
-      "The future will take care of itself. I take care of now.",
+      "I let the future take care of itself — I take care of now.",
       "I am held. I am guided. I am safe.",
     ],
     closing: [
-      "Feel the release. The weight is lighter now.",
-      "Today, you trust more and worry less.",
-      "And so it is. You are free from worry.",
+      "I feel the release — the weight is lighter now.",
+      "I move through today trusting more and worrying less.",
+      "I free myself from worry. And so it is.",
     ],
   },
   "anti-negative": {
     title: "Clearing Negativity",
     opening: [
-      "Breathe in light. Breathe out anything that is not yours.",
-      "You are the guardian of your energy. Today, you guard it well.",
-      "Negativity cannot cling to a heart filled with light.",
+      "I breathe in light and exhale anything that is not mine.",
+      "I am the guardian of my energy — today, I guard it well.",
+      "I know that negativity cannot cling to a heart filled with light.",
     ],
     affirmations: [
       "I release all negativity that has attached to me.",
-      "My energy is my own. I protect it with intention.",
-      "I am surrounded by a shield of golden light.",
-      "Negativity passes through me without sticking.",
+      "I claim my energy as my own and protect it with intention.",
+      "I surround myself with a shield of golden light.",
+      "I let negativity pass through me without sticking.",
       "I cleanse my mind, my body, my space.",
       "I choose thoughts that uplift and empower me.",
       "I distance myself from what drains me.",
-      "I am a beacon of positivity. Darkness dissolves in my presence.",
-      "My aura is bright, clear, and protected.",
+      "I am a beacon of positivity — darkness dissolves in my presence.",
+      "I keep my aura bright, clear, and protected.",
       "I return all energy that is not mine to its source with love.",
     ],
     closing: [
-      "Feel the clarity. Your energy is clean and yours.",
-      "Today, you move through the world shielded and bright.",
-      "And so it is. You are clear and protected.",
+      "I feel the clarity — my energy is clean and mine.",
+      "I move through today shielded and bright.",
+      "I claim my clarity and protection. And so it is.",
     ],
   },
   custom: {
     title: "Daily Positivity",
     opening: [
-      "Breathe in. Feel the possibility of this new day.",
-      "You are the creator of your experience. Today, you create well.",
-      "Everything you need is already within you.",
+      "I breathe in and feel the possibility of this new day.",
+      "I know I am the creator of my experience — today, I create well.",
+      "I trust that everything I need is already within me.",
     ],
     affirmations: [
       "I am exactly where I need to be.",
       "I trust myself and the path I am on.",
-      "Today is full of opportunities for joy and growth.",
+      "I see today as full of opportunities for joy and growth.",
       "I am worthy of all the good things coming my way.",
       "I choose positivity, even when it is not easy.",
-      "My energy attracts beautiful experiences today.",
+      "I attract beautiful experiences today through my energy.",
       "I am grateful for this life and all its gifts.",
-      "I let go of what was. I welcome what is becoming.",
+      "I let go of what was and welcome what is becoming.",
       "I am calm, capable, and confident.",
-      "Good things are finding me right now.",
+      "I allow good things to find me right now.",
     ],
     closing: [
-      "Feel the positivity settling into your being.",
-      "Today, you walk forward with an open heart and clear mind.",
-      "And so it is. Your day is blessed.",
+      "I feel the positivity settling into my being.",
+      "I walk forward today with an open heart and clear mind.",
+      "I bless my day. And so it is.",
     ],
   },
 };
@@ -483,7 +485,7 @@ export function generateTemplateScript(
   // Personalize the opening with the user's intention
   const personalizedOpening = intention.trim()
     ? [
-        `You are here for: ${intention.trim()}.`,
+        `I am here for: ${intention.trim()}.`,
         ...template.opening.slice(1),
       ]
     : template.opening;
@@ -506,6 +508,7 @@ export function generateTemplateScript(
 
 /* ============================================================
    LLM-BASED SCRIPT GENERATOR (OpenRouter free models)
+   Enforces I-statements in the prompt.
    ============================================================ */
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -522,6 +525,11 @@ export async function generateLLMScript(
   const system = `You are Lumina, a master of positive psychology, affirmation science, and mindfulness meditation.
 You create positivity recitation scripts that people read aloud to start their day with intention and power.
 Your scripts are poetic, grounding, and emotionally resonant — never generic or cliché.
+
+CRITICAL RULE: Every line MUST be written in FIRST PERSON ("I" statements) — NEVER use "you" or "your".
+- CORRECT: "I am worthy of abundance." "I breathe in peace." "I release all fear."
+- WRONG: "You are worthy." "Breathe in peace." "Release all fear."
+
 Each line should feel like a breath. The progression moves from grounding → affirmation → integration.
 Return ONLY the script lines, one per line, no numbering, no markdown, no commentary.
 Produce 12-15 lines total. Each line should take 6-10 seconds to recite slowly.`;
@@ -530,10 +538,11 @@ Produce 12-15 lines total. Each line should take 6-10 seconds to recite slowly.`
 Their specific intention: "${intention || "general positivity and alignment"}"
 
 Structure:
-- Lines 1-3: Grounding and opening (slower, spacious)
-- Lines 4-12: Core affirmations (direct, powerful, personal)
-- Lines 13-15: Integration and closing (sealing the practice)
+- Lines 1-3: Grounding and opening (slower, spacious, first person)
+- Lines 4-12: Core affirmations (direct, powerful, all "I" statements)
+- Lines 13-15: Integration and closing (sealing the practice, first person)
 
+Remember: EVERY line must use "I" — never "you".
 Return ONLY the lines, one per line. No numbering, no markdown.`;
 
   const models = [
@@ -578,9 +587,22 @@ Return ONLY the lines, one per line. No numbering, no markdown.`;
 
       if (rawLines.length < 8) continue;
 
-      const lines: PositivityLine[] = rawLines.slice(0, 15).map((line: string, i: number) => ({
-        text: line.replace(/^["']|["']$/g, ""),
-        durationSec: i < 3 ? 9 : i >= rawLines.length - 3 ? 10 : 8,
+      // Sanitize: convert any "you" statements to "I" statements
+      const sanitizedLines = rawLines.slice(0, 15).map((line: string) => {
+        let cleaned = line.replace(/^["']|["']$/g, "");
+        // Convert "You are" → "I am", "You have" → "I have", etc.
+        cleaned = cleaned.replace(/^You are /i, "I am ");
+        cleaned = cleaned.replace(/^You have /i, "I have ");
+        cleaned = cleaned.replace(/^You can /i, "I can ");
+        cleaned = cleaned.replace(/^You will /i, "I will ");
+        cleaned = cleaned.replace(/^You are\b/gi, "I am");
+        cleaned = cleaned.replace(/^You\b/gi, "I");
+        return cleaned;
+      });
+
+      const lines: PositivityLine[] = sanitizedLines.map((line: string, i: number) => ({
+        text: line,
+        durationSec: i < 3 ? 9 : i >= sanitizedLines.length - 3 ? 10 : 8,
       }));
 
       return {

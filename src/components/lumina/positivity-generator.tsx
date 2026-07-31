@@ -2,52 +2,100 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Sparkles, Loader2, X } from "lucide-react";
+import { Sun, Sparkles, Loader2, Lock } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
-import { GlassCard, ShellCard, GoldButton, GhostButton } from "@/components/lumina/primitives";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GlassCard, ShellCard, GoldButton } from "@/components/lumina/primitives";
 import { POSITIVITY_CATEGORIES, type PositivityCategory, type PositivityScript } from "@/lib/positivity";
 import { PositivitySession } from "./positivity-session";
 
+type UsageData = {
+  sessionsToday: number;
+  remaining: number | null;
+  isPremium: boolean;
+  limit: number;
+};
+
 /**
- * PositivityGenerator — the home page entry point for the positivity feature.
+ * PositivityGenerator — home page entry point.
  *
- * Two states:
- * 1. Idle: A beautiful card with category chips + intention input
- * 2. Session: Full-screen immersive recitation experience (PositivitySession)
+ * Features:
+ * - Quick-start: tap a category chip → immediately generates a session (no text needed)
+ * - Custom intention: type a desire + optional category → generate
+ * - Free tier: 1 session/day (shows remaining count + lock when exhausted)
+ * - Premium: unlimited
  */
-export function PositivityGenerator() {
+export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
   const api = useApi();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [selectedCategory, setSelectedCategory] = React.useState<PositivityCategory | null>(null);
   const [intention, setIntention] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [loadingCategory, setLoadingCategory] = React.useState<PositivityCategory | null>(null);
   const [script, setScript] = React.useState<PositivityScript | null>(null);
 
-  async function startSession() {
-    if (!intention.trim()) {
-      toast({ title: "Share your intention", description: "What would you like to generate positivity for?" });
+  // Fetch usage data
+  const { data: usageData } = useQuery<UsageData>({
+    queryKey: ["positivity-usage"],
+    queryFn: async () => {
+      const res = await api("/api/positivity");
+      const d = await res.json();
+      return d.usage;
+    },
+    refetchInterval: 30000,
+  });
+
+  const remaining = usageData?.remaining;
+  const isLocked = !isPremium && remaining === 0;
+
+  async function startSession(category?: PositivityCategory, intentionText?: string) {
+    const cat = category || selectedCategory;
+    const intent = intentionText || intention.trim();
+
+    if (!cat && !intent) {
+      toast({ title: "Choose your intention", description: "Select a category or type your desire." });
       return;
     }
+
+    if (isLocked) {
+      toast({
+        title: "Daily limit reached",
+        description: "You've used your free session today. Upgrade to Premium for unlimited positivity.",
+      });
+      return;
+    }
+
     setLoading(true);
+    setLoadingCategory(cat || null);
     try {
       const res = await api("/api/positivity", {
         method: "POST",
         body: JSON.stringify({
-          category: selectedCategory,
-          intention: intention.trim(),
+          category: cat,
+          intention: intent,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Could not generate", description: data.error || "Please try again." });
+        if (data.error === "limit-reached") {
+          toast({
+            title: "Daily limit reached",
+            description: "You've used your free positivity session for today. Come back tomorrow or upgrade to Premium.",
+          });
+        } else {
+          toast({ title: "Could not generate", description: data.error || "Please try again." });
+        }
         return;
       }
       setScript(data.script);
+      qc.invalidateQueries({ queryKey: ["positivity-usage"] });
     } catch {
       toast({ title: "Connection issue", description: "Please try again in a moment." });
     } finally {
       setLoading(false);
+      setLoadingCategory(null);
     }
   }
 
@@ -55,7 +103,14 @@ export function PositivityGenerator() {
   if (script) {
     return (
       <AnimatePresence>
-        <PositivitySession script={script} onClose={() => { setScript(null); setIntention(""); setSelectedCategory(null); }} />
+        <PositivitySession
+          script={script}
+          onClose={() => {
+            setScript(null);
+            setIntention("");
+            setSelectedCategory(null);
+          }}
+        />
       </AnimatePresence>
     );
   }
@@ -80,45 +135,82 @@ export function PositivityGenerator() {
               <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gold to-gold/30" />
               <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold font-medium">Positivity Generator</h3>
             </div>
-            <Sun className="w-4 h-4 text-gold/60" />
+            <div className="flex items-center gap-2">
+              {isLocked ? (
+                <span className="flex items-center gap-1 text-[9.5px] text-ink-muted/60">
+                  <Lock className="w-3 h-3" />
+                  Limit reached
+                </span>
+              ) : !isPremium ? (
+                <span className="text-[9.5px] text-ink-muted/60 tabular-nums">
+                  {remaining ?? 1} free left
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[9.5px] text-gold/70">
+                  <Sparkles className="w-3 h-3" />
+                  Unlimited
+                </span>
+              )}
+              <Sun className="w-4 h-4 text-gold/60" />
+            </div>
           </div>
 
           <p className="text-[12px] text-ink-muted leading-[16px] mb-4 max-w-[300px]">
-            Start your day with a 1-3 minute guided recitation. Choose your intention, breathe, and let positivity flow.
+            Start your day with a 1-3 minute guided recitation. Tap a category for quick start, or type your intention below.
           </p>
 
-          {/* Category chips */}
+          {/* Category chips — quick-start on tap */}
           <div className="flex flex-wrap gap-1.5 mb-3">
             {POSITIVITY_CATEGORIES.slice(0, 8).map((cat) => {
               const isSelected = selectedCategory === cat.id;
+              const isLoadingThis = loadingCategory === cat.id;
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                  onClick={() => {
+                    if (isLocked) {
+                      toast({
+                        title: "Daily limit reached",
+                        description: "Upgrade to Premium for unlimited positivity sessions.",
+                      });
+                      return;
+                    }
+                    // Quick-start: immediately generate if no intention text
+                    if (!intention.trim()) {
+                      startSession(cat.id, "");
+                    } else {
+                      setSelectedCategory(isSelected ? null : cat.id);
+                    }
+                  }}
+                  disabled={loading}
                   className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[10.5px] font-medium border transition-all ${
                     isSelected
                       ? "border-transparent"
                       : "border-white/8 bg-white/[0.02] text-ink-muted hover:text-ink hover:border-white/15"
-                  }`}
+                  } ${loading && !isLoadingThis ? "opacity-40" : ""}`}
                   style={isSelected ? {
                     background: `${cat.color}20`,
                     borderColor: `${cat.color}50`,
                     color: cat.color,
                   } : undefined}
                 >
-                  <span className="text-[11px]">{cat.glyph}</span>
+                  {isLoadingThis ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <span className="text-[11px]">{cat.glyph}</span>
+                  )}
                   {cat.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Intention input */}
+          {/* Intention input — optional */}
           <div className="relative mb-3">
             <textarea
               value={intention}
               onChange={(e) => setIntention(e.target.value)}
-              placeholder="What would you like to generate positivity for? (e.g., 'I want to attract financial abundance' or 'I need to release work stress')"
+              placeholder="Or type your specific desire… (e.g., 'I want to attract financial abundance')"
               rows={2}
               maxLength={500}
               className="w-full bg-white/[0.03] border border-white/8 rounded-xl px-3 py-2.5 text-[13px] leading-[19px] text-ink placeholder:text-ink-muted/60 focus:outline-none focus:border-gold/30 resize-none transition-colors"
@@ -130,14 +222,19 @@ export function PositivityGenerator() {
 
           {/* Start button */}
           <GoldButton
-            onClick={startSession}
-            disabled={loading || !intention.trim()}
+            onClick={() => startSession()}
+            disabled={loading || isLocked || (!selectedCategory && !intention.trim())}
             className="w-full"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Generating your script…
+              </>
+            ) : isLocked ? (
+              <>
+                <Lock className="w-4 h-4" />
+                Upgrade for unlimited sessions
               </>
             ) : (
               <>
@@ -147,10 +244,10 @@ export function PositivityGenerator() {
             )}
           </GoldButton>
 
-          {/* Quick suggestions */}
-          {!intention && (
+          {/* Quick suggestions — only when input is empty */}
+          {!intention && !isLocked && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="text-[9.5px] text-ink-muted/60 uppercase tracking-[0.15em] w-full mb-1">Try:</span>
+              <span className="text-[9.5px] text-ink-muted/60 uppercase tracking-[0.15em] w-full mb-0.5">Try:</span>
               {[
                 "I am attracting wealth and abundance",
                 "I release anxiety and find peace",

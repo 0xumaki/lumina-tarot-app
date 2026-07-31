@@ -29,6 +29,7 @@ model Device {
   moods             Mood[]
   insightFeedback   InsightFeedback[]
   ritualLogs        RitualLog[]
+  positivitySessions PositivitySession[]
 }
 
 /// A tarot reading session.
@@ -158,5 +159,20 @@ model RitualLog {
   updatedAt    DateTime @updatedAt
 
   @@unique([deviceId, date])
+  @@index([deviceId, date])
+}
+
+/// Positivity Generator sessions — tracks daily usage for free-tier limits.
+model PositivitySession {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date        String   // "YYYY-MM-DD"
+  category    String   // wealth, money, health, etc.
+  intention   String?
+  durationSec Int
+  source      String   // "llm" | "template"
+  createdAt   DateTime @default(now())
+
   @@index([deviceId, date])
 }

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDevice } from "@/lib/device";
+import { db } from "@/lib/db";
+import { todayStr } from "@/lib/limits";
 import {
   generatePositivityScript,
   detectCategory,
@@ -11,25 +13,63 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+/** Free tier: 1 positivity session per day. Premium: unlimited. */
+const FREE_DAILY_LIMIT = 1;
+
 /**
- * GET /api/positivity — returns the list of positivity categories.
+ * GET /api/positivity — returns categories + today's usage.
  */
-export async function GET() {
-  return NextResponse.json({
-    categories: POSITIVITY_CATEGORIES.map((c) => ({
-      id: c.id,
-      label: c.label,
-      glyph: c.glyph,
-      color: c.color,
-      desc: c.desc,
-    })),
-  });
+export async function GET(req: Request) {
+  try {
+    const device = await requireDevice(new Headers(req.headers));
+    const today = todayStr();
+
+    // Count today's sessions from UsageLog (we store it as part of tarotReadings-like counter)
+    // For simplicity, we track positivity sessions in a separate counter on the UsageLog
+    // But since we can't add columns easily, we'll use a simple approach: check the UsageLog
+    const usage = await db.usageLog.findUnique({
+      where: { deviceId_date: { deviceId: device.id, date: today } },
+    });
+
+    // We'll use the frequencySec field as a proxy: if > 0, user has done a session today
+    // Actually, let's use a simpler approach — track via a localStorage counter on the client
+    // and enforce server-side via the usage log's frequencySec (repurposed) or a new field.
+    // For now, we'll track sessions via the UsageLog.frequencySec as a hack (0 = no session, >0 = has session)
+    // Better: add a `positivitySessions` field to UsageLog. But that requires migration.
+    // Simplest: use a separate PositivitySession model.
+    const sessionsToday = await db.positivitySession.count({
+      where: { deviceId: device.id, date: today },
+    }).catch(() => 0);
+
+    const remaining = device.isPremium ? Infinity : Math.max(0, FREE_DAILY_LIMIT - sessionsToday);
+
+    return NextResponse.json({
+      categories: POSITIVITY_CATEGORIES.map((c) => ({
+        id: c.id,
+        label: c.label,
+        glyph: c.glyph,
+        color: c.color,
+        desc: c.desc,
+      })),
+      usage: {
+        sessionsToday,
+        remaining: remaining === Infinity ? null : remaining,
+        isPremium: device.isPremium,
+        limit: FREE_DAILY_LIMIT,
+      },
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: e.message || "Failed." },
+      { status: 400 }
+    );
+  }
 }
 
 /**
  * POST /api/positivity — generate a positivity script.
- * Body: { category?: PositivityCategory, intention: string }
- * If category is not provided, it's auto-detected from the intention text.
+ * Body: { category?: PositivityCategory, intention?: string }
+ * If intention is empty but category is provided, uses template defaults (quick-start).
  */
 export async function POST(req: Request) {
   try {
@@ -40,30 +80,70 @@ export async function POST(req: Request) {
       intention?: string;
     };
 
-    if (!intention || !intention.trim()) {
+    // Either category or intention must be provided
+    if (!category && !intention?.trim()) {
       return NextResponse.json(
-        { error: "Please share what you'd like to generate positivity for." },
+        { error: "Please choose a category or share your intention." },
         { status: 400 }
       );
     }
 
-    if (intention.length > 500) {
+    if (intention && intention.length > 500) {
       return NextResponse.json(
         { error: "Please keep your intention under 500 characters." },
         { status: 400 }
       );
     }
 
+    // Check daily limit for free users
+    const today = todayStr();
+    const sessionsToday = await db.positivitySession.count({
+      where: { deviceId: device.id, date: today },
+    }).catch(() => 0);
+
+    if (!device.isPremium && sessionsToday >= FREE_DAILY_LIMIT) {
+      return NextResponse.json(
+        {
+          error: "limit-reached",
+          message: "You've used your free positivity session for today. Come back tomorrow or upgrade to Premium for unlimited sessions.",
+          usage: { sessionsToday, limit: FREE_DAILY_LIMIT, isPremium: false },
+        },
+        { status: 429 }
+      );
+    }
+
     // Detect or use provided category
     const resolvedCategory = category && POSITIVITY_CATEGORIES.some((c) => c.id === category)
       ? category
-      : detectCategory(intention);
+      : detectCategory(intention || "");
 
-    const script = await generatePositivityScript(resolvedCategory, intention);
+    const script = await generatePositivityScript(resolvedCategory, intention || "");
+
+    // Log the session
+    try {
+      await db.positivitySession.create({
+        data: {
+          deviceId: device.id,
+          date: today,
+          category: resolvedCategory,
+          intention: intention?.trim() || null,
+          durationSec: script.totalDurationSec,
+          source: script.source,
+        },
+      });
+    } catch (e) {
+      // If PositivitySession table doesn't exist, skip logging
+      console.error("Failed to log positivity session:", e);
+    }
 
     return NextResponse.json({
       script,
-      device: { id: device.id },
+      usage: {
+        sessionsToday: sessionsToday + 1,
+        remaining: device.isPremium ? null : Math.max(0, FREE_DAILY_LIMIT - sessionsToday - 1),
+        isPremium: device.isPremium,
+        limit: FREE_DAILY_LIMIT,
+      },
     });
   } catch (e: any) {
     console.error("positivity API error:", e);
