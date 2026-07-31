@@ -1332,3 +1332,38 @@ Stage Summary:
 - ✅ Vercel project exists and is serving (but old SQLite build — needs env vars + redeploy)
 - ⏳ BLOCKED: Need Vercel token to set DATABASE_URL + OPENROUTER_API_KEY env vars and trigger redeploy
 - 📝 Next: User generates Vercel token, runs setup script, app goes live
+
+---
+Task ID: vercel-deploy-complete
+Agent: main
+Task: Deploy Lumina to Vercel with Neon Postgres + OpenRouter free LLM
+
+Work Log:
+- Received Vercel token from user (vcp_85V4...)
+- Verified token works, project ID: prj_FCraAPY7GXYUheNL79RCIZ5UbCsU, org: team_8rsXc2dAnFW6ZasPNWeBoPlp
+- Deleted old env vars (DATABASE_URL, OPENROUTER_API_KEY) that had stale values
+- Created new env vars with correct values:
+  - DATABASE_URL = Neon Postgres connection string
+  - OPENROUTER_API_KEY = sk-or-v1-4b6241b6...
+- Triggered production deployment via Vercel API
+- First deployment built successfully but was using stale SQLite Prisma client
+- Fixed: added "postinstall": "prisma generate" + "build": "prisma generate && next build" to package.json
+- Triggered fresh deployment after the fix
+- Assigned production alias (lumina-tarot-app.vercel.app) to the new deployment
+- Verified ALL APIs work on production:
+  - /api/xp → 200 (returns Level 1, Seeker, 0 XP)
+  - /api/me → 200 (returns device data)
+  - /api/ritual → 200 (returns ritual steps)
+  - /api/mood → 200
+  - /api/manifest/goals → 200
+  - /api/stats/weekly → 200
+  - /api/tarot/read → 200 (OpenRouter free LLM produced interpretation!)
+- Tarot reading tested live: "Will I find peace?" → "NO. The cycle of pain has reached its absolute limit..." (using nvidia/nemotron-nano-9b-v2:free)
+
+Stage Summary:
+- ✅ LIVE URL: https://lumina-tarot-app.vercel.app
+- ✅ Neon Postgres database connected (all 9 tables)
+- ✅ OpenRouter free LLM working for tarot readings ($0 cost)
+- ✅ All 6 API endpoints returning 200
+- ✅ Homepage loading (HTTP 200)
+- ✅ Production deployment verified end-to-end
