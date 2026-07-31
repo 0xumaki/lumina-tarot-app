@@ -140,35 +140,68 @@ export function CardOfDay() {
               </button>
             </div>
 
-            {/* Card name + meaning — below the card */}
-            <div className="mt-5 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-xl leading-none">{card.symbol}</span>
-                <h3 className="text-[18px] font-medium text-ink leading-[22px]">{card.name}</h3>
-                {reversed && (
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-gold/70 font-medium">· Rev</span>
-                )}
-              </div>
-              <p className="text-[13px] leading-[20px] text-ink-muted max-w-[300px] mx-auto">
-                {reversed ? card.meaningReversed : card.meaningUpright}
-              </p>
-              <div className="flex flex-wrap gap-1.5 justify-center mt-3">
-                {(reversed ? card.keywordsReversed : card.keywordsUpright).slice(0, 3).map((k) => (
-                  <Pill key={k} variant="gold">{k}</Pill>
-                ))}
-              </div>
-            </div>
+            {/* Card name + meaning — hidden until revealed */}
+            <AnimatePresence>
+              {cardRevealed ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="mt-5 text-center"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-xl leading-none">{card.symbol}</span>
+                    <h3 className="text-[18px] font-medium text-ink leading-[22px]">{card.name}</h3>
+                    {reversed && (
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-gold/70 font-medium">· Rev</span>
+                    )}
+                  </div>
+                  <p className="text-[13px] leading-[20px] text-ink-muted max-w-[300px] mx-auto">
+                    {reversed ? card.meaningReversed : card.meaningUpright}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 justify-center mt-3">
+                    {(reversed ? card.keywordsReversed : card.keywordsUpright).slice(0, 3).map((k) => (
+                      <Pill key={k} variant="gold">{k}</Pill>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-5 text-center"
+                >
+                  {/* Mysterious placeholder — no spoilers */}
+                  <div className="h-5 w-40 bg-white/[0.06] rounded-full mx-auto mb-3" style={{ filter: "blur(8px)" }} />
+                  <div className="space-y-2 max-w-[260px] mx-auto">
+                    <div className="h-3 bg-white/[0.04] rounded-full" style={{ filter: "blur(6px)" }} />
+                    <div className="h-3 w-3/4 bg-white/[0.04] rounded-full mx-auto" style={{ filter: "blur(6px)" }} />
+                  </div>
+                  <p className="text-[12px] text-ink-muted/60 italic mt-4">Reveal to discover today's message</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <Divider className="my-4" />
+            {/* Affirmation + Reflection — hidden until revealed */}
+            <AnimatePresence>
+              {cardRevealed && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                >
+                  <Divider className="my-4" />
 
-            {/* Affirmation */}
-            <div
-              className="rounded-xl px-4 py-3"
-              style={{ background: "rgba(197,168,124,0.06)", border: "1px solid rgba(197,168,124,0.15)" }}
-            >
-              <div className="text-[11px] uppercase tracking-[0.18em] text-gold font-medium mb-1">Today's affirmation</div>
-              <p className="text-[14px] leading-[20px] text-ink italic">"{card.affirmation}"</p>
-            </div>
+                  {/* Affirmation */}
+                  <div
+                    className="rounded-xl px-4 py-3"
+                    style={{ background: "rgba(197,168,124,0.06)", border: "1px solid rgba(197,168,124,0.15)" }}
+                  >
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gold font-medium mb-1">Today's affirmation</div>
+                    <p className="text-[14px] leading-[20px] text-ink italic">"{card.affirmation}"</p>
+                  </div>
 
             {/* Reflection */}
             <div className="mt-3">
@@ -258,6 +291,9 @@ export function CardOfDay() {
                 Journal
               </button>
             </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
