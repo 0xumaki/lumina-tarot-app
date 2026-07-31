@@ -45,6 +45,7 @@ export function CardOfDay() {
       })).json(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["card-of-day"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
       setEditing(false);
       toast({ title: "Reflection saved", description: "Your note for today is recorded." });
     },

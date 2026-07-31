@@ -43,6 +43,7 @@ export function MoodCheckIn() {
       })).json(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mood"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
       haptics("complete");
     },
   });

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check, Copy, Bookmark, BookmarkCheck, AudioLines } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ type Reading = {
 
 export function TarotView({ isPremium, remaining }: { isPremium: boolean; remaining: number | null }) {
   const api = useApi();
+  const qc = useQueryClient();
   const { toast } = useToast();
   const setTab = useAppStore((s) => s.setTab);
   const setPending = useAppStore((s) => s.setPendingPremiumAction);
@@ -91,6 +93,9 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
       }
       setReading(data.reading);
       setPhase("revealing");
+      // Invalidate me + ritual so achievement hook detects new unlocks immediately
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["ritual"] });
       // Reveal cards one by one
       const total = data.reading.cards.length;
       for (let i = 0; i < total; i++) {
