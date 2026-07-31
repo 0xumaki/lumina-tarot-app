@@ -14,6 +14,7 @@ import { drawCards, attachMeta } from "@/lib/tarot";
 import { interpretReading } from "@/lib/ai-tarot";
 import { db } from "@/lib/db";
 import { awardXp, XP_REWARDS } from "@/lib/xp-server";
+import { checkTarotRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,25 @@ export async function POST(req: Request) {
           message: `${getSpread(spreadType)!.name} is a Premium spread. Upgrade to unlock all spreads.`,
         },
         { status: 402 }
+      );
+    }
+
+    // Rate limiting — protect AI costs (free: 10/hour, premium: 100/hour)
+    const rateLimit = checkTarotRateLimit(device.deviceId, device.isPremium);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "rate-limited",
+          message: "You're reading the cards too quickly. Take a breath and try again in a moment.",
+          retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+          },
+        }
       );
     }
 
