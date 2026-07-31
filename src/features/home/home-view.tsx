@@ -15,6 +15,7 @@ import { StreakRing } from "@/components/lumina/streak-ring";
 import { MoodCheckIn } from "@/components/lumina/mood-check-in";
 import { WeeklyTeaser } from "@/components/lumina/weekly-teaser";
 import { MoonPhase } from "@/components/lumina/moon-phase";
+import { PositivityGenerator } from "@/components/lumina/positivity-generator";
 import { useRitual } from "@/hooks/use-ritual";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
@@ -133,6 +134,9 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
           </div>
         </div>
       </ShellCard>
+
+      {/* Positivity Generator — start your day with intention */}
+      <PositivityGenerator />
 
       {/* Moon Phase — lunar guidance */}
       <MoonPhase onSuggest={() => setTab("frequency")} />
