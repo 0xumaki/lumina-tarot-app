@@ -3,7 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Play, Pause, Music } from "lucide-react";
+import { X, Play, Pause } from "lucide-react";
 import type { PositivityScript } from "@/lib/positivity";
 
 /**
@@ -34,13 +34,9 @@ const AMBIENT_BEDS = [
 
 export function PositivitySession({
   script,
-  frequencyHz,
-  frequencyName,
   onClose,
 }: {
   script: PositivityScript;
-  frequencyHz?: number;
-  frequencyName?: string;
   onClose: () => void;
 }) {
   const [phase, setPhase] = React.useState<"countdown" | "playing" | "paused" | "complete">("countdown");
@@ -49,116 +45,11 @@ export function PositivitySession({
   const [lineProgress, setLineProgress] = React.useState(0);
   const [exiting, setExiting] = React.useState(false);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioRef = React.useRef<{ stop: (fadeSec?: number) => void } | null>(null);
 
   const currentLine = script.lines[lineIdx];
   const accent = getAccent(script.category);
-  const freqHz = frequencyHz || 528;
 
-  // Randomly select an ambient bed for this session
-  const ambientBed = React.useMemo(() => {
-    return AMBIENT_BEDS[Math.floor(Math.random() * AMBIENT_BEDS.length)];
-  }, []);
-
-  // Start ambient music when session begins
-  React.useEffect(() => {
-    if (phase !== "playing" || audioRef.current) return;
-
-    let stopped = false;
-    let nodes: any[] = [];
-    let masterGain: any = null;
-    let audioElements: HTMLAudioElement[] = [];
-
-    // Start Tone.js audio context (requires user gesture — the click that started the session)
-    import("tone").then(async (Tone) => {
-      if (stopped) return;
-
-      try {
-        // CRITICAL: Start the audio context (must be triggered by user gesture)
-        await Tone.start();
-
-        // Master gain — AUDIBLE volume (0.4 = 40% — clearly hearable)
-        masterGain = new Tone.Gain(0.4).toDestination();
-
-        // Frequency oscillators (the Solfeggio frequency)
-        const osc1 = new Tone.Oscillator({
-          frequency: freqHz,
-          type: "sine",
-          volume: 0, // 0 dB = full volume
-        }).connect(masterGain);
-        osc1.start();
-
-        const osc2 = new Tone.Oscillator({
-          frequency: freqHz * 1.5,
-          type: "sine",
-          volume: -6,
-        }).connect(masterGain);
-        osc2.start();
-
-        // Slow LFO for breathing volume modulation
-        const lfo = new Tone.LFO({
-          frequency: 0.1,
-          min: -6,
-          max: 0,
-          type: "sine",
-        }).start();
-        lfo.connect(osc1.volume);
-
-        nodes = [osc1, osc2, lfo];
-
-        // Play REAL ambient soundtrack (WAV file — actual recorded/synthesized audio, not generated at runtime)
-        const bedAudio = new Audio(`/audio/${ambientBed.id}.wav`);
-        bedAudio.loop = true;
-        bedAudio.volume = 0.6; // Clearly audible
-        bedAudio.crossOrigin = "anonymous";
-        await bedAudio.play().catch((e) => {
-          console.warn("Ambient bed audio failed:", e);
-        });
-        audioElements.push(bedAudio);
-
-        // Fade in
-        masterGain.gain.rampTo(0.4, 2);
-
-        audioRef.current = {
-          stop: (fadeSec = 3) => {
-            if (masterGain) {
-              masterGain.gain.rampTo(0, fadeSec);
-            }
-            // Fade out ambient audio
-            audioElements.forEach((a) => {
-              try {
-                const fadeInterval = setInterval(() => {
-                  a.volume = Math.max(0, a.volume - 0.05);
-                  if (a.volume <= 0) {
-                    clearInterval(fadeInterval);
-                    a.pause();
-                  }
-                }, (fadeSec * 1000) / 20);
-              } catch {}
-            });
-            setTimeout(() => {
-              nodes.forEach((n) => {
-                try { n.stop?.(); n.dispose?.(); } catch {}
-              });
-              audioElements.forEach((a) => { try { a.pause(); a.src = ""; } catch {} });
-              nodes = [];
-              audioElements = [];
-            }, (fadeSec + 0.5) * 1000);
-          },
-        };
-      } catch (e) {
-        console.error("Audio setup failed:", e);
-      }
-    }).catch(() => {});
-
-    return () => {
-      stopped = true;
-      if (audioRef.current) {
-        audioRef.current.stop(1);
-        audioRef.current = null;
-      }
-    };
-  }, [phase, freqHz, ambientBed]);
+  // Audio is disabled — session is silent (visual-only) for a calm, distraction-free experience.
 
   // Countdown 5 → 1
   React.useEffect(() => {
@@ -201,20 +92,16 @@ export function PositivitySession({
     };
   }, [phase, lineIdx, currentLine, script.lines.length]);
 
-  // Graceful audio fade-out when session completes
+  // Graceful fade when session completes (visual only — no audio)
   React.useEffect(() => {
-    if (phase === "complete" && audioRef.current) {
-      audioRef.current.stop(3); // 3-second graceful fade
+    if (phase === "complete") {
+      // No audio to fade — just visual transition
     }
   }, [phase]);
 
   // Cleanup on unmount
   React.useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.stop(1);
-      }
-    };
+    return () => {};
   }, []);
 
   function togglePause() {
@@ -228,7 +115,6 @@ export function PositivitySession({
 
   function smoothClose() {
     setExiting(true);
-    if (audioRef.current) audioRef.current.stop(1.5);
     setTimeout(() => onClose(), 700);
   }
 
@@ -292,12 +178,6 @@ export function PositivitySession({
       >
         <X className="w-5 h-5" strokeWidth={1.5} />
       </button>
-
-      {/* Frequency info badge (top-left) */}
-      <div className="absolute top-6 left-4 sm:top-12 sm:left-6 z-30 flex items-center gap-1.5">
-        <Music className="w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
-        <span className="text-[9px] text-white/30 tabular-nums tracking-wide">{freqHz}Hz · {ambientBed.label}</span>
-      </div>
 
       {/* === MAIN CONTENT === */}
       <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md px-5 sm:px-8 text-center min-h-[100dvh] py-20">
