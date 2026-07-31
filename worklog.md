@@ -1305,3 +1305,30 @@ Stage Summary:
 - Mastery Celebration: the biggest pop-up — triple confetti, crown, "You are a Luminary", 3 reward pills, gold gradient button.
 - All designs rated 9/10 by VLM. Clean lint, no errors.
 - Files: src/lib/achievements.ts, src/lib/frequencies.ts, src/lib/theme.ts, src/hooks/use-achievements.ts, src/lib/store.ts, src/components/lumina/celebration-overlay.tsx, src/components/lumina/luminary-particles.tsx, src/components/lumina/hall-of-light.tsx, src/app/globals.css, src/app/page.tsx, src/features/home/home-view.tsx, src/features/settings/settings-view.tsx, src/features/frequency/frequency-view.tsx.
+
+---
+Task ID: deploy-vercel-neon-openrouter
+Agent: main
+Task: Deploy Lumina to Vercel with Neon Postgres + OpenRouter free LLM
+
+Work Log:
+- Added OpenRouter API key to .env (sk-or-v1-...)
+- Tested OpenRouter free models — found 4 working: nvidia/nemotron-nano-9b-v2:free, google/gemma-4-26b-a4b-it:free, nvidia/nemotron-3-nano-30b-a3b:free, nvidia/nemotron-3-super-120b-a12b:free
+- Updated src/lib/ai-tarot.ts: 3-tier fallback (OpenRouter free → z-ai-sdk → smart template), auto-model-selection per spread type
+- Verified tarot readings work with OpenRouter (tested yes-no + three-card)
+- Changed Prisma schema provider from "sqlite" to "postgresql"
+- Created Neon Postgres database (ep-cool-frost-azl0uu95-pooler, ap-southeast-1)
+- Ran db:push against Neon — all 9 tables created successfully (device, reading, goal, confirmation, frequencySession, usageLog, mood, insightFeedback, ritualLog)
+- Pushed all changes to GitHub (0xumaki/lumina-tarot-app)
+- Vercel project already exists (prj_FCraAPY7GXYUheNL79RCIZ5UbCsU) at https://lumina-tarot-app.vercel.app
+- Created scripts/setup-vercel-env.sh to set env vars + trigger deploy via Vercel API
+- NEEDS: Vercel access token to run the setup script (user needs to generate at https://vercel.com/account/tokens)
+
+Stage Summary:
+- ✅ OpenRouter free LLM integration complete and tested
+- ✅ Neon Postgres database created with all 9 tables
+- ✅ Prisma schema migrated from SQLite to PostgreSQL
+- ✅ All code pushed to GitHub (7 commits)
+- ✅ Vercel project exists and is serving (but old SQLite build — needs env vars + redeploy)
+- ⏳ BLOCKED: Need Vercel token to set DATABASE_URL + OPENROUTER_API_KEY env vars and trigger redeploy
+- 📝 Next: User generates Vercel token, runs setup script, app goes live
