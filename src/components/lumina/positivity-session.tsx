@@ -134,18 +134,18 @@ export function PositivitySession({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.6 }}
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: "#030201" }}
+      style={{ background: "radial-gradient(ellipse at 50% 45%, #0a0805 0%, #030201 70%)" }}
     >
-      {/* === ANIMATED RADIANCE BACKGROUND === */}
-      {/* Layer 1: Deep radial glow that breathes */}
+      {/* === ANIMATED RADIANCE BACKGROUND — vibrant, layered, alive === */}
+      {/* Layer 1: Large breathing radial glow — strong, visible */}
       <motion.div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 50% 45%, ${accent}18 0%, ${accent}06 25%, transparent 60%)`,
+          background: `radial-gradient(circle at 50% 45%, ${accent}40 0%, ${accent}15 20%, ${accent}05 45%, transparent 70%)`,
         }}
         animate={{
-          scale: phase === "playing" ? [1, 1.12, 1] : [1, 1.04, 1],
-          opacity: phase === "playing" ? [0.6, 1, 0.6] : [0.4, 0.6, 0.4],
+          scale: phase === "playing" ? [1, 1.15, 1] : [1, 1.05, 1],
+          opacity: phase === "playing" ? [0.7, 1, 0.7] : [0.5, 0.7, 0.5],
         }}
         transition={{
           duration: currentLine?.durationSec || 8,
@@ -154,27 +154,29 @@ export function PositivitySession({
         }}
       />
 
-      {/* Layer 2: Concentric radiance waves — ripple outward */}
+      {/* Layer 2: Vibrant concentric radiance waves — ripple outward, HIGH opacity */}
       {phase === "playing" && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <motion.div
               key={i}
               className="absolute rounded-full"
               style={{
-                width: 200,
-                height: 200,
-                border: `1px solid ${accent}30`,
-                background: `radial-gradient(circle, ${accent}08, transparent 70%)`,
+                width: 180,
+                height: 180,
+                border: `2px solid ${accent}`,
+                background: `radial-gradient(circle, ${accent}15, transparent 70%)`,
+                boxShadow: `0 0 20px ${accent}40, inset 0 0 20px ${accent}20`,
               }}
               animate={{
-                scale: [1, 4 + i * 0.5],
-                opacity: [0.4, 0],
+                scale: [0.8, 5 + i * 0.8],
+                opacity: [0.6, 0],
+                borderWidth: ["2px", "0.5px"],
               }}
               transition={{
-                duration: 6 + i * 1.5,
+                duration: 5 + i,
                 repeat: Infinity,
-                delay: i * 1.2,
+                delay: i * 0.8,
                 ease: "easeOut",
               }}
             />
@@ -182,44 +184,101 @@ export function PositivitySession({
         </div>
       )}
 
-      {/* Layer 3: Aurora gradient — slow drifting color washes */}
+      {/* Layer 3: Aurora gradient — slow rotating conic wash, MORE vibrant */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `conic-gradient(from 0deg at 50% 50%, transparent 0%, ${accent}0a 25%, transparent 50%, ${accent}08 75%, transparent 100%)`,
+          background: `conic-gradient(from 0deg at 50% 50%, transparent 0%, ${accent}20 15%, transparent 30%, ${accent}15 50%, transparent 65%, ${accent}18 85%, transparent 100%)`,
+          mixBlendMode: "screen",
         }}
         animate={{ rotate: 360 }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
       />
 
-      {/* Layer 4: Floating particles — gentle upward drift */}
+      {/* Layer 4: Secondary aurora — counter-rotating, different hue */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `conic-gradient(from 180deg at 50% 50%, transparent 0%, ${accent}12 20%, transparent 40%, ${accent}10 60%, transparent 80%, ${accent}14 100%)`,
+          mixBlendMode: "screen",
+        }}
+        animate={{ rotate: -360 }}
+        transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
+      />
+
+      {/* Layer 5: Large floating orbs — soft blurred color blobs */}
+      <motion.div
+        className="absolute pointer-events-none"
+        style={{
+          width: 300,
+          height: 300,
+          left: "10%",
+          top: "20%",
+          background: `radial-gradient(circle, ${accent}30, transparent 70%)`,
+          filter: "blur(40px)",
+        }}
+        animate={{
+          x: [0, 60, 0],
+          y: [0, -40, 0],
+          scale: [1, 1.3, 1],
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute pointer-events-none"
+        style={{
+          width: 250,
+          height: 250,
+          right: "10%",
+          bottom: "15%",
+          background: `radial-gradient(circle, ${accent}25, transparent 70%)`,
+          filter: "blur(35px)",
+        }}
+        animate={{
+          x: [0, -50, 0],
+          y: [0, 30, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+      />
+
+      {/* Layer 6: Floating particles — MORE visible, glowing */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 24 }).map((_, i) => (
+        {Array.from({ length: 30 }).map((_, i) => (
           <motion.span
             key={i}
             className="absolute rounded-full"
             style={{
-              width: 1 + (i % 4) * 0.5,
-              height: 1 + (i % 4) * 0.5,
-              background: `${accent}50`,
+              width: 2 + (i % 4) * 0.8,
+              height: 2 + (i % 4) * 0.8,
+              background: accent,
               left: `${(i * 37 + 13) % 100}%`,
               top: `${(i * 53 + 29) % 100}%`,
-              boxShadow: `0 0 ${2 + (i % 3)}px ${accent}40`,
+              boxShadow: `0 0 ${4 + (i % 4)}px ${accent}, 0 0 ${8 + (i % 3) * 2}px ${accent}60`,
             }}
             animate={{
-              y: [0, -50 - (i % 5) * 15],
-              x: [0, (i % 2 === 0 ? 10 : -10)],
-              opacity: [0, 0.6, 0],
+              y: [0, -60 - (i % 5) * 15],
+              x: [0, (i % 2 === 0 ? 15 : -15)],
+              opacity: [0, 0.8, 0],
+              scale: [0.5, 1.2, 0.5],
             }}
             transition={{
-              duration: 10 + (i % 8),
+              duration: 8 + (i % 8),
               repeat: Infinity,
-              delay: i * 0.5,
+              delay: i * 0.4,
               ease: "easeInOut",
             }}
           />
         ))}
       </div>
+
+      {/* Layer 7: Vignette — dark edges for focus */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)",
+        }}
+      />
 
       {/* Close button (top-right) */}
       <button
@@ -305,10 +364,12 @@ export function PositivitySession({
                 {String(lineIdx + 1).padStart(2, "0")} · {String(script.lines.length).padStart(2, "0")}
               </div>
 
-              {/* The affirmation — large, centered, breathing */}
+              {/* The affirmation — large, centered, glowing */}
               <p
-                className="text-[24px] md:text-[26px] font-light leading-[36px] text-white max-w-[360px] min-h-[180px] flex items-center justify-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.4)]"
-                style={{ textShadow: `0 0 30px ${accent}20` }}
+                className="text-[24px] md:text-[27px] font-light leading-[38px] text-white max-w-[360px] min-h-[180px] flex items-center justify-center"
+                style={{
+                  textShadow: `0 0 40px ${accent}60, 0 0 80px ${accent}30, 0 2px 16px rgba(0,0,0,0.4)`,
+                }}
               >
                 {currentLine.text}
               </p>
