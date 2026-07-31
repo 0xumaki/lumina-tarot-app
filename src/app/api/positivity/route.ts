@@ -16,8 +16,8 @@ export const maxDuration = 30;
 /** Free tier: 1 positivity session per day. Premium: unlimited. */
 const FREE_DAILY_LIMIT = 1;
 
-/** Format a date as YYYY-MM-DD string. */
-function todayStr(d = new Date()): string {
+/** Format a date as YYYY-MM-DD string (local, for streak calculation). */
+function dateToStr(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
@@ -60,10 +60,10 @@ export async function GET(req: Request) {
 
       const sessionDates = new Set(allSessions.map((s) => s.date));
       const cursor = new Date();
-      if (!sessionDates.has(todayStr(cursor))) {
+      if (!sessionDates.has(dateToStr(cursor))) {
         cursor.setDate(cursor.getDate() - 1);
       }
-      while (sessionDates.has(todayStr(cursor))) {
+      while (sessionDates.has(dateToStr(cursor))) {
         positivityStreak++;
         cursor.setDate(cursor.getDate() - 1);
       }
@@ -175,10 +175,10 @@ export async function POST(req: Request) {
       const sessionDates = new Set(allSessions.map((s) => s.date));
       const cursor = new Date();
       // If today not in set, start from yesterday
-      if (!sessionDates.has(todayStr(cursor))) {
+      if (!sessionDates.has(dateToStr(cursor))) {
         cursor.setDate(cursor.getDate() - 1);
       }
-      while (sessionDates.has(todayStr(cursor))) {
+      while (sessionDates.has(dateToStr(cursor))) {
         positivityStreak++;
         cursor.setDate(cursor.getDate() - 1);
       }
