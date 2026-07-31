@@ -51,7 +51,7 @@ export function CardOfDay() {
     },
   });
 
-  if (isLoading || !data) {
+  if (isLoading || !data || !data.card) {
     return (
       <div className="lum-glass rounded-2xl p-6 flex flex-col items-center animate-pulse">
         <div className="w-[120px] h-[180px] rounded-[14px] bg-white/5 mb-4" />

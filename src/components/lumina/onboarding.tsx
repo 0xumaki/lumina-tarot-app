@@ -37,6 +37,7 @@ const SLIDES = [
     body: "Pose any question. Lumina shuffles the full 78-card Rider–Waite deck and an AI voice interprets what the symbols mirror back — Yes/No guidance or a deep multi-card spread.",
     accent: "#C5A87C",
     glyph: "✦",
+    bg: "/images/onboarding/slide-1.jpg",
   },
   {
     icon: Target,
@@ -45,6 +46,7 @@ const SLIDES = [
     body: "Set what you desire. Lumina auto-tunes a frequency to your intention and nudges you, every day at your chosen time, to confirm the statement aloud. Streaks compound the signal.",
     accent: "#B5CD7E",
     glyph: "◉",
+    bg: "/images/onboarding/slide-2.jpg",
   },
   {
     icon: AudioLines,
@@ -53,6 +55,7 @@ const SLIDES = [
     body: "Pure tones, binaural beats, and ambient pads — 888 Hz for abundance, 528 Hz for healing, 963 Hz for unity. A breathing pacer guides you into resonance.",
     accent: "#9E8AC9",
     glyph: "〰",
+    bg: "/images/onboarding/slide-3.jpg",
   },
 ];
 
@@ -65,7 +68,6 @@ const INTENTIONS = [
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [idx, setIdx] = React.useState(0);
   const [intention, setIntention] = React.useState<string | null>(null);
-  const setTab = useAppStore((s) => s.setTab);
 
   // idx 0-2 = slides, idx 3 = intention picker
   const slide = idx < 3 ? SLIDES[idx] : null;
@@ -91,21 +93,70 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-      <div className="absolute inset-0 lum-aurora" />
-      <StarField count={40} />
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden">
+      {/* Background image with crossfade */}
+      <AnimatePresence mode="popLayout">
+        {slide ? (
+          <motion.div
+            key={`bg-${idx}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <img
+              src={slide.bg}
+              alt=""
+              className="w-full h-full object-cover"
+              style={{ filter: "brightness(0.35) saturate(0.85)" }}
+            />
+            {/* Dark gradient overlay for text legibility */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: "linear-gradient(180deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.85) 100%)",
+              }}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="bg-intention"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <img
+              src="/images/onboarding/slide-4.jpg"
+              alt=""
+              className="w-full h-full object-cover"
+              style={{ filter: "brightness(0.3) saturate(0.85)" }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.9) 100%)",
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <StarField count={30} />
 
       <div className="relative z-10 flex-1 flex flex-col px-6 pt-16 pb-8">
         <button
           onClick={skip}
-          className="absolute top-12 right-6 text-[12px] text-ink-muted hover:text-ink tracking-wide"
+          className="absolute top-12 right-6 text-[12px] text-white/70 hover:text-white tracking-wide z-20"
         >
           Skip
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <AnimatePresence mode="wait">
-            {slide && (
+            {slide && Icon && (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 16 }}
@@ -139,10 +190,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 <div className="text-[11px] uppercase tracking-[0.24em] font-medium mb-3" style={{ color: slide.accent }}>
                   {slide.eyebrow}
                 </div>
-                <h1 className="text-[26px] font-light leading-[32px] tracking-[-0.025em] text-ink max-w-[300px]">
+                <h1 className="text-[26px] font-light leading-[32px] tracking-[-0.025em] text-white max-w-[300px] drop-shadow-lg">
                   {slide.title}
                 </h1>
-                <p className="mt-4 text-[14px] leading-[22px] text-ink-muted max-w-[320px]">
+                <p className="mt-4 text-[14px] leading-[22px] text-white/80 max-w-[320px] drop-shadow-md">
                   {slide.body}
                 </p>
               </motion.div>
@@ -174,10 +225,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 <div className="text-[11px] uppercase tracking-[0.24em] text-gold/80 font-medium mb-3">
                   One last thing
                 </div>
-                <h1 className="text-[24px] font-light leading-[30px] tracking-[-0.025em] text-ink">
+                <h1 className="text-[24px] font-light leading-[30px] tracking-[-0.025em] text-white drop-shadow-lg">
                   What brought you here today?
                 </h1>
-                <p className="mt-3 text-[13px] leading-[19px] text-ink-muted max-w-[280px]">
+                <p className="mt-3 text-[13px] leading-[19px] text-white/80 max-w-[280px]">
                   We'll shape your first card-of-day around your intention.
                 </p>
 
@@ -190,10 +241,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                       <button
                         key={opt.id}
                         onClick={() => setIntention(opt.id)}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all text-left backdrop-blur-md ${
                           isSelected
                             ? "border-gold/50 bg-gold/[0.10] shadow-[0_0_20px_-4px_rgba(197,168,124,0.2)]"
-                            : "border-white/6 bg-white/[0.015] hover:border-white/15 hover:bg-white/[0.03]"
+                            : "border-white/10 bg-black/30 hover:border-white/25 hover:bg-black/40"
                         }`}
                       >
                         <div
@@ -206,10 +257,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                           <OptIcon className="w-4 h-4" style={{ color: opt.accent }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className={`text-[14px] font-medium ${isSelected ? "text-gold" : "text-ink"}`}>
+                          <div className={`text-[14px] font-medium ${isSelected ? "text-gold" : "text-white"}`}>
                             {opt.label}
                           </div>
-                          <div className="text-[11px] text-ink-muted mt-0.5">{opt.desc}</div>
+                          <div className="text-[11px] text-white/60 mt-0.5">{opt.desc}</div>
                         </div>
                         {isSelected && (
                           <motion.div
@@ -230,7 +281,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         </div>
 
         {/* Progress dots + CTA */}
-        <div className="space-y-6">
+        <div className="space-y-6 relative z-10">
           <div className="flex items-center justify-center gap-2">
             {[0, 1, 2, 3].map((i) => (
               <button
@@ -246,7 +297,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     height: 6,
                     background: i === idx
                       ? (isIntentionStep ? "#C5A87C" : SLIDES[idx]?.accent || "#C5A87C")
-                      : "rgba(255,255,255,0.2)",
+                      : "rgba(255,255,255,0.3)",
                   }}
                 />
               </button>

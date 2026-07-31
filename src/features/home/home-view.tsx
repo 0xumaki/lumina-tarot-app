@@ -55,7 +55,7 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
     return Math.max(0, ...goals.map((g) => g.streak ?? 0));
   }, [goalsData]);
 
-  const isPremium = data?.device.isPremium;
+  const isPremium = !!data?.device?.isPremium;
   const usage = data?.usage;
   const greeting = useGreeting();
   const { ritual, streak: ritualStreak } = useRitual();
