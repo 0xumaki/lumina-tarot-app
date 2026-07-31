@@ -3,22 +3,22 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Volume2, VolumeX } from "lucide-react";
+import { X, Play, Pause } from "lucide-react";
 import type { PositivityScript } from "@/lib/positivity";
 
 /**
  * PositivitySession — full-screen immersive recitation experience.
  *
- * 10/10 Award-winning design based on research of Calm, Headspace, Balance:
- * - SINGLE soft breathing circular aura behind text (not disruptive rings)
- *   Scale: 0.8 → 1.2, Opacity: 0.25 → 0.5, 10s cycle (4s in / 6s out), ease-in-out
- * - Radial scrim behind text for legibility
- * - Soft layered text-shadow (blur ≥ 8px)
- * - Word-by-word fade-in (cinematic, not slideshow)
- * - Minimal dots at bottom (4px, opacity 0.3 dim / 0.7 lit) — no counters
- * - TTS with smart voice selection (auto-disable if no quality voice)
- * - Smooth entry (600-800ms fade + scale) and exit (400-500ms fade)
- * - Completion screen with auto-close (5s countdown)
+ * Features:
+ * - SINGLE soft breathing circular aura behind text (10s cycle, ease-in-out)
+ * - 5→1 countdown: only numbers change, title + text stay still
+ * - Word-by-word text fade-in (cinematic)
+ * - Background ambient music (Tone.js 528Hz) during session
+ * - Mobile responsive: text scales to fit all screen sizes
+ * - Smooth entry/exit transitions
+ * - Minimal progress counter at bottom
+ * - Auto-close completion (5s countdown)
+ * - Portal renders above all app chrome
  */
 
 export function PositivitySession({
@@ -29,67 +29,81 @@ export function PositivitySession({
   onClose: () => void;
 }) {
   const [phase, setPhase] = React.useState<"countdown" | "playing" | "paused" | "complete">("countdown");
-  const [countdown, setCountdown] = React.useState(3);
+  const [countdown, setCountdown] = React.useState(5);
   const [lineIdx, setLineIdx] = React.useState(0);
   const [lineProgress, setLineProgress] = React.useState(0);
-  const [ttsEnabled, setTtsEnabled] = React.useState(true);
-  const [ttsAvailable, setTtsAvailable] = React.useState(true);
   const [exiting, setExiting] = React.useState(false);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = React.useRef<{ stop: () => void } | null>(null);
 
   const currentLine = script.lines[lineIdx];
   const accent = getAccent(script.category);
 
-  // Check TTS voice quality on mount
+  // Start ambient background music when session begins (playing phase)
   React.useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) {
-      setTtsAvailable(false);
-      return;
-    }
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) {
-      // Voices may not be loaded yet — wait for them
-      window.speechSynthesis.onvoiceschanged = () => {
-        const v = window.speechSynthesis.getVoices();
-        const hasQuality = v.some((voice) => isQualityVoice(voice));
-        setTtsAvailable(hasQuality);
-      };
-    } else {
-      const hasQuality = voices.some((voice) => isQualityVoice(voice));
-      setTtsAvailable(hasQuality);
-    }
-  }, []);
+    if (phase !== "playing" || audioRef.current) return;
 
-  // TTS — speak the current line with smart voice selection
-  React.useEffect(() => {
-    if (phase !== "playing" || !ttsEnabled || !ttsAvailable || !currentLine) return;
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    // Dynamically import Tone.js (client-side only)
+    let stopped = false;
+    let oscillators: any[] = [];
 
-    window.speechSynthesis.cancel();
+    import("tone").then((Tone) => {
+      if (stopped || phase !== "playing") return;
 
-    const utterance = new SpeechSynthesisUtterance(currentLine.text);
-    // Calm, natural settings (research: rate 0.85-0.95, pitch 1.0-1.1)
-    utterance.rate = 0.85;
-    utterance.pitch = 1.05;
-    utterance.volume = 0.9;
+      try {
+        // Create a soft ambient pad at 528Hz (miracle/healing frequency)
+        const osc1 = new Tone.Oscillator({
+          frequency: 528,
+          type: "sine",
+          volume: -28, // Very quiet — background only
+        }).start();
 
-    // Smart voice selection — prefer natural/enhanced voices
-    const voices = window.speechSynthesis.getVoices();
-    const qualityVoice = voices.find((v) => isQualityVoice(v));
-    if (qualityVoice) utterance.voice = qualityVoice;
+        const osc2 = new Tone.Oscillator({
+          frequency: 528 * 1.5, // Perfect fifth (792Hz)
+          type: "sine",
+          volume: -34,
+        }).start();
 
-    // Small delay before speaking (lets the text animation start first)
-    const speakTimer = setTimeout(() => {
-      window.speechSynthesis.speak(utterance);
-    }, 400);
+        const osc3 = new Tone.Oscillator({
+          frequency: 528 * 2, // Octave (1056Hz)
+          type: "sine",
+          volume: -40,
+        }).start();
+
+        // Slow LFO for breathing volume modulation
+        const lfo = new Tone.LFO({
+          frequency: 0.1, // Very slow — 10s cycle (matches breathing aura)
+          min: -32,
+          max: -24,
+          type: "sine",
+        }).start();
+        lfo.connect(osc1.volume);
+
+        oscillators = [osc1, osc2, osc3, lfo];
+
+        audioRef.current = {
+          stop: () => {
+            oscillators.forEach((o) => {
+              try { o.stop?.(); o.dispose?.(); } catch {}
+            });
+            oscillators = [];
+          },
+        };
+      } catch (e) {
+        console.error("Audio setup failed:", e);
+      }
+    }).catch(() => {});
 
     return () => {
-      clearTimeout(speakTimer);
-      window.speechSynthesis.cancel();
+      stopped = true;
+      if (audioRef.current) {
+        audioRef.current.stop();
+        audioRef.current = null;
+      }
     };
-  }, [lineIdx, phase, currentLine, ttsEnabled, ttsAvailable]);
+  }, [phase]);
 
-  // Countdown 3 → 2 → 1 → start
+  // Countdown 5 → 4 → 3 → 2 → 1 → start
   React.useEffect(() => {
     if (phase !== "countdown") return;
     if (countdown === 0) {
@@ -100,7 +114,7 @@ export function PositivitySession({
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // Auto-advance through lines (with inter-line pause for breathing)
+  // Auto-advance through lines
   React.useEffect(() => {
     if (phase !== "playing") return;
 
@@ -130,11 +144,11 @@ export function PositivitySession({
     };
   }, [phase, lineIdx, currentLine, script.lines.length]);
 
-  // Cleanup TTS on unmount
+  // Cleanup audio on unmount
   React.useEffect(() => {
     return () => {
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.stop();
       }
     };
   }, []);
@@ -143,24 +157,17 @@ export function PositivitySession({
     if (phase === "playing") {
       setPhase("paused");
       if (timerRef.current) clearInterval(timerRef.current);
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
     } else if (phase === "paused") {
       setPhase("playing");
     }
   }
 
-  // Smooth close — fade out before calling onClose
   function smoothClose() {
     setExiting(true);
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    if (audioRef.current) audioRef.current.stop();
     setTimeout(() => onClose(), 600);
   }
 
-  // Use portal to escape parent stacking contexts (header, nav, animated tabs)
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
   if (!mounted) return null;
@@ -176,70 +183,25 @@ export function PositivitySession({
       }}
     >
       {/* === SINGLE SOFT BREATHING AURA === */}
-      {/* The focal breathing circle — clearly visible, organic, calming */}
-      {phase !== "countdown" && (
-        <motion.div
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: "80vmin",
-            height: "80vmin",
-            background: `radial-gradient(circle, ${accent}50 0%, ${accent}25 25%, ${accent}08 50%, transparent 75%)`,
-          }}
-          animate={{
-            scale: [0.85, 1.15, 0.85],
-            opacity: [0.4, 0.7, 0.4],
-          }}
-          transition={{
-            duration: 10, // 4s in + 6s out (Calm "Balance" rhythm)
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      )}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: "80vmin",
+          height: "80vmin",
+          background: `radial-gradient(circle, ${accent}50 0%, ${accent}25 25%, ${accent}08 50%, transparent 75%)`,
+        }}
+        animate={{
+          scale: [0.85, 1.15, 0.85],
+          opacity: [0.4, 0.7, 0.4],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
 
-      {/* Countdown aura */}
-      {phase === "countdown" && (
-        <motion.div
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: "70vmin",
-            height: "70vmin",
-            background: `radial-gradient(circle, ${accent}45 0%, ${accent}15 30%, transparent 70%)`,
-          }}
-          animate={{
-            scale: [0.85, 1.15, 0.85],
-            opacity: [0.35, 0.6, 0.35],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      )}
-
-      {/* Completion aura */}
-      {phase === "complete" && (
-        <motion.div
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: "90vmin",
-            height: "90vmin",
-            background: `radial-gradient(circle, ${accent}40 0%, ${accent}12 35%, transparent 70%)`,
-          }}
-          animate={{
-            scale: [0.9, 1.25, 0.9],
-            opacity: [0.3, 0.55, 0.3],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      )}
-
-      {/* Subtle floating particles — very few, very soft */}
+      {/* Subtle floating particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {Array.from({ length: 12 }).map((_, i) => (
           <motion.span
@@ -267,56 +229,53 @@ export function PositivitySession({
         ))}
       </div>
 
-      {/* Close button (top-right) — minimal */}
+      {/* Close button */}
       <button
         onClick={smoothClose}
-        className="absolute top-12 right-6 text-white/30 hover:text-white/70 z-30 transition-colors"
+        className="absolute top-6 right-4 sm:top-12 sm:right-6 text-white/30 hover:text-white/70 z-30 transition-colors"
         aria-label="Close session"
       >
         <X className="w-5 h-5" strokeWidth={1.5} />
       </button>
 
-      {/* TTS toggle (top-left) — only if TTS is available */}
-      {ttsAvailable && (
-        <button
-          onClick={() => setTtsEnabled(!ttsEnabled)}
-          className="absolute top-12 left-6 text-white/30 hover:text-white/70 z-30 transition-colors"
-          aria-label={ttsEnabled ? "Mute voice" : "Enable voice"}
-        >
-          {ttsEnabled ? <Volume2 className="w-5 h-5" strokeWidth={1.5} /> : <VolumeX className="w-5 h-5" strokeWidth={1.5} />}
-        </button>
-      )}
+      {/* === MAIN CONTENT — mobile responsive === */}
+      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md px-5 sm:px-8 text-center min-h-[100dvh] py-20">
 
-      {/* === MAIN CONTENT === */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md px-8 text-center">
+        {/* === COUNTDOWN PHASE — title + text stay still, only number changes === */}
         {phase === "countdown" && (
-          <motion.div
-            key={countdown}
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.2 }}
-            transition={{ duration: 0.7, ease: [0.2, 0, 0, 1] }}
-            className="flex flex-col items-center"
-          >
+          <div className="flex flex-col items-center">
+            {/* Title — stays still throughout countdown */}
             <div
-              className="text-[10px] uppercase tracking-[0.32em] font-medium mb-10"
+              className="text-[10px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] font-medium mb-8 sm:mb-10"
               style={{ color: accent }}
             >
               {script.title}
             </div>
-            {countdown > 0 ? (
-              <div className="text-[88px] font-extralight text-white/90 tabular-nums">
-                {countdown}
-              </div>
-            ) : (
-              <div className="text-[32px] font-light text-white/90">Begin</div>
-            )}
-            <p className="mt-10 text-[12px] text-white/35 max-w-[240px] tracking-wide">
+
+            {/* Number — only this changes (5→1) */}
+            <div className="relative h-[100px] sm:h-[120px] flex items-center justify-center overflow-hidden">
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={countdown}
+                  initial={{ opacity: 0, y: 40, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -40, scale: 1.2 }}
+                  transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+                  className="text-[72px] sm:text-[88px] font-extralight text-white/90 tabular-nums leading-none"
+                >
+                  {countdown > 0 ? countdown : ""}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Instruction text — stays still throughout countdown */}
+            <p className="mt-8 sm:mt-10 text-[11px] sm:text-[12px] text-white/35 max-w-[220px] sm:max-w-[240px] tracking-wide">
               Breathe slowly. Let each word settle into your being.
             </p>
-          </motion.div>
+          </div>
         )}
 
+        {/* === PLAYING / PAUSED PHASE === */}
         {(phase === "playing" || phase === "paused") && currentLine && (
           <AnimatePresence mode="wait">
             <motion.div
@@ -335,8 +294,17 @@ export function PositivitySession({
                 }}
               />
 
-              {/* The affirmation — word-by-word fade-in */}
-              <div className="relative text-[22px] md:text-[25px] font-normal leading-[36px] text-[#F5F5F7] max-w-[340px] min-h-[200px] flex items-center justify-center" style={{ letterSpacing: "0.01em" }}>
+              {/* Affirmation text — mobile responsive with clamp() */}
+              <div
+                className="relative font-normal text-[#F5F5F7] flex items-center justify-center text-center w-full"
+                style={{
+                  fontSize: "clamp(18px, 5.5vw, 25px)",
+                  lineHeight: "clamp(28px, 8vw, 38px)",
+                  letterSpacing: "0.01em",
+                  minHeight: "clamp(140px, 40vh, 200px)",
+                  maxWidth: "clamp(280px, 90vw, 340px)",
+                }}
+              >
                 {currentLine.text.split(" ").map((word, wi) => (
                   <motion.span
                     key={wi}
@@ -353,10 +321,10 @@ export function PositivitySession({
                 ))}
               </div>
 
-              {/* Minimal pause button — small, below text */}
+              {/* Pause button */}
               <button
                 onClick={togglePause}
-                className="relative mt-10 w-10 h-10 rounded-full flex items-center justify-center border transition-all"
+                className="relative mt-8 sm:mt-10 w-10 h-10 rounded-full flex items-center justify-center border transition-all shrink-0"
                 style={{
                   borderColor: `${accent}30`,
                   background: `${accent}08`,
@@ -364,22 +332,16 @@ export function PositivitySession({
                 aria-label={phase === "playing" ? "Pause" : "Resume"}
               >
                 {phase === "playing" ? (
-                  <div className="flex gap-1">
-                    <div className="w-1 h-3 rounded-full" style={{ background: `${accent}80` }} />
-                    <div className="w-1 h-3 rounded-full" style={{ background: `${accent}80` }} />
-                  </div>
+                  <Pause className="w-4 h-4" style={{ color: `${accent}80` }} strokeWidth={1.5} />
                 ) : (
-                  <div className="w-0 h-0 ml-0.5" style={{
-                    borderLeft: `7px solid ${accent}80`,
-                    borderTop: `4px solid transparent`,
-                    borderBottom: `4px solid transparent`,
-                  }} />
+                  <Play className="w-4 h-4 ml-0.5" style={{ color: `${accent}80` }} strokeWidth={1.5} />
                 )}
               </button>
             </motion.div>
           </AnimatePresence>
         )}
 
+        {/* === COMPLETION PHASE === */}
         {phase === "complete" && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -387,9 +349,8 @@ export function PositivitySession({
             transition={{ duration: 1, ease: [0.2, 0, 0, 1] }}
             className="flex flex-col items-center"
           >
-            {/* Soft completion symbol */}
             <motion.div
-              className="relative w-16 h-16 rounded-full flex items-center justify-center mb-8"
+              className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8"
               style={{
                 background: `radial-gradient(circle, ${accent}30, transparent 70%)`,
                 border: `1px solid ${accent}40`,
@@ -397,31 +358,27 @@ export function PositivitySession({
               animate={{ scale: [1, 1.06, 1], opacity: [0.8, 1, 0.8] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
-              <span className="text-[24px]" style={{ color: accent }}>✦</span>
+              <span className="text-[20px] sm:text-[24px]" style={{ color: accent }}>✦</span>
             </motion.div>
 
-            <div className="relative text-[10px] uppercase tracking-[0.32em] font-medium mb-3" style={{ color: accent }}>
+            <div className="relative text-[9px] sm:text-[10px] uppercase tracking-[0.28em] sm:tracking-[0.32em] font-medium mb-3" style={{ color: accent }}>
               Session Complete
             </div>
-            <h2 className="relative text-[24px] font-light text-[#F5F5F7] mb-3 tracking-[-0.01em]">Your day is blessed</h2>
-            <p className="relative text-[13px] text-white/40 max-w-[260px] leading-[19px]">
+            <h2 className="relative text-[20px] sm:text-[24px] font-light text-[#F5F5F7] mb-3 tracking-[-0.01em]">Your day is blessed</h2>
+            <p className="relative text-[12px] sm:text-[13px] text-white/40 max-w-[240px] sm:max-w-[260px] leading-[18px] sm:leading-[19px]">
               I carry this energy into everything I do today.
             </p>
 
-            {/* Auto-close countdown */}
             <AutoCloseTimer onClose={smoothClose} />
           </motion.div>
         )}
       </div>
 
-      {/* === MINIMAL PROGRESS — simple arc/ring, no dot clutter === */}
+      {/* === MINIMAL PROGRESS COUNTER === */}
       {phase !== "countdown" && phase !== "complete" && (
-        <div className="absolute bottom-16 left-0 right-0 flex items-center justify-center z-20">
-          {/* Single thin progress arc — no dots */}
-          <div className="flex items-center gap-3">
-            <div className="text-[9px] text-white/20 tabular-nums tracking-wider">
-              {String(lineIdx + 1).padStart(2, "0")} / {String(script.lines.length).padStart(2, "0")}
-            </div>
+        <div className="absolute bottom-8 sm:bottom-16 left-0 right-0 flex items-center justify-center z-20">
+          <div className="text-[9px] text-white/20 tabular-nums tracking-wider">
+            {String(lineIdx + 1).padStart(2, "0")} / {String(script.lines.length).padStart(2, "0")}
           </div>
         </div>
       )}
@@ -430,7 +387,6 @@ export function PositivitySession({
   );
 }
 
-/** Auto-close timer — smooth, no buttons. */
 function AutoCloseTimer({ onClose }: { onClose: () => void }) {
   const [seconds, setSeconds] = React.useState(5);
 
@@ -448,32 +404,13 @@ function AutoCloseTimer({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 1.5 }}
-      className="relative mt-10 flex items-center gap-2"
+      className="relative mt-8 sm:mt-10 flex items-center gap-2"
     >
       <div className="text-[10px] text-white/25 uppercase tracking-[0.2em]">
         Returning to Lumina
       </div>
       <div className="text-[10px] text-white/25 tabular-nums">{seconds}</div>
     </motion.div>
-  );
-}
-
-/** Check if a TTS voice is high-quality (not robotic). */
-function isQualityVoice(voice: SpeechSynthesisVoice): boolean {
-  const name = voice.name.toLowerCase();
-  // Prefer natural/enhanced/premium voices
-  return (
-    name.includes("natural") ||
-    name.includes("enhanced") ||
-    name.includes("premium") ||
-    name.includes("google") ||
-    name.includes("samantha") ||
-    name.includes("aria") ||
-    name.includes("jenny") ||
-    name.includes("zira") ||
-    name.includes("karen") ||
-    name.includes("moira") ||
-    name.includes("tessa")
   );
 }
 

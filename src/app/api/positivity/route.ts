@@ -16,6 +16,11 @@ export const maxDuration = 30;
 /** Free tier: 1 positivity session per day. Premium: unlimited. */
 const FREE_DAILY_LIMIT = 1;
 
+/** Format a date as YYYY-MM-DD string. */
+function todayStr(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * GET /api/positivity — returns categories + today's usage.
  */
@@ -43,6 +48,27 @@ export async function GET(req: Request) {
 
     const remaining = device.isPremium ? Infinity : Math.max(0, FREE_DAILY_LIMIT - sessionsToday);
 
+    // Calculate positivity streak (consecutive days with at least 1 session)
+    let positivityStreak = 0;
+    try {
+      const allSessions = await db.positivitySession.findMany({
+        where: { deviceId: device.id },
+        select: { date: true },
+        distinct: ["date"],
+        orderBy: { date: "desc" },
+      });
+
+      const sessionDates = new Set(allSessions.map((s) => s.date));
+      const cursor = new Date();
+      if (!sessionDates.has(todayStr(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      while (sessionDates.has(todayStr(cursor))) {
+        positivityStreak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+    } catch {}
+
     return NextResponse.json({
       categories: POSITIVITY_CATEGORIES.map((c) => ({
         id: c.id,
@@ -56,6 +82,7 @@ export async function GET(req: Request) {
         remaining: remaining === Infinity ? null : remaining,
         isPremium: device.isPremium,
         limit: FREE_DAILY_LIMIT,
+        positivityStreak,
       },
     });
   } catch (e: any) {
@@ -132,9 +159,30 @@ export async function POST(req: Request) {
         },
       });
     } catch (e) {
-      // If PositivitySession table doesn't exist, skip logging
       console.error("Failed to log positivity session:", e);
     }
+
+    // Calculate positivity streak (consecutive days with at least 1 session)
+    let positivityStreak = 0;
+    try {
+      const allSessions = await db.positivitySession.findMany({
+        where: { deviceId: device.id },
+        select: { date: true },
+        distinct: ["date"],
+        orderBy: { date: "desc" },
+      });
+
+      const sessionDates = new Set(allSessions.map((s) => s.date));
+      const cursor = new Date();
+      // If today not in set, start from yesterday
+      if (!sessionDates.has(todayStr(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      while (sessionDates.has(todayStr(cursor))) {
+        positivityStreak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+    } catch {}
 
     return NextResponse.json({
       script,
@@ -143,6 +191,7 @@ export async function POST(req: Request) {
         remaining: device.isPremium ? null : Math.max(0, FREE_DAILY_LIMIT - sessionsToday - 1),
         isPremium: device.isPremium,
         limit: FREE_DAILY_LIMIT,
+        positivityStreak,
       },
     });
   } catch (e: any) {

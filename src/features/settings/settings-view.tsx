@@ -131,7 +131,24 @@ export function SettingsView() {
                   <span className="text-[15px] font-medium text-ink">
                     {isPremium ? "Lumina Premium" : "Free tier"}
                   </span>
-                  {isPremium && <Pill variant="gold"><Check className="w-3 h-3" /> Active</Pill>}
+                  {isPremium && (
+                    <div
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-semibold tracking-wide"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(181,205,126,0.25), rgba(181,205,126,0.10))",
+                        border: "1px solid rgba(181,205,126,0.5)",
+                        boxShadow: "0 0 12px rgba(181,205,126,0.2), inset 0 1px 0 rgba(181,205,126,0.15)",
+                      }}
+                    >
+                      <motion.div
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: "#B5CD7E", boxShadow: "0 0 6px #B5CD7E" }}
+                        animate={{ opacity: [1, 0.4, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      <span style={{ color: "#B5CD7E" }}>ACTIVE</span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-[11px] text-ink-muted mt-0.5">
                   {isPremium

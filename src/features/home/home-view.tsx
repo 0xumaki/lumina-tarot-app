@@ -120,14 +120,32 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
                 </div>
               </button>
               {isPremium ? (
-                <Pill variant="gold">
-                  <Crown className="w-3 h-3" /> Premium
-                </Pill>
+                <div
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-wide transition-all hover:scale-105"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(231,210,168,0.25), rgba(197,168,124,0.12))",
+                    border: "1px solid rgba(231,210,168,0.5)",
+                    boxShadow: "0 0 16px rgba(197,168,124,0.25), inset 0 1px 0 rgba(231,210,168,0.15)",
+                  }}
+                >
+                  <Crown className="w-3 h-3" style={{ color: "#E7D2A8" }} strokeWidth={2} />
+                  <span style={{ background: "linear-gradient(135deg, #FBEFC8, #D4B27A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                    PREMIUM
+                  </span>
+                </div>
               ) : (
-                <button onClick={onOpenPremium}>
-                  <Pill variant="gold" className="cursor-pointer hover:bg-gold/20">
-                    <Crown className="w-3 h-3" /> Go Premium
-                  </Pill>
+                <button onClick={onOpenPremium} className="group">
+                  <div
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold tracking-wide transition-all group-hover:scale-105"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(231,210,168,0.15), rgba(197,168,124,0.08))",
+                      border: "1px solid rgba(197,168,124,0.35)",
+                      boxShadow: "0 0 12px rgba(197,168,124,0.15)",
+                    }}
+                  >
+                    <Crown className="w-3 h-3 text-gold" strokeWidth={2} />
+                    <span className="text-gold">Go Premium</span>
+                  </div>
                 </button>
               )}
             </div>

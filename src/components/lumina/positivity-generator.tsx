@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Sparkles, Loader2, Lock } from "lucide-react";
+import { Sun, Sparkles, Loader2, Lock, Flame } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ type UsageData = {
   remaining: number | null;
   isPremium: boolean;
   limit: number;
+  positivityStreak: number;
 };
 
 /**
@@ -136,6 +137,13 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
               <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold font-medium">Positivity Generator</h3>
             </div>
             <div className="flex items-center gap-2">
+              {/* Positivity streak badge */}
+              {usageData?.positivityStreak && usageData.positivityStreak > 0 && (
+                <span className="flex items-center gap-1 text-[9.5px] text-leaf/80 font-medium" style={{ color: "#B5CD7E" }}>
+                  <Flame className="w-3 h-3" style={{ color: "#B5CD7E" }} />
+                  {usageData.positivityStreak}d
+                </span>
+              )}
               {isLocked ? (
                 <span className="flex items-center gap-1 text-[9.5px] text-ink-muted/60">
                   <Lock className="w-3 h-3" />
