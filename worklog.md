@@ -1546,3 +1546,58 @@ Stage Summary:
 - ✅ Daily streak tracking
 - ✅ Premium badges (award-winning level)
 - ✅ Live on Vercel
+
+---
+Task ID: smart-frequencies-ambient-beds-pro-tarot
+Agent: main
+Task: Smart frequency selection, 10+ ambient beds, duration selector, graceful audio ending, professional tarot prompts
+
+Work Log:
+SMART FREQUENCY SELECTION:
+- Each positivity category now maps to its correct Solfeggio frequency:
+  wealth/money → 888Hz (abundance), health → 528Hz (miracle healing),
+  relationship → 639Hz (connection), power → 741Hz (awakening),
+  career/promotion → 852Hz (spiritual awakening),
+  stress-release/anxiety → 396Hz (liberation from fear),
+  worries/anti-negative → 417Hz (facilitating change)
+- API returns frequency info (hz + name) with each script
+- Session displays frequency in top-left corner: "888Hz · Gentle Rain"
+
+12 AMBIENT BEDS (randomly selected per session):
+- rain, ocean, forest, wind, stream, river, singing bowl, chimes,
+  drone, ambient, night crickets, ethereal pad
+- Each bed has custom filter (lowpass/bandpass/highpass at different freqs)
+- Singing bowl & chimes beds add periodic bell tones
+- Pink noise-based with LFO modulation for natural variation
+
+AUDIO VOLUME:
+- Master gain 0.15 (audible, matching Tones section)
+- 3 oscillators: root freq, perfect fifth, octave
+- Slow LFO for breathing volume modulation (10s cycle)
+- Graceful 3-second fade-out when session completes (exponential ramp)
+
+DURATION SELECTOR:
+- 1-5 minute selectable (button toggle: 1m 2m 3m 4m 5m, default 2m)
+- API trims script lines to match target duration
+- LLM prompt adjusts line count based on duration
+
+TAROT READING PROFESSIONAL REWRITE:
+- New system prompt: "master tarot reader with decades of experience"
+- References actual card symbolism (figures, objects, colors, numerology)
+- Structure: Opening → Card Analysis → Synthesis → Guidance → Affirmation
+- Banned generic phrases ("The cards indicate", "This card represents")
+- max_tokens: premium 2000, free 400 (was 1200/200)
+- temperature 0.9 (was 0.85)
+- timeout 40s (was 25s)
+- Larger free models: nemotron-3-nano-30b for all readings
+  nemotron-3-super-120b for complex spreads
+- Yes/No: LLM told to use own judgment, not parrot the tally
+
+Stage Summary:
+- ✅ Smart frequency: 888Hz wealth, 528Hz health, etc.
+- ✅ 12 ambient beds randomly selected
+- ✅ Volume matches Tones section
+- ✅ Graceful 3s fade-out on completion
+- ✅ Duration selector (1-5 min)
+- ✅ Professional tarot prompts (references symbolism, structured)
+- ✅ Live on Vercel
