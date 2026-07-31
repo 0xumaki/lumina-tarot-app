@@ -303,6 +303,8 @@ export function PositivitySession({
                   letterSpacing: "0.01em",
                   minHeight: "clamp(140px, 40vh, 200px)",
                   maxWidth: "clamp(280px, 90vw, 340px)",
+                  flexWrap: "wrap",
+                  alignContent: "center",
                 }}
               >
                 {currentLine.text.split(" ").map((word, wi) => (
