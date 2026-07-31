@@ -18,6 +18,12 @@ import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
 import { useReminderService } from "@/hooks/use-reminder-service";
 import { useToast } from "@/hooks/use-toast";
 import { getOrCreateDeviceId } from "@/hooks/use-api";
+import { useRitual } from "@/hooks/use-ritual";
+import { MilestoneCelebration } from "@/components/lumina/milestone-celebration";
+import { useAchievements } from "@/hooks/use-achievements";
+import { CelebrationOverlay } from "@/components/lumina/celebration-overlay";
+import { useLuminaTheme } from "@/lib/theme";
+import { LuminaryParticles } from "@/components/lumina/luminary-particles";
 
 export default function Page() {
   const api = useApi();
@@ -67,6 +73,20 @@ export default function Page() {
   );
   useReminderService(deviceId, handleReminder);
 
+  // Ritual completion celebration
+  const { onRitualComplete } = useRitual();
+  const [ritualCelebration, setRitualCelebration] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    onRitualComplete((streak: number) => {
+      // Use streak as the celebration number — milestone-style overlay
+      setRitualCelebration(streak);
+    });
+  }, [onRitualComplete]);
+
+  // Achievement celebration watcher (push to global queue)
+  const { allComplete } = useAchievements();
+  const { theme } = useLuminaTheme(allComplete);
+
   const isPremium = !!data?.device?.isPremium;
   const remaining = data?.usage?.remainingTarot ?? null;
 
@@ -76,6 +96,8 @@ export default function Page() {
 
   return (
     <div className="lum-aurora relative min-h-[100dvh] flex flex-col bg-black">
+      {/* Luminary theme particles — only when Luminary theme is active */}
+      {theme === "luminary" && <LuminaryParticles />}
       {/* App header */}
       <header className="lum-pt-safe sticky top-0 z-40 px-4 pt-3 pb-2 backdrop-blur-md bg-black/40">
         <div className="mx-auto max-w-md flex items-center justify-between">
@@ -132,6 +154,84 @@ export default function Page() {
 
       <BottomNav />
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
+      {/* Global celebration overlay (achievements + level-ups) */}
+      <CelebrationOverlay />
+      {/* Ritual completion celebration overlay */}
+      {ritualCelebration !== null && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 backdrop-blur-md"
+          onClick={() => setRitualCelebration(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            className="relative mx-4 max-w-xs text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Confetti */}
+            {Array.from({ length: 20 }).map((_, i) => {
+              const angle = (i / 20) * Math.PI * 2;
+              const dist = 100 + Math.random() * 60;
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    width: 4 + Math.random() * 4,
+                    height: 4 + Math.random() * 4,
+                    background: ["#C5A87C", "#B5CD7E", "#E7D2A8", "#9E8AC9"][i % 4],
+                    left: "50%",
+                    top: "50%",
+                  }}
+                  initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+                  animate={{
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(angle) * dist + 80,
+                    opacity: [1, 1, 0],
+                    scale: [0, 1, 0.5],
+                    rotate: [0, 180, 360],
+                  }}
+                  transition={{ duration: 2.5, delay: i * 0.02, ease: "easeOut" }}
+                />
+              );
+            })}
+            <div className="lum-glass-float rounded-[28px] p-6 relative overflow-hidden" style={{ boxShadow: "0 0 60px rgba(197,168,124,0.3)" }}>
+              <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 50% 30%, rgba(197,168,124,0.15), transparent 60%)" }} />
+              <div className="relative z-10">
+                <motion.div
+                  className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-[36px] mb-4"
+                  style={{
+                    background: "radial-gradient(circle at 50% 40%, rgba(197,168,124,0.3), transparent 70%)",
+                    border: "2px solid rgba(197,168,124,0.5)",
+                    boxShadow: "0 0 30px rgba(197,168,124,0.4)",
+                  }}
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  ✦
+                </motion.div>
+                <div className="text-[11px] uppercase tracking-[0.24em] text-gold/80 font-medium mb-1">Ritual Sealed</div>
+                <div className="text-[24px] font-light text-ink leading-[28px]">
+                  Your practice is <span className="lum-text-gold">complete</span>
+                </div>
+                <div className="mt-2 text-[14px] text-ink-muted">
+                  {ritualCelebration}-day ritual streak
+                </div>
+                <p className="mt-3 text-[12px] text-ink-muted leading-[17px] max-w-[240px] mx-auto">
+                  You've cleansed, manifested, and balanced your energy. Return tomorrow to continue the cycle.
+                </p>
+                <button
+                  onClick={() => setRitualCelebration(null)}
+                  className="mt-5 rounded-full px-6 py-2.5 text-[13px] font-medium bg-[#E8EBE9] text-black active:scale-[0.98] transition-all"
+                >
+                  ✦ Continue
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

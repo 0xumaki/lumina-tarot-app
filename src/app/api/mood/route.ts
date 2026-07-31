@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDevice } from "@/lib/device";
 import { db } from "@/lib/db";
+import { awardXp, XP_REWARDS } from "@/lib/xp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,13 +65,22 @@ export async function POST(req: Request) {
     }
 
     const today = todayStr();
+    const existing = await db.mood.findUnique({
+      where: { deviceId_date: { deviceId: device.id, date: today } },
+    });
     const entry = await db.mood.upsert({
       where: { deviceId_date: { deviceId: device.id, date: today } },
       update: { mood, note: note?.trim() || null },
       create: { deviceId: device.id, date: today, mood, note: note?.trim() || null },
     });
 
-    return NextResponse.json({ mood: entry });
+    // Award XP only on first check-in of the day (not on update)
+    let xpResult = null;
+    if (!existing) {
+      xpResult = await awardXp(device.id, XP_REWARDS.moodCheckIn);
+    }
+
+    return NextResponse.json({ mood: entry, xp: xpResult });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Failed";
     return NextResponse.json({ error: message }, { status: 500 });

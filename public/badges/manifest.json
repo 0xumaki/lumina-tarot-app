@@ -1,0 +1,290 @@
+[
+  {
+    "id": "first-card",
+    "name": "First Card",
+    "svg": "/badges/first-card.svg",
+    "desc": "Drew your first tarot card",
+    "tier": "free",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "card-reader",
+    "name": "Card Reader",
+    "svg": "/badges/card-reader.svg",
+    "desc": "Drew 2+ cards in a day",
+    "tier": "free",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "ritual-keeper",
+    "name": "Ritual Keeper",
+    "svg": "/badges/ritual-keeper.svg",
+    "desc": "Completed a daily ritual",
+    "tier": "free",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "consistent",
+    "name": "Consistent",
+    "svg": "/badges/consistent.svg",
+    "desc": "Confirmed a goal today",
+    "tier": "free",
+    "color": "#A4CC72"
+  },
+  {
+    "id": "resonator",
+    "name": "Resonator",
+    "svg": "/badges/resonator.svg",
+    "desc": "Listened to a frequency",
+    "tier": "free",
+    "color": "#5FA9C7"
+  },
+  {
+    "id": "goal-setter",
+    "name": "Goal Setter",
+    "svg": "/badges/goal-setter.svg",
+    "desc": "Set a manifestation goal",
+    "tier": "free",
+    "color": "#A4CC72"
+  },
+  {
+    "id": "morning-light",
+    "name": "Morning Light",
+    "svg": "/badges/morning-light.svg",
+    "desc": "Checked in before 9am",
+    "tier": "free",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "moon-child",
+    "name": "Moon Child",
+    "svg": "/badges/moon-child.svg",
+    "desc": "Checked in after 9pm",
+    "tier": "free",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "mood-tracker",
+    "name": "Mood Keeper",
+    "svg": "/badges/mood-tracker.svg",
+    "desc": "Logged 3 moods",
+    "tier": "free",
+    "color": "#D876A0"
+  },
+  {
+    "id": "three-spread",
+    "name": "Three Spread",
+    "svg": "/badges/three-spread.svg",
+    "desc": "Completed a 3-card spread",
+    "tier": "free",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "first-frequency",
+    "name": "First Tone",
+    "svg": "/badges/first-frequency.svg",
+    "desc": "First frequency session",
+    "tier": "free",
+    "color": "#5FA9C7"
+  },
+  {
+    "id": "breather",
+    "name": "Breather",
+    "svg": "/badges/breather.svg",
+    "desc": "Completed a breathing exercise",
+    "tier": "free",
+    "color": "#A4CC72"
+  },
+  {
+    "id": "reveal",
+    "name": "The Reveal",
+    "svg": "/badges/reveal.svg",
+    "desc": "Revealed card of the day",
+    "tier": "free",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "seven-seeker",
+    "name": "Seven Seeker",
+    "svg": "/badges/seven-seeker.svg",
+    "desc": "Reached a 7-day streak",
+    "tier": "free",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "wheel-of-time",
+    "name": "Wheel of Time",
+    "svg": "/badges/wheel-of-time.svg",
+    "desc": "Used the Wheel of Fortune",
+    "tier": "free",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "cleansed",
+    "name": "Cleansed",
+    "svg": "/badges/cleansed.svg",
+    "desc": "Completed the Cleanse ritual",
+    "tier": "free",
+    "color": "#5FA9C7"
+  },
+  {
+    "id": "balanced",
+    "name": "Balanced",
+    "svg": "/badges/balanced.svg",
+    "desc": "Completed the Balance ritual",
+    "tier": "free",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "asked",
+    "name": "The Ask",
+    "svg": "/badges/asked.svg",
+    "desc": "Completed the Ask ritual",
+    "tier": "free",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "seer",
+    "name": "Seer",
+    "svg": "/badges/seer.svg",
+    "desc": "Completed a Celtic Cross reading",
+    "tier": "premium",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "manifestor",
+    "name": "Manifestor",
+    "svg": "/badges/manifestor.svg",
+    "desc": "Fulfilled a manifestation goal",
+    "tier": "premium",
+    "color": "#A4CC72"
+  },
+  {
+    "id": "deep-resonator",
+    "name": "Deep Resonator",
+    "svg": "/badges/deep-resonator.svg",
+    "desc": "10-min frequency session",
+    "tier": "premium",
+    "color": "#5FA9C7"
+  },
+  {
+    "id": "ritual-master",
+    "name": "Ritual Master",
+    "svg": "/badges/ritual-master.svg",
+    "desc": "7-day ritual streak",
+    "tier": "premium",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "scholar",
+    "name": "Scholar",
+    "svg": "/badges/scholar.svg",
+    "desc": "Saved 5+ reflections",
+    "tier": "premium",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "mystic",
+    "name": "Mystic",
+    "svg": "/badges/mystic.svg",
+    "desc": "Tried all 12 frequencies",
+    "tier": "premium",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "priestess",
+    "name": "Priestess",
+    "svg": "/badges/priestess.svg",
+    "desc": "Worked with the High Priestess",
+    "tier": "premium",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "magician",
+    "name": "Magician",
+    "svg": "/badges/magician.svg",
+    "desc": "Worked with the Magician",
+    "tier": "premium",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "star-bearer",
+    "name": "Star Bearer",
+    "svg": "/badges/star-bearer.svg",
+    "desc": "Worked with the Star",
+    "tier": "premium",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "world-walker",
+    "name": "World Walker",
+    "svg": "/badges/world-walker.svg",
+    "desc": "Worked with the World",
+    "tier": "premium",
+    "color": "#A4CC72"
+  },
+  {
+    "id": "sun-child",
+    "name": "Sun Child",
+    "svg": "/badges/sun-child.svg",
+    "desc": "Worked with the Sun",
+    "tier": "premium",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "moon-walker",
+    "name": "Moon Walker",
+    "svg": "/badges/moon-walker.svg",
+    "desc": "Worked with the Moon",
+    "tier": "premium",
+    "color": "#9B82D6"
+  },
+  {
+    "id": "tower-breaker",
+    "name": "Tower Breaker",
+    "svg": "/badges/tower-breaker.svg",
+    "desc": "Worked with the Tower",
+    "tier": "premium",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix",
+    "svg": "/badges/phoenix.svg",
+    "desc": "Worked with Death (rebirth)",
+    "tier": "premium",
+    "color": "#D876A0"
+  },
+  {
+    "id": "empress",
+    "name": "Empress",
+    "svg": "/badges/empress.svg",
+    "desc": "Worked with the Empress",
+    "tier": "premium",
+    "color": "#D876A0"
+  },
+  {
+    "id": "emperor",
+    "name": "Emperor",
+    "svg": "/badges/emperor.svg",
+    "desc": "Worked with the Emperor",
+    "tier": "premium",
+    "color": "#D4B27A"
+  },
+  {
+    "id": "hermit",
+    "name": "Hermit",
+    "svg": "/badges/hermit.svg",
+    "desc": "Worked with the Hermit",
+    "tier": "premium",
+    "color": "#F09A3D"
+  },
+  {
+    "id": "lovers",
+    "name": "The Lovers",
+    "svg": "/badges/lovers.svg",
+    "desc": "Worked with the Lovers",
+    "tier": "premium",
+    "color": "#D876A0"
+  }
+]

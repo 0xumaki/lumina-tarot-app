@@ -17,6 +17,7 @@ model Device {
   displayName String?
   isPremium   Boolean  @default(false)
   premiumSince DateTime?
+  xp          Int      @default(0) // cumulative experience points for the 36-level journey
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -27,6 +28,7 @@ model Device {
   confirmations     Confirmation[]
   moods             Mood[]
   insightFeedback   InsightFeedback[]
+  ritualLogs        RitualLog[]
 }
 
 /// A tarot reading session.
@@ -139,4 +141,22 @@ model InsightFeedback {
   createdAt DateTime @default(now())
 
   @@index([deviceId, type, createdAt])
+}
+
+/// Daily ritual completion — tracks which ritual steps were done each day.
+model RitualLog {
+  id           String   @id @default(cuid())
+  deviceId     String
+  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date         String   // "YYYY-MM-DD"
+  step1Cleanse Boolean  @default(false)
+  step2Manifest Boolean @default(false)
+  step3Tarot   Boolean  @default(false)
+  step4Balance Boolean  @default(false)
+  completed    Boolean  @default(false) // true when steps 1,2,4 are done (3 optional)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([deviceId, date])
+  @@index([deviceId, date])
 }

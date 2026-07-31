@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireDevice } from "@/lib/device";
 import { db } from "@/lib/db";
 import { TAROT_DECK } from "@/lib/tarot-data";
+import { awardXp, XP_REWARDS } from "@/lib/xp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,7 +102,11 @@ export async function POST(req: Request) {
         isPremium: device.isPremium,
       },
     });
-    return NextResponse.json({ reading, saved: true });
+
+    // Award XP for the first reflection of the day
+    const xpResult = await awardXp(device.id, XP_REWARDS.cardOfDayReflection);
+
+    return NextResponse.json({ reading, saved: true, xp: xpResult });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });
   }

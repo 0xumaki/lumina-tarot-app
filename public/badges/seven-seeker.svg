@@ -1,0 +1,35 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-seven-seeker-lin" x1="14" y1="10" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE3B0"/>
+      <stop offset="55%" stop-color="#F09A3D"/>
+      <stop offset="100%" stop-color="#9C4F12"/>
+    </linearGradient>
+    <radialGradient id="g-seven-seeker-hl" cx="26" cy="22" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g-seven-seeker-sh" x1="22" y1="14" x2="50" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+      <circle cx="36" cy="36" r="33" fill="none" stroke="url(#g-seven-seeker-lin)" stroke-width="0.8" stroke-opacity="0.5"/>
+      <circle cx="36" cy="36" r="30.5" fill="none" stroke="#FFE3B0" stroke-width="0.4" stroke-opacity="0.35"/>
+  
+      <circle cx="36" cy="36" r="28" fill="#F09A3D" opacity="0.12"/>
+  <g opacity="0.5" transform="translate(1.4 2.6)"><circle cx="36" cy="36" r="22" fill="none" stroke="#9C4F12" stroke-width="2.2"/>
+  <circle cx="36" cy="36" r="22" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="0.5"/>
+  <path d="M36 18 C40 24 44 28 44 36 C44 42 40 46 36 46 C32 46 28 42 28 36 C28 28 32 24 36 18 Z" fill="#9C4F12" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="0.5"/>
+  <path d="M36 24 C38 28 40 30 40 35 C40 39 38 41 36 41 C34 41 32 39 32 35 C32 30 34 28 36 24 Z" fill="#FFFFFF" fill-opacity="0.35"/>
+  <ellipse cx="34" cy="34" rx="1.5" ry="3" fill="#FFFFFF" fill-opacity="0.7"/>
+  <path d="M36 14 L36 8 M58 36 L64 36 M36 58 L36 64 M14 36 L8 36" stroke="#9C4F12" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/></g>
+  <circle cx="36" cy="36" r="22" fill="none" stroke="url(#g-seven-seeker-lin)" stroke-width="2.2"/>
+  <circle cx="36" cy="36" r="22" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="0.5"/>
+  <path d="M36 18 C40 24 44 28 44 36 C44 42 40 46 36 46 C32 46 28 42 28 36 C28 28 32 24 36 18 Z" fill="url(#g-seven-seeker-lin)" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="0.5"/>
+  <path d="M36 24 C38 28 40 30 40 35 C40 39 38 41 36 41 C34 41 32 39 32 35 C32 30 34 28 36 24 Z" fill="#FFFFFF" fill-opacity="0.35"/>
+  <ellipse cx="34" cy="34" rx="1.5" ry="3" fill="#FFFFFF" fill-opacity="0.7"/>
+  <path d="M36 14 L36 8 M58 36 L64 36 M36 58 L36 64 M14 36 L8 36" stroke="url(#g-seven-seeker-lin)" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="24" cy="20" r="6" fill="url(#g-seven-seeker-hl)"/>
+</svg>

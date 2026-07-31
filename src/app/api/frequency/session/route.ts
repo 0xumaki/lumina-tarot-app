@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireDevice } from "@/lib/device";
 import { db } from "@/lib/db";
 import { addFrequencyUsage, getOrCreateUsage, todayStr } from "@/lib/limits";
+import { awardXp, xpForFrequency } from "@/lib/xp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +52,10 @@ export async function POST(req: Request) {
 
     await addFrequencyUsage(device.id, date, durationSec);
 
-    return NextResponse.json({ session });
+    // Award XP based on session duration
+    const xpResult = await awardXp(device.id, xpForFrequency(durationSec));
+
+    return NextResponse.json({ session, xp: xpResult });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });
   }

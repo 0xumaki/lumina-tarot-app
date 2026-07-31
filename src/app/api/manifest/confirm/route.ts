@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDevice } from "@/lib/device";
 import { db } from "@/lib/db";
+import { awardXp, XP_REWARDS } from "@/lib/xp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,11 +51,19 @@ export async function POST(req: Request) {
       // @ts-ignore — navigator not available server-side; badges set client-side.
     } catch {}
 
+    // Award XP for the confirmation (only if this is a new confirmation, not an update)
+    let xpResult = null;
+    const wasNew = confirmation.createdAt.toISOString() === confirmation.updatedAt.toISOString();
+    if (wasNew) {
+      xpResult = await awardXp(device.id, XP_REWARDS.goalConfirmation);
+    }
+
     return NextResponse.json({
       confirmation,
       streak,
       confirmedToday,
       totalConfirmations: all.length,
+      xp: xpResult,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });

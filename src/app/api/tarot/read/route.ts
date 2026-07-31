@@ -13,6 +13,7 @@ import {
 import { drawCards, attachMeta } from "@/lib/tarot";
 import { interpretReading } from "@/lib/ai-tarot";
 import { db } from "@/lib/db";
+import { awardXp, XP_REWARDS } from "@/lib/xp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
     });
     await incrementTarotUsage(device.id, date);
 
+    // Award XP for the reading
+    const xpResult = await awardXp(device.id, XP_REWARDS.tarotReading);
+
     return NextResponse.json({
       reading: {
         id: reading.id,
@@ -111,6 +115,7 @@ export async function POST(req: Request) {
           usage.tarotReadings + 1
         ),
       },
+      xp: xpResult,
     });
   } catch (e: any) {
     console.error("tarot/read error:", e);

@@ -9,6 +9,7 @@ import {
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useSound } from "@/hooks/use-sound";
+import { useRitual } from "@/hooks/use-ritual";
 import { GlassCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { MilestoneCelebration, isMilestone } from "@/components/lumina/milestone-celebration";
 import { getPreset, type IntentionKey } from "@/lib/frequencies";
@@ -50,6 +51,7 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
   const goals: Goal[] = data?.goals || [];
 
   const sound = useSound();
+  const { markStep } = useRitual();
 
   const confirmMutation = useMutation({
     mutationFn: async (goalId: string) =>
@@ -58,6 +60,7 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
       qc.invalidateQueries({ queryKey: ["goals"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       sound("bell");
+      markStep(2); // Mark ritual step 2 (Manifest)
       // Check for milestone celebration
       if (res?.streak && isMilestone(res.streak)) {
         setMilestoneStreak(res.streak);
@@ -121,6 +124,15 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
                   confirming={confirmMutation.isPending}
                   onDelete={() => deleteMutation.mutate(g.id)}
                   onPlayFreq={() => setTab("frequency")}
+                  onAchieve={async () => {
+                    await api("/api/manifest/goals", {
+                      method: "PATCH",
+                      body: JSON.stringify({ id: g.id, status: "achieved" }),
+                    });
+                    qc.invalidateQueries({ queryKey: ["goals"] });
+                    sound("chime");
+                    toast({ title: "✦ Manifestation fulfilled", description: `"${g.title}" is recorded in your journal.` });
+                  }}
                 />
               ))}
             </AnimatePresence>
@@ -144,6 +156,9 @@ export function ManifestView({ isPremium }: { isPremium: boolean }) {
 
       <CreateGoalSheet open={creating} onOpenChange={setCreating} />
 
+      {/* Manifestation Journal — fulfilled goals (bucket list) */}
+      <ManifestationJournal goals={goals} />
+
       <DailyRitualInfo />
 
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
@@ -162,12 +177,14 @@ function GoalCard({
   confirming,
   onDelete,
   onPlayFreq,
+  onAchieve,
 }: {
   goal: Goal;
   onConfirm: () => void;
   confirming: boolean;
   onDelete: () => void;
   onPlayFreq: () => void;
+  onAchieve?: () => void;
 }) {
   const preset = getPreset(goal.intention as IntentionKey);
   const achieved = goal.status === "achieved";
@@ -299,12 +316,22 @@ function GoalCard({
                   <Row label="Affirmation" value={preset.affirmation} />
                   <Row label="Created" value={new Date(goal.createdAt).toLocaleDateString()} />
                 </div>
-                <button
-                  onClick={onDelete}
-                  className="mt-3 flex items-center gap-1.5 text-[11px] text-destructive/70 hover:text-destructive"
-                >
-                  <Trash2 className="w-3 h-3" /> Archive goal
-                </button>
+                <div className="mt-3 flex items-center gap-3">
+                  {!achieved && (
+                    <button
+                      onClick={() => onAchieve?.()}
+                      className="flex items-center gap-1.5 text-[11px] text-leaf/70 hover:text-leaf"
+                    >
+                      <Check className="w-3 h-3" /> Mark as fulfilled
+                    </button>
+                  )}
+                  <button
+                    onClick={onDelete}
+                    className="flex items-center gap-1.5 text-[11px] text-destructive/70 hover:text-destructive"
+                  >
+                    <Trash2 className="w-3 h-3" /> Archive
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -531,5 +558,115 @@ function DailyRitualInfo() {
         )}
       </AnimatePresence>
     </GlassCard>
+  );
+}
+
+/** Manifestation Journal — a bucket list of fulfilled manifestations. */
+function ManifestationJournal({ goals }: { goals: Goal[] }) {
+  const [open, setOpen] = React.useState(false);
+  const achievedGoals = goals.filter((g) => g.status === "achieved");
+
+  return (
+    <>
+      {/* Compact teaser */}
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full text-left"
+      >
+        <div className="lum-glass rounded-2xl p-4 flex items-center gap-3 hover:border-gold/20 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-leaf/10 border border-leaf/20 flex items-center justify-center shrink-0">
+            <Check className="w-4 h-4 text-leaf" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-medium text-ink">Manifestation Journal</div>
+            <div className="text-[11px] text-ink-muted mt-0.5">
+              {achievedGoals.length > 0
+                ? `${achievedGoals.length} fulfilled ${achievedGoals.length === 1 ? "desire" : "desires"}`
+                : "Your fulfilled manifestations will appear here"}
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-ink-muted shrink-0" />
+        </div>
+      </button>
+
+      {/* Full sheet */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+            onClick={() => setOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="relative w-full max-w-md m-3 lum-glass-float rounded-t-[28px] sm:rounded-[28px] max-h-[82vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/8">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-leaf" />
+                  <h3 className="text-[15px] font-medium text-ink">Manifestation Journal</h3>
+                </div>
+                <button onClick={() => setOpen(false)} className="text-ink-muted hover:text-ink">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-4 lum-no-scrollbar">
+                {achievedGoals.length === 0 ? (
+                  <div className="text-center py-10 px-4">
+                    <div className="w-12 h-12 rounded-full bg-leaf/10 border border-leaf/20 flex items-center justify-center mx-auto mb-3">
+                      <Target className="w-5 h-5 text-leaf/60" />
+                    </div>
+                    <div className="text-[14px] font-medium text-ink">No fulfilled desires yet</div>
+                    <p className="text-[12px] text-ink-muted mt-1 max-w-[240px] mx-auto leading-[16px]">
+                      When you achieve a manifestation, mark it as fulfilled. Your completed desires will be recorded here as a testament to your practice.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {achievedGoals.map((g, i) => {
+                      const preset = getPreset(g.intention as IntentionKey);
+                      return (
+                        <motion.div
+                          key={g.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="rounded-xl border border-leaf/15 bg-leaf/[0.04] p-3"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-leaf/15 border border-leaf/25 flex items-center justify-center shrink-0">
+                              <Check className="w-3.5 h-3.5 text-leaf" strokeWidth={3} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[13px] font-medium text-ink">{g.title}</span>
+                                <Pill variant="leaf" className="text-[9px]">
+                                  <span style={{ color: preset.color }}>{preset.glyph}Hz</span>
+                                </Pill>
+                              </div>
+                              <p className="text-[11px] text-ink-muted italic leading-[15px]">"{g.statement}"</p>
+                              <div className="text-[10px] text-leaf/60 mt-1.5">
+                                ✦ Fulfilled · {g.totalConfirmations} confirmations · {g.streak}-day streak
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

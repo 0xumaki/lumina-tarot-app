@@ -1,0 +1,33 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-balanced-lin" x1="14" y1="10" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E0CFF5"/>
+      <stop offset="55%" stop-color="#9B82D6"/>
+      <stop offset="100%" stop-color="#4D3A85"/>
+    </linearGradient>
+    <radialGradient id="g-balanced-hl" cx="26" cy="22" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g-balanced-sh" x1="22" y1="14" x2="50" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+      <circle cx="36" cy="36" r="33" fill="none" stroke="url(#g-balanced-lin)" stroke-width="0.8" stroke-opacity="0.5"/>
+      <circle cx="36" cy="36" r="30.5" fill="none" stroke="#E0CFF5" stroke-width="0.4" stroke-opacity="0.35"/>
+  
+      <circle cx="36" cy="36" r="28" fill="#9B82D6" opacity="0.12"/>
+  <g opacity="0.5" transform="translate(1.4 2.6)"><circle cx="36" cy="36" r="22" fill="#4D3A85" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="0.6"/>
+  <path d="M36 14 A22 22 0 0 1 36 58 A11 11 0 0 1 36 36 A11 11 0 0 0 36 14 Z" fill="#0B0B0C" opacity="0.85"/>
+  <circle cx="36" cy="25" r="3" fill="#4D3A85"/>
+  <circle cx="36" cy="47" r="3" fill="#0B0B0C"/>
+  <circle cx="22" cy="20" r="1.2" fill="#FFFFFF" fill-opacity="0.8"/></g>
+  <circle cx="36" cy="36" r="22" fill="url(#g-balanced-lin)" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="0.6"/>
+  <path d="M36 14 A22 22 0 0 1 36 58 A11 11 0 0 1 36 36 A11 11 0 0 0 36 14 Z" fill="#0B0B0C" opacity="0.85"/>
+  <circle cx="36" cy="25" r="3" fill="url(#g-balanced-lin)"/>
+  <circle cx="36" cy="47" r="3" fill="#0B0B0C"/>
+  <circle cx="22" cy="20" r="1.2" fill="#FFFFFF" fill-opacity="0.8"/>
+  <circle cx="24" cy="20" r="6" fill="url(#g-balanced-hl)"/>
+</svg>

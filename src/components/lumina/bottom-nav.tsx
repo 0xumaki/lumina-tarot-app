@@ -51,8 +51,8 @@ export function BottomNav() {
                   style={{ width: 18, height: 18, strokeWidth: active ? 2 : 1.5 }}
                 />
                 <span
-                  className="relative z-10 text-[10px] font-medium tracking-[0.02em]"
-                  style={{ opacity: active ? 1 : 0.7 }}
+                  className="relative z-10 text-[11px] font-medium tracking-[0.02em]"
+                  style={{ opacity: active ? 1 : 0.8 }}
                 >
                   {t.label}
                 </span>

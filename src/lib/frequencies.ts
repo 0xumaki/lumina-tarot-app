@@ -235,3 +235,65 @@ export const BRAINWAVE_LABELS: Record<BrainwaveType, string> = {
   beta: "Beta · Alert clarity",
   gamma: "Gamma · Insight",
 };
+
+/* ============================================================
+   SECRET FREQUENCIES — unlocked when ALL 36 achievements are complete.
+   These are the three crown jewels of the Solfeggio scale, reserved
+   for Luminaries who have walked the full path.
+   ============================================================ */
+
+export interface SecretFrequencyPreset {
+  key: string;
+  label: string;
+  subtitle: string;
+  glyph: string;
+  carrierHz: number;
+  binauralBeatHz: number;
+  beatType: BrainwaveType;
+  color: string;
+  affirmation: string;
+  description: string;
+  blessing: string;
+}
+
+export const SECRET_FREQUENCIES: SecretFrequencyPreset[] = [
+  {
+    key: "secret-963",
+    label: "963 Hz",
+    subtitle: "God Frequency",
+    glyph: "✶",
+    carrierHz: 963,
+    binauralBeatHz: 7.83,
+    beatType: "theta",
+    color: "#E7D2A8",
+    affirmation: "I am one with the divine source.",
+    description: "The frequency of divine connection — the crown of the Solfeggio scale. Said to reconnect you to the spiritual order of the universe and activate the pineal gland.",
+    blessing: "Unlocked for Luminaries who have completed all 36 achievements. Use in stillness, with an open crown.",
+  },
+  {
+    key: "secret-432",
+    label: "432 Hz",
+    subtitle: "Cosmic Resonance",
+    glyph: "◉",
+    carrierHz: 432,
+    binauralBeatHz: 4.0,
+    beatType: "theta",
+    color: "#9E8AC9",
+    affirmation: "I resonate with the harmony of the cosmos.",
+    description: "The natural tuning of the universe — said to be mathematically consistent with the patterns of the golden ratio, the Earth's heartbeat, and the human body.",
+    blessing: "Unlocked for Luminaries who have completed all 36 achievements. A grounding, expansive tone for deep meditation.",
+  },
+  {
+    key: "secret-528",
+    label: "528 Hz",
+    subtitle: "Miracle DNA Repair",
+    glyph: "✦",
+    carrierHz: 528,
+    binauralBeatHz: 8.0,
+    beatType: "alpha",
+    color: "#B5CD7E",
+    affirmation: "My body, mind, and spirit heal and renew.",
+    description: "The 'Miracle Tone' of the Solfeggio scale — associated with DNA repair, transformation, and miracles. Said to bring the body back into natural harmony.",
+    blessing: "Unlocked for Luminaries who have completed all 36 achievements. Use for healing, restoration, and renewal.",
+  },
+];

@@ -109,70 +109,138 @@ export function BreathingPacer({
 
   const isExpand = phase.name === "Inhale";
   const isHold = phase.name === "Hold";
-  const scale = isHold ? 0.9 : isExpand ? 1 : 0.4;
-  const orbOpacity = isHold ? 0.75 : isExpand ? 1 : 0.35;
-  const glowSize = isExpand ? 40 : isHold ? 24 : 12;
+  // Hold: keep the orb at the inhale's final scale (1) — it pauses, doesn't shrink
+  const scale = isHold ? 1 : isExpand ? 1 : 0.35;
+  const orbOpacity = isHold ? 1 : isExpand ? 1 : 0.3;
+  const glowSize = isExpand ? 50 : isHold ? 50 : 15;
   const dur = phase.sec;
+  // During Hold: instant transition (no animation — orb stays still)
+  const transitionDur = isHold ? 0 : dur;
 
   return (
-    <div className="flex flex-col items-center gap-3 py-2">
-      <div className="relative w-[160px] h-[160px] flex items-center justify-center">
-        {/* outer ring guide */}
-        <div
-          className="absolute rounded-full border"
-          style={{ width: "100%", height: "100%", borderColor: `${color}22`, borderWidth: 1 }}
-        />
-        {/* breathing orb — key changes on phaseIdx to force clean animation restart */}
-        <motion.div
-          key={`orb-${phaseIdx}`}
-          className="rounded-full"
-          initial={{ scale: isExpand ? 0.4 : 1, opacity: isExpand ? 0.35 : 1 }}
-          animate={{ scale, opacity: orbOpacity }}
-          transition={{ duration: dur, ease: "easeInOut" }}
-          style={{
-            width: "85%",
-            height: "85%",
-            background: `radial-gradient(circle at 50% 40%, ${color}${isExpand ? "66" : isHold ? "44" : "22"} 0%, ${color}11 50%, transparent 80%)`,
-            border: `1.5px solid ${color}${isExpand ? "88" : "55"}`,
-            boxShadow: `0 0 ${glowSize}px ${color}${isExpand ? "55" : "33"}, inset 0 0 ${glowSize / 2}px ${color}${isExpand ? "33" : "22"}`,
-          }}
-        />
-        {/* phase label + countdown */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <motion.div
-            key={`label-${phaseIdx}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-[16px] font-light text-ink"
-          >
-            {phase.name}
-          </motion.div>
-          <div className="text-[20px] font-light text-ink tabular-nums mt-0.5">
-            {countdown}
+    <div
+      className="relative rounded-3xl overflow-hidden p-[1.5px]"
+      style={{
+        background: `linear-gradient(135deg, ${color}44 0%, ${color}0a 50%, ${color}22 100%)`,
+      }}
+    >
+      <div
+        className="w-full rounded-[22px] relative overflow-hidden"
+        style={{ background: "linear-gradient(165deg, #0d0b08 0%, #050403 100%)" }}
+      >
+          {/* Ambient glow */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: `radial-gradient(60% 40% at 50% 50%, ${color}10 0%, transparent 70%)` }}
+          />
+
+          <div className="relative z-10 flex flex-col items-center gap-3 py-6 px-4">
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <div
+                className="w-1 h-1 rounded-full"
+                style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+              />
+              <span className="text-[10px] uppercase tracking-[0.24em] font-medium" style={{ color: `${color}cc` }}>
+                Breath Guide
+              </span>
+            </div>
+
+            {/* Orb container — 180px for a more premium presence */}
+            <div className="relative w-[180px] h-[180px] flex items-center justify-center">
+              {/* Outer guide ring with tick marks */}
+              <svg className="absolute inset-0" width="180" height="180" viewBox="0 0 180 180">
+                <circle cx="90" cy="90" r="88" fill="none" stroke={`${color}10`} strokeWidth="0.5" />
+                <circle cx="90" cy="90" r="82" fill="none" stroke={`${color}08`} strokeWidth="0.5" strokeDasharray="1 5" />
+              </svg>
+
+              {/* Pulsing rings that emanate during inhale */}
+              {isExpand && (
+                <>
+                  <motion.div
+                    className="absolute rounded-full"
+                    style={{ width: "70%", height: "70%", border: `1px solid ${color}30` }}
+                    animate={{ scale: [1, 1.6], opacity: [0.4, 0] }}
+                    transition={{ duration: dur, repeat: Infinity, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute rounded-full"
+                    style={{ width: "70%", height: "70%", border: `1px solid ${color}20` }}
+                    animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
+                    transition={{ duration: dur, repeat: Infinity, delay: 0.5, ease: "easeOut" }}
+                  />
+                </>
+              )}
+
+              {/* The breathing orb — key forces clean animation restart */}
+              <motion.div
+                key={`orb-${phaseIdx}`}
+                className="rounded-full"
+                initial={{ scale: isExpand ? 0.35 : 1, opacity: isExpand ? 0.3 : 1 }}
+                animate={{ scale, opacity: orbOpacity }}
+                transition={{ duration: transitionDur, ease: "easeInOut" }}
+                style={{
+                  width: "75%",
+                  height: "75%",
+                  background: `radial-gradient(circle at 50% 35%, ${color}${isExpand ? "55" : isHold ? "55" : "18"} 0%, ${color}0a 50%, transparent 80%)`,
+                  border: `1.5px solid ${color}${isExpand ? "66" : isHold ? "66" : "22"}`,
+                  boxShadow: `0 0 ${glowSize}px ${color}${isExpand ? "44" : isHold ? "44" : "22"}, inset 0 0 ${glowSize * 0.6}px ${color}${isExpand ? "28" : isHold ? "28" : "14"}`,
+                }}
+              />
+
+              {/* Phase label + countdown — centered overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <motion.div
+                  key={`label-${phaseIdx}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-[15px] font-light tracking-[0.04em]"
+                  style={{ color: isExpand ? color : "#E8EBE9" }}
+                >
+                  {phase.name}
+                </motion.div>
+                <motion.div
+                  key={`count-${phaseIdx}-${countdown}`}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-[28px] font-extralight tabular-nums mt-0.5"
+                  style={{
+                    color: isExpand ? color : "#E8EBE9",
+                    textShadow: isExpand ? `0 0 12px ${color}44` : "none",
+                  }}
+                >
+                  {countdown}
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Pattern selector — premium pills */}
+            <div className="flex gap-1.5 mt-1">
+              {(Object.keys(PATTERNS) as BreathPattern[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => handlePatternChange(p)}
+                  className={`rounded-full px-3 py-1.5 text-[10px] font-medium tracking-wide transition-all ${
+                    pattern === p
+                      ? "text-black"
+                      : "text-ink-muted border border-white/8 bg-white/[0.02] hover:text-ink"
+                  }`}
+                  style={pattern === p ? {
+                    background: `linear-gradient(135deg, ${color}ee, ${color}aa)`,
+                    boxShadow: `0 0 10px ${color}44`,
+                  } : {}}
+                >
+                  {PATTERNS[p].label.split(" ")[0]}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-ink-muted text-center max-w-[220px] leading-[13px]">
+              {config.desc}
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Pattern selector */}
-      <div className="flex gap-1.5">
-        {(Object.keys(PATTERNS) as BreathPattern[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => handlePatternChange(p)}
-            className={`rounded-full px-2.5 py-1 text-[10px] font-medium tracking-wide transition-colors ${
-              pattern === p
-                ? "bg-gold/15 text-gold border border-gold/30"
-                : "bg-white/[0.03] text-ink-muted border border-white/8 hover:text-ink"
-            }`}
-          >
-            {PATTERNS[p].label.split(" ")[0]}
-          </button>
-        ))}
-      </div>
-      <p className="text-[10px] text-ink-muted text-center max-w-[240px] leading-[13px]">
-        {config.desc}
-      </p>
-    </div>
   );
 }

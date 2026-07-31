@@ -4,15 +4,18 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles, Target, AudioLines, Crown, Flame, ChevronRight, Sun, Moon, Star,
-  Bell, Smartphone, ShieldCheck,
+  Bell, Smartphone, ShieldCheck, Check,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
+import { useToast } from "@/hooks/use-toast";
 import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
 import { CardOfDay } from "@/components/lumina/card-of-day";
 import { StreakRing } from "@/components/lumina/streak-ring";
 import { MoodCheckIn } from "@/components/lumina/mood-check-in";
 import { WeeklyTeaser } from "@/components/lumina/weekly-teaser";
+import { MoonPhase } from "@/components/lumina/moon-phase";
+import { useRitual } from "@/hooks/use-ritual";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { useNotificationPermission } from "@/hooks/use-notifications";
 
@@ -55,11 +58,20 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
   const isPremium = data?.device.isPremium;
   const usage = data?.usage;
   const greeting = useGreeting();
+  const { ritual, streak: ritualStreak } = useRitual();
 
-  const quickActions: { key: TabKey; label: string; desc: string; icon: any; accent: string }[] = [
-    { key: "tarot", label: "Ask the cards", desc: usage?.remainingTarot === null ? "Unlimited" : `${usage?.remainingTarot ?? 2} free left`, icon: Sparkles, accent: "#C5A87C" },
-    { key: "manifest", label: "Confirm a goal", desc: `${usage?.confirmedToday ?? 0} today`, icon: Target, accent: "#B5CD7E" },
-    { key: "frequency", label: "Tune in", desc: isPremium ? "Unlimited" : "30s free", icon: AudioLines, accent: "#9E8AC9" },
+  const ritualSteps = [
+    ritual.step1Cleanse,
+    ritual.step2Manifest,
+    ritual.step3Tarot,
+    ritual.step4Balance,
+  ];
+
+  const quickActions: { key: TabKey; step: number; label: string; desc: string; icon: any; accent: string; ritual: string; done: boolean; optional?: boolean }[] = [
+    { key: "frequency", step: 1, label: "Cleanse", desc: isPremium ? "Unlimited" : "30s free", icon: AudioLines, accent: "#9E8AC9", ritual: "Tune your energy", done: ritualSteps[0] },
+    { key: "manifest", step: 2, label: "Manifest", desc: `${usage?.confirmedToday ?? 0} today`, icon: Target, accent: "#B5CD7E", ritual: "Affirm your desire", done: ritualSteps[1] },
+    { key: "tarot", step: 3, label: "Ask the cards", desc: usage?.remainingTarot === null ? "Unlimited" : `${usage?.remainingTarot ?? 2} free left`, icon: Sparkles, accent: "#C5A87C", ritual: "Seek guidance", done: ritualSteps[2], optional: true },
+    { key: "frequency", step: 4, label: "Balance", desc: "Reinforce & breathe", icon: AudioLines, accent: "#9E8AC9", ritual: "Energy balancing", done: ritualSteps[3] },
   ];
 
   return (
@@ -122,62 +134,137 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
         </div>
       </ShellCard>
 
-      {/* Quick actions — premium image cards */}
-      <div className="grid grid-cols-1 gap-3">
-        {quickActions.map((a, i) => {
-          const Icon = a.icon;
-          const imageMap: Record<string, string> = {
-            tarot: "/images/action-tarot.jpg",
-            manifest: "/images/action-manifest.jpg",
-            frequency: "/images/action-frequency.jpg",
-          };
-          const img = imageMap[a.key] || "";
-          return (
-            <motion.button
-              key={a.key}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 * i }}
-              onClick={() => setTab(a.key)}
-              className="text-left group"
-            >
-              <div className="relative rounded-2xl overflow-hidden h-[100px] border border-white/8 hover:border-white/15 transition-all">
-                {/* Background image */}
-                <img
-                  src={img}
-                  alt={a.label}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                {/* Dark gradient overlay for text legibility */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: "linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.3) 100%)",
-                  }}
-                />
-                {/* Accent glow on the right edge */}
-                <div
-                  className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none"
-                  style={{ background: `radial-gradient(ellipse at right, ${a.accent}15, transparent 70%)` }}
-                />
-                {/* Content */}
-                <div className="relative z-10 h-full flex items-center gap-3 p-4">
+      {/* Moon Phase — lunar guidance */}
+      <MoonPhase onSuggest={() => setTab("frequency")} />
+
+      {/* Your Ritual — numbered flow cards */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gold to-gold/30" />
+          <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold/80 font-medium">Your Ritual</h3>
+        </div>
+        <div className="space-y-2.5">
+          {quickActions.map((a, i) => {
+            const Icon = a.icon;
+            const imageMap: Record<string, string> = {
+              tarot: "/images/action-tarot.jpg",
+              manifest: "/images/action-manifest.jpg",
+              frequency: "/images/action-frequency.jpg",
+            };
+            const img = imageMap[a.key] || "";
+            return (
+              <motion.button
+                key={`${a.key}-${a.step}`}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 * i }}
+                onClick={() => setTab(a.key)}
+                className="text-left group w-full"
+              >
+                <div className="relative rounded-2xl overflow-hidden h-[88px] border border-white/8 hover:border-white/20 transition-all">
+                  {/* Background image — dimmed for text legibility */}
+                  <img
+                    src={img}
+                    alt={a.label}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{ filter: "brightness(0.45)" }}
+                  />
+                  {/* Dark gradient overlay — full coverage for readability */}
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm"
-                    style={{ background: `${a.accent}25`, border: `1px solid ${a.accent}55` }}
-                  >
-                    <Icon className="w-4 h-4" style={{ color: a.accent }} />
+                    className="absolute inset-0"
+                    style={{
+                      background: "linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.55) 100%)",
+                    }}
+                  />
+                  {/* Accent glow on right */}
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-20 pointer-events-none"
+                    style={{ background: `radial-gradient(ellipse at right, ${a.accent}18, transparent 70%)` }}
+                  />
+                  {/* Content */}
+                  <div className="relative z-10 h-full flex items-center gap-3 p-3.5">
+                    {/* Step number badge — shows checkmark when done */}
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[12px] font-semibold transition-all"
+                      style={{
+                        background: a.done ? `${a.accent}30` : `${a.accent}20`,
+                        border: `1px solid ${a.done ? a.accent : `${a.accent}50`}`,
+                        color: a.accent,
+                        backdropFilter: "blur(4px)",
+                      }}
+                    >
+                      {a.done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : a.step}
+                    </div>
+                    {/* Icon */}
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: `${a.accent}15`, border: `1px solid ${a.accent}33` }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: a.accent }} />
+                    </div>
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-[14px] font-medium text-white leading-[16px]">{a.label}</div>
+                        {a.optional && !a.done && (
+                          <span className="text-[9px] uppercase tracking-[0.1em] text-white/80 border border-white/30 rounded-full px-1.5 py-px">Optional</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] mt-0.5" style={{ color: a.done ? a.accent : "rgba(255,255,255,0.85)" }}>
+                        {a.done ? "✓ Complete" : a.ritual}
+                      </div>
+                    </div>
+                    {/* Desc on right */}
+                    <div className="text-right shrink-0">
+                      <div className="text-[11px] text-white/75">{a.done ? "" : a.desc}</div>
+                    </div>
+                    {!a.done && <ChevronRight className="w-4 h-4 text-white/60 group-hover:text-white/90 transition-colors shrink-0" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-medium text-white">{a.label}</div>
-                    <div className="text-[11px] text-white/60">{a.desc}</div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
                 </div>
-              </div>
-            </motion.button>
-          );
-        })}
+              </motion.button>
+            );
+          })}
+        </div>
+        {/* Ritual progress ring — visual completion indicator */}
+        <div className="flex items-center gap-2 mt-3 px-2">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+          {ritual.completed ? (
+            <div className="flex items-center gap-1.5">
+              <motion.div
+                className="w-5 h-5 rounded-full flex items-center justify-center"
+                style={{
+                  background: "radial-gradient(circle, rgba(181,205,126,0.3), transparent 70%)",
+                  border: "1.5px solid rgba(181,205,126,0.5)",
+                  boxShadow: "0 0 10px rgba(181,205,126,0.3)",
+                }}
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Check className="w-3 h-3 text-leaf" strokeWidth={3} />
+              </motion.div>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-leaf/80 font-medium">Ritual complete · {ritualStreak}d streak</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              {/* Mini progress ring */}
+              <svg width="20" height="20" viewBox="0 0 20 20" className="shrink-0">
+                <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+                <circle
+                  cx="10" cy="10" r="8" fill="none" stroke="#C5A87C" strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 8}
+                  strokeDashoffset={2 * Math.PI * 8 * (1 - ritualSteps.filter(Boolean).length / 3)}
+                  transform="rotate(-90 10 10)"
+                  style={{ transition: "stroke-dashoffset 0.5s ease", filter: "drop-shadow(0 0 3px rgba(197,168,124,0.5))" }}
+                />
+              </svg>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+                {ritualSteps.filter(Boolean).length}/3 required
+              </span>
+            </div>
+          )}
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+        </div>
       </div>
 
       {/* Daily mood check-in */}
@@ -213,6 +300,9 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
 
       {/* Install hint */}
       <InstallHint />
+
+      {/* #19: Data backup reminder (after 7 days of usage) */}
+      <BackupReminder memberSince={data?.device?.createdAt} />
 
       {/* Weekly reflection teaser */}
       <WeeklyTeaser />
@@ -297,6 +387,58 @@ function WidgetPreview({ isPremium, confirmedToday }: { isPremium: boolean; conf
         </div>
       </div>
     </div>
+  );
+}
+
+/** #19: Data backup reminder — shows after 7 days of membership */
+function BackupReminder({ memberSince }: { memberSince?: string }) {
+  const [dismissed, setDismissed] = React.useState(false);
+  const api = useApi();
+  const { toast } = useToast();
+
+  if (dismissed || !memberSince) return null;
+  const daysSince = Math.floor((Date.now() - new Date(memberSince).getTime()) / 86400000);
+  if (daysSince < 7) return null;
+
+  return (
+    <GlassCard className="p-4">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-full bg-leaf/10 border border-leaf/20 flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-4 h-4 text-leaf" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-medium text-ink">Protect your journey</div>
+          <p className="text-[11px] text-ink-muted mt-0.5 leading-[15px]">
+            You've been with Lumina for {daysSince} days. Export your readings, goals, and moods to keep them safe.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <GhostButton
+              className="text-[11px] py-1.5 px-3"
+              onClick={async () => {
+                try {
+                  const res = await api("/api/export");
+                  const data = await res.json();
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `lumina-export-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: "Data exported" });
+                  setDismissed(true);
+                } catch {}
+              }}
+            >
+              Export now
+            </GhostButton>
+            <button onClick={() => setDismissed(true)} className="text-[11px] text-ink-muted py-1.5 px-2">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    </GlassCard>
   );
 }
 

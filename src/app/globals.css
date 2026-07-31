@@ -66,26 +66,26 @@
   --primary: #E8EBE9;       /* button primary surface (text-secondary from spec) */
   --primary-foreground: #050806;
   --secondary: rgba(255, 255, 255, 0.04);
-  --secondary-foreground: #7A8680;
-  --muted: rgba(122, 134, 128, 0.12);
-  --muted-foreground: #7A8680;
+  --secondary-foreground: #9CA8A3;
+  --muted: rgba(156, 168, 163, 0.12);
+  --muted-foreground: #9CA8A3;
   --accent: #C5A87C;        /* gold */
   --accent-foreground: #0a0a0a;
   --destructive: #b5463a;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.10);
   --ring: rgba(197, 168, 124, 0.5);
 
   /* Brand */
   --gold: #C5A87C;
   --gold-soft: rgba(197, 168, 124, 0.14);
-  --sage: #7A8680;
+  --sage: #9CA8A3;
   --leaf: #B5CD7E;
   --surface: #121815;
   --surface-2: #0C100E;
   --ink: #E8EBE9;
-  --ink-muted: #7A8680;
+  --ink-muted: #9CA8A3;
 
   --shadow-glass: rgba(255, 255, 255, 0.05) 0px 1px 0px 0px inset;
   --shadow-float: rgba(0, 0, 0, 0.9) 0px 40px 80px -20px, rgba(255, 255, 255, 0.08) 0px 2px 4px 0px inset;
@@ -116,7 +116,7 @@
     background-color: #000;
     color: var(--ink);
     font-family: var(--font-sans);
-    font-weight: 300;
+    font-weight: 400;
     letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -277,6 +277,135 @@
 .lum-no-scrollbar::-webkit-scrollbar { display: none; }
 .lum-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Extra-subtle gold-tinted scrollbar for in-card scroll areas (e.g. badge grid) */
+.lumina-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.lumina-scroll::-webkit-scrollbar-track { background: transparent; }
+.lumina-scroll::-webkit-scrollbar-thumb {
+  background: rgba(197, 168, 124, 0.22);
+  border-radius: 999px;
+}
+.lumina-scroll::-webkit-scrollbar-thumb:hover { background: rgba(197, 168, 124, 0.4); }
+.lumina-scroll { scrollbar-width: thin; scrollbar-color: rgba(197, 168, 124, 0.22) transparent; }
+
 /* Tap highlight off for app-like feel */
 * { -webkit-tap-highlight-color: transparent; }
 button, a, [role="button"] { touch-action: manipulation; }
+
+/* ============================================================
+   REDUCED MOTION — accessibility support
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable framer-motion transforms */
+  [style*="transform"] {
+    transform: none !important;
+  }
+
+  /* Disable aurora drift */
+  .lum-aurora::before {
+    animation: none !important;
+  }
+
+  /* Disable shimmer */
+  .lum-premium-edge {
+    animation: none !important;
+    background: rgba(197, 168, 124, 0.3) !important;
+  }
+}
+
+/* ============================================================
+   LUMINARY THEME — unlocked when all 36 achievements are complete.
+   A warm, radiant gold-tinted dark theme with ambient particle glow.
+   Activated via [data-theme="luminary"] on <html>.
+   ============================================================ */
+[data-theme="luminary"] {
+  --background: #0A0805;              /* warm near-black with gold undertone */
+  --foreground: #F5EDD8;              /* warm cream text */
+  --card: rgba(28, 22, 14, 0.55);     /* warm glass */
+  --card-foreground: #F5EDD8;
+  --popover: #1A140C;
+  --popover-foreground: #F5EDD8;
+  --primary: #F5EDD8;
+  --primary-foreground: #0A0805;
+  --secondary: rgba(197, 168, 124, 0.06);
+  --secondary-foreground: #D4B27A;
+  --muted: rgba(197, 168, 124, 0.12);
+  --muted-foreground: #C5A87C;
+  --accent: #E7D2A8;                  /* brighter gold accent */
+  --accent-foreground: #0A0805;
+  --border: rgba(197, 168, 124, 0.14);
+  --input: rgba(197, 168, 124, 0.16);
+  --ring: rgba(231, 210, 168, 0.6);
+
+  --gold: #E7D2A8;                    /* radiant gold */
+  --gold-soft: rgba(231, 210, 168, 0.18);
+  --sage: #C5A87C;                    /* warm sage-gold */
+  --leaf: #D4B27A;                    /* golden leaf */
+  --surface: #1A140C;                 /* warm surface */
+  --surface-2: #100B06;
+  --ink: #F5EDD8;                     /* warm cream ink */
+  --ink-muted: #C5A87C;               /* gold-muted text */
+}
+
+/* Luminary aurora — warmer, more radiant */
+[data-theme="luminary"] .lum-aurora::before {
+  background:
+    radial-gradient(40% 30% at 20% 15%, rgba(231, 210, 168, 0.12) 0%, transparent 60%),
+    radial-gradient(35% 25% at 80% 85%, rgba(197, 168, 124, 0.10) 0%, transparent 60%),
+    radial-gradient(30% 20% at 50% 50%, rgba(158, 138, 201, 0.06) 0%, transparent 60%);
+}
+
+/* Luminary glass surfaces — warmer tint */
+[data-theme="luminary"] .lum-glass {
+  background: rgba(28, 22, 14, 0.55);
+  border-color: rgba(231, 210, 168, 0.12);
+}
+
+/* Luminary gold glow — stronger */
+[data-theme="luminary"] .lum-glow-gold {
+  box-shadow: 0 0 60px rgba(231, 210, 168, 0.12), inset 0 1px 0 rgba(231, 210, 168, 0.08);
+}
+
+/* Floating gold particle field — Luminary exclusive */
+.luminary-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+.luminary-particles span {
+  position: absolute;
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(231, 210, 168, 0.6);
+  box-shadow: 0 0 4px rgba(231, 210, 168, 0.8);
+  animation: luminary-float linear infinite;
+}
+@keyframes luminary-float {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(90vh) translateX(5px) scale(1);
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-10vh) translateX(-15px) scale(0.5);
+    opacity: 0;
+  }
+}

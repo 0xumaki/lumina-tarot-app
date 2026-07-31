@@ -1,0 +1,49 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-wheel-of-time-lin" x1="14" y1="10" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FBEFC8"/>
+      <stop offset="55%" stop-color="#D4B27A"/>
+      <stop offset="100%" stop-color="#8A6A2F"/>
+    </linearGradient>
+    <radialGradient id="g-wheel-of-time-hl" cx="26" cy="22" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="g-wheel-of-time-sh" x1="22" y1="14" x2="50" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+      <circle cx="36" cy="36" r="33" fill="none" stroke="url(#g-wheel-of-time-lin)" stroke-width="0.8" stroke-opacity="0.5"/>
+      <circle cx="36" cy="36" r="30.5" fill="none" stroke="#FBEFC8" stroke-width="0.4" stroke-opacity="0.35"/>
+  
+      <circle cx="36" cy="36" r="28" fill="#D4B27A" opacity="0.12"/>
+  <g opacity="0.5" transform="translate(1.4 2.6)"><circle cx="36" cy="36" r="22" fill="none" stroke="#8A6A2F" stroke-width="2.4"/>
+  <circle cx="36" cy="36" r="17" fill="none" stroke="#8A6A2F" stroke-width="1" stroke-opacity="0.6"/>
+  <circle cx="36" cy="36" r="6" fill="#8A6A2F"/>
+  <circle cx="36" cy="36" r="2" fill="#FFFFFF" fill-opacity="0.85"/>
+  <line x1="36" y1="36" x2="55.00" y2="36.00" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="49.44" y2="49.44" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="36.00" y2="55.00" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="22.56" y2="49.44" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="17.00" y2="36.00" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="22.56" y2="22.56" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="36.00" y2="17.00" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="49.44" y2="22.56" stroke="#8A6A2F" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+  <circle cx="36" cy="36" r="22" fill="none" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.4"/>
+  <circle cx="36" cy="36" r="17" fill="none" stroke="url(#g-wheel-of-time-lin)" stroke-width="1" stroke-opacity="0.6"/>
+  <circle cx="36" cy="36" r="6" fill="url(#g-wheel-of-time-lin)"/>
+  <circle cx="36" cy="36" r="2" fill="#FFFFFF" fill-opacity="0.85"/>
+  <line x1="36" y1="36" x2="55.00" y2="36.00" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="49.44" y2="49.44" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="36.00" y2="55.00" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="22.56" y2="49.44" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="17.00" y2="36.00" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="22.56" y2="22.56" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="36.00" y2="17.00" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="36" y1="36" x2="49.44" y2="22.56" stroke="url(#g-wheel-of-time-lin)" stroke-width="2.2" stroke-linecap="round"/>
+  
+  <circle cx="24" cy="20" r="6" fill="url(#g-wheel-of-time-hl)"/>
+</svg>

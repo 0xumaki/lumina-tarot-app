@@ -49,7 +49,7 @@ export function TarotCardFace({
 
   const sizes = {
     sm: "w-[88px] h-[132px]",
-    md: "w-[140px] h-[210px]",
+    md: "w-[160px] h-[240px]",
     lg: "w-[200px] h-[300px]",
   };
 
@@ -292,7 +292,7 @@ export function TarotCardBack({
 }) {
   const sizes = {
     sm: "w-[88px] h-[132px]",
-    md: "w-[140px] h-[210px]",
+    md: "w-[160px] h-[240px]",
     lg: "w-[200px] h-[300px]",
   };
   return (

@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check, Copy, Bookmark, BookmarkCheck } from "lucide-react";
+import { Sparkles, Shuffle, History, Lock, ChevronRight, X, RefreshCw, Loader2, Share2, Check, Copy, Bookmark, BookmarkCheck, AudioLines } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useShare } from "@/hooks/use-share";
 import { useSound } from "@/hooks/use-sound";
+import { useRitual } from "@/hooks/use-ritual";
+import { detectIntention, FREQUENCY_PRESETS, type FrequencyPreset } from "@/lib/frequencies";
 import { SPREADS, type SpreadType } from "@/lib/limits";
 import { TarotCardFace, TarotCardBack } from "./tarot-card-face";
 import { CardDetailModal } from "./card-detail-modal";
@@ -51,6 +53,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
   const currentSpread = SPREADS.find((s) => s.id === spread)!;
   const haptics = useHaptics();
   const sound = useSound();
+  const { markStep } = useRitual();
 
   async function performReading() {
     if (!question.trim()) {
@@ -99,6 +102,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
       await new Promise((r) => setTimeout(r, 400));
       setPhase("result");
       haptics("complete");
+      markStep(3); // Mark ritual step 3 (Ask the cards) — optional step
     } catch (e: any) {
       setPhase("ask");
       toast({ title: "Connection issue", description: e.message });
@@ -160,8 +164,22 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     onChange={(e) => setQuestion(e.target.value)}
                     placeholder="What does your heart need to know?"
                     rows={2}
-                    className="mt-2 w-full bg-transparent resize-none text-[16px] leading-[24px] text-ink placeholder:text-ink-muted/50 focus:outline-none"
+                    className="mt-2 w-full bg-transparent resize-none text-[16px] leading-[24px] text-ink placeholder:text-ink-muted/70 focus:outline-none"
                   />
+                  {/* #10: Smart question suggestions */}
+                  {question.trim().length === 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {getSmartQuestions().map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setQuestion(q)}
+                          className="rounded-full px-2.5 py-1 text-[10px] text-ink-muted border border-white/8 bg-white/[0.02] hover:text-gold hover:border-gold/20 transition-colors"
+                        >
+                          {q.length > 40 ? q.slice(0, 40) + "…" : q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Divider />
                 <div>
@@ -253,14 +271,14 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
 
                           {/* Meta line */}
                           <div className="flex items-center gap-1.5 mt-1">
-                            <span className={`text-[10px] ${isSelected ? "text-gold/50" : "text-ink-muted"}`}>
+                            <span className={`text-[11px] ${isSelected ? "text-gold/70" : "text-ink-muted"}`}>
                               {s.cardCount} card{s.cardCount > 1 ? "s" : ""}
                             </span>
-                            <span className="text-ink-muted/30">·</span>
-                            <span className={`text-[10px] ${
+                            <span className="text-ink-muted/40">·</span>
+                            <span className={`text-[11px] ${
                               s.premium
-                                ? locked ? "text-ink-muted/50" : "text-gold/50"
-                                : "text-leaf/50"
+                                ? locked ? "text-ink-muted/60" : "text-gold/70"
+                                : "text-leaf/70"
                             }`}>
                               {s.premium ? "Premium" : "Free"}
                             </span>
@@ -272,7 +290,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
 
                   {/* Spread description — animated swap */}
                   <div className="mt-2.5 px-1">
-                    <p className="text-[11px] text-ink-muted leading-[15px]">
+                    <p className="text-[12px] text-ink-muted leading-[16px]">
                       {currentSpread.description}
                     </p>
                   </div>
@@ -370,7 +388,7 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                         )}
                       </AnimatePresence>
                       {c.position && (
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-ink-muted text-center max-w-[120px]">
+                        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-muted text-center max-w-[120px]">
                           {c.position}
                         </div>
                       )}
@@ -481,6 +499,16 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
                     <SaveButton readingId={reading.id} />
                     <ShareButton reading={reading} />
                   </div>
+
+                  {/* Reading closure moment — gentle breathing prompt */}
+                  <ReadingClosure cardName={reading.cards[0]?.card?.nameShort || "this card"} />
+
+                  {/* Smart frequency suggestion — step 4 of the ritual */}
+                  <SmartFrequencySuggestion
+                    card={reading.cards[0]?.card}
+                    reversed={reading.cards[0]?.reversed}
+                    onNavigate={() => setTab("frequency")}
+                  />
                 </motion.div>
               )}
             </div>
@@ -507,6 +535,20 @@ export function TarotView({ isPremium, remaining }: { isPremium: boolean; remain
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
     </div>
   );
+}
+
+/** #10: Smart question suggestions based on time of day */
+function getSmartQuestions(): string[] {
+  const hour = new Date().getHours();
+  const base = [
+    "What energy should I bring to today?",
+    "What do I need to let go of?",
+    "What is seeking to emerge in my life?",
+  ];
+  if (hour < 10) return ["What energy should I bring to this day?", ...base.slice(1)];
+  if (hour < 17) return ["What should I focus on right now?", ...base.slice(1)];
+  if (hour < 21) return ["What is this evening asking of me?", ...base.slice(0, 2)];
+  return ["What should I release before sleep?", ...base.slice(0, 2)];
 }
 
 function SpreadHint({ spread }: { spread: SpreadType }) {
@@ -891,4 +933,121 @@ function AffirmationCard({ affirmation }: { affirmation: string }) {
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Reading closure — a gentle "sit with this card" breathing prompt that completes the ritual arc. */
+function ReadingClosure({ cardName }: { cardName: string }) {
+  const [breathing, setBreathing] = React.useState(false);
+  const [count, setCount] = React.useState(5);
+  const sound = useSound();
+
+  React.useEffect(() => {
+    if (!breathing) return;
+    if (count <= 0) {
+      setBreathing(false);
+      sound("bell");
+      return;
+    }
+    const t = setTimeout(() => setCount((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [breathing, count, sound]);
+
+  if (breathing) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: "auto" }}
+        exit={{ opacity: 0, height: 0 }}
+        className="overflow-hidden"
+      >
+        <div className="rounded-2xl bg-gold/[0.04] border border-gold/12 p-4 text-center">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-gold/70 font-medium mb-2">
+            Sit with {cardName}
+          </div>
+          <motion.div
+            className="w-12 h-12 rounded-full mx-auto flex items-center justify-center"
+            style={{
+              background: "radial-gradient(circle, rgba(197,168,124,0.15), transparent 70%)",
+              border: "1px solid rgba(197,168,124,0.25)",
+            }}
+            animate={{ scale: [0.9, 1.1, 0.9] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <span className="text-[18px] font-light text-gold tabular-nums">{count}</span>
+          </motion.div>
+          <p className="text-[11px] text-ink-muted mt-2">Breathe slowly. Let the card settle.</p>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setBreathing(true); setCount(5); sound("tap"); }}
+      className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-gold/50 hover:text-gold/80 transition-colors"
+    >
+      <span>✦</span>
+      Sit with {cardName} for a moment
+    </button>
+  );
+}
+
+/** Smart frequency suggestion — recommends a frequency based on the drawn card's intention. */
+function SmartFrequencySuggestion({
+  card,
+  reversed,
+  onNavigate,
+}: {
+  card: any;
+  reversed: boolean;
+  onNavigate: () => void;
+}) {
+  if (!card) return null;
+
+  // Detect the best matching frequency from the card's name + keywords
+  const keywords = reversed ? card.keywordsReversed : card.keywordsUpright;
+  const preset = detectIntention(`${card.name} ${keywords.join(" ")}`);
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      onClick={onNavigate}
+      className="w-full text-left group mt-2"
+    >
+      <div
+        className="relative rounded-2xl overflow-hidden p-3.5 border transition-all"
+        style={{
+          borderColor: `${preset.color}33`,
+          background: `linear-gradient(135deg, ${preset.color}0a 0%, transparent 70%)`,
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              background: `${preset.color}15`,
+              border: `1px solid ${preset.color}40`,
+            }}
+          >
+            <AudioLines className="w-4 h-4" style={{ color: preset.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-[0.16em] font-medium" style={{ color: `${preset.color}99` }}>
+              Step 4 · Balance
+            </div>
+            <div className="text-[13px] font-medium text-ink mt-0.5">
+              Resonate with {preset.glyph} Hz
+            </div>
+            <div className="text-[10px] text-ink-muted mt-0.5">{preset.label}</div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] text-ink-muted">Tune & breathe</div>
+            <ChevronRight className="w-4 h-4 text-ink-muted group-hover:text-gold transition-colors ml-auto mt-1" />
+          </div>
+        </div>
+      </div>
+    </motion.button>
+  );
 }
