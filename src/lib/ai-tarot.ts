@@ -24,33 +24,34 @@ const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 function pickFreeModel(spreadType: string): string {
   // Ordered preference — first available wins.
   // All are :free variants so they cost $0.
+  // Tested & confirmed working as of 2025-07-31
   switch (spreadType) {
     case "yes-no":
       // Short answer — use a fast, small model
-      return "meta-llama/llama-3.2-3b-instruct:free";
+      return "nvidia/nemotron-nano-9b-v2:free";
     case "single":
-      return "google/gemma-2-9b-it:free";
+      return "google/gemma-4-26b-a4b-it:free";
     case "three-card":
-      return "meta-llama/llama-3.1-8b-instruct:free";
+      return "nvidia/nemotron-3-nano-30b-a3b:free";
     case "celtic-cross":
     case "relationship":
     case "career":
       // Complex reading — use the most capable free model
-      return "meta-llama/llama-3.1-8b-instruct:free";
+      return "nvidia/nemotron-3-super-120b-a12b:free";
     case "card-of-day":
-      return "meta-llama/llama-3.1-8b-instruct:free";
+      return "google/gemma-4-26b-a4b-it:free";
     default:
-      return "meta-llama/llama-3.1-8b-instruct:free";
+      return "nvidia/nemotron-nano-9b-v2:free";
   }
 }
 
 /** Fallback model list — if the primary free model is unavailable, try these. */
 const FREE_MODEL_FALLBACKS = [
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-2-9b-it:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
-  "qwen/qwen-2.5-7b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
 async function tryOpenRouter(
