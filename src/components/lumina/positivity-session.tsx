@@ -170,41 +170,39 @@ export function PositivitySession({
       }}
     >
       {/* === SINGLE SOFT BREATHING AURA === */}
-      {/* The focal breathing circle — scale 0.8→1.2, opacity 0.25→0.5, 10s cycle */}
+      {/* The focal breathing circle — clearly visible, organic, calming */}
       {phase !== "countdown" && (
+        <motion.div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: "80vmin",
+            height: "80vmin",
+            background: `radial-gradient(circle, ${accent}50 0%, ${accent}25 25%, ${accent}08 50%, transparent 75%)`,
+          }}
+          animate={{
+            scale: [0.85, 1.15, 0.85],
+            opacity: [0.4, 0.7, 0.4],
+          }}
+          transition={{
+            duration: 10, // 4s in + 6s out (Calm "Balance" rhythm)
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      )}
+
+      {/* Countdown aura */}
+      {phase === "countdown" && (
         <motion.div
           className="absolute rounded-full pointer-events-none"
           style={{
             width: "70vmin",
             height: "70vmin",
-            background: `radial-gradient(circle, ${accent}40 0%, ${accent}15 30%, transparent 70%)`,
-            filter: "blur(20px)",
-          }}
-          animate={{
-            scale: [0.8, 1.2, 0.8],
-            opacity: [0.3, 0.55, 0.3],
-          }}
-          transition={{
-            duration: 10, // 4s in + 6s out (Calm "Balance" rhythm)
-            repeat: Infinity,
-            ease: "easeInOut", // Never linear — breathing slows at extremes
-          }}
-        />
-      )}
-
-      {/* Countdown aura — slower, gentler */}
-      {phase === "countdown" && (
-        <motion.div
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: "60vmin",
-            height: "60vmin",
-            background: `radial-gradient(circle, ${accent}35 0%, ${accent}10 30%, transparent 70%)`,
-            filter: "blur(25px)",
+            background: `radial-gradient(circle, ${accent}45 0%, ${accent}15 30%, transparent 70%)`,
           }}
           animate={{
             scale: [0.85, 1.15, 0.85],
-            opacity: [0.25, 0.5, 0.25],
+            opacity: [0.35, 0.6, 0.35],
           }}
           transition={{
             duration: 8,
@@ -214,19 +212,18 @@ export function PositivitySession({
         />
       )}
 
-      {/* Completion aura — slow, celebratory */}
+      {/* Completion aura */}
       {phase === "complete" && (
         <motion.div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: "80vmin",
-            height: "80vmin",
-            background: `radial-gradient(circle, ${accent}30 0%, transparent 70%)`,
-            filter: "blur(30px)",
+            width: "90vmin",
+            height: "90vmin",
+            background: `radial-gradient(circle, ${accent}40 0%, ${accent}12 35%, transparent 70%)`,
           }}
           animate={{
-            scale: [0.9, 1.3, 0.9],
-            opacity: [0.2, 0.45, 0.2],
+            scale: [0.9, 1.25, 0.9],
+            opacity: [0.3, 0.55, 0.3],
           }}
           transition={{
             duration: 12,
@@ -413,20 +410,21 @@ export function PositivitySession({
 
       {/* === MINIMAL PROGRESS DOTS (bottom, peripheral) === */}
       {phase !== "countdown" && phase !== "complete" && (
-        <div className="absolute bottom-16 left-0 right-0 flex items-center justify-center gap-1.5 z-20">
+        <div className="absolute bottom-20 left-0 right-0 flex items-center justify-center gap-2 z-20">
           {script.lines.map((_, i) => (
             <div
               key={i}
               className="rounded-full transition-all duration-500"
               style={{
-                width: 4,
-                height: 4,
+                width: 5,
+                height: 5,
                 background: i < lineIdx
-                  ? `${accent}80`
+                  ? `${accent}90`
                   : i === lineIdx
                   ? accent
-                  : "rgba(255,255,255,0.15)",
-                opacity: i <= lineIdx ? 0.7 : 0.3,
+                  : "rgba(255,255,255,0.2)",
+                opacity: i <= lineIdx ? 0.8 : 0.35,
+                boxShadow: i === lineIdx ? `0 0 6px ${accent}80` : "none",
               }}
             />
           ))}
