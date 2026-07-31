@@ -22,35 +22,31 @@ const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
 /** Pick the best free model for the reading type. */
 function pickFreeModel(spreadType: string): string {
-  // Ordered preference — first available wins.
+  // Use larger models for all readings — quality matters more than speed for tarot
   // All are :free variants so they cost $0.
-  // Tested & confirmed working as of 2025-07-31
   switch (spreadType) {
     case "yes-no":
-      // Short answer — use a fast, small model
-      return "nvidia/nemotron-nano-9b-v2:free";
-    case "single":
-      return "google/gemma-4-26b-a4b-it:free";
-    case "three-card":
       return "nvidia/nemotron-3-nano-30b-a3b:free";
+    case "single":
+      return "nvidia/nemotron-3-nano-30b-a3b:free";
+    case "three-card":
     case "celtic-cross":
     case "relationship":
     case "career":
-      // Complex reading — use the most capable free model
       return "nvidia/nemotron-3-super-120b-a12b:free";
     case "card-of-day":
-      return "google/gemma-4-26b-a4b-it:free";
+      return "nvidia/nemotron-3-nano-30b-a3b:free";
     default:
-      return "nvidia/nemotron-nano-9b-v2:free";
+      return "nvidia/nemotron-3-nano-30b-a3b:free";
   }
 }
 
 /** Fallback model list — if the primary free model is unavailable, try these. */
 const FREE_MODEL_FALLBACKS = [
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
@@ -79,11 +75,11 @@ async function tryOpenRouter(
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.85,
-          max_tokens: isPremium ? 1200 : 200,
+          temperature: 0.9,
+          max_tokens: isPremium ? 2000 : 400,
         }),
-        // 25s timeout — OpenRouter free models can be slow
-        signal: AbortSignal.timeout(25000),
+        // 40s timeout — larger models are slower but produce better readings
+        signal: AbortSignal.timeout(40000),
       });
 
       if (!res.ok) {
@@ -145,28 +141,54 @@ function buildMessages(
   const summary = summarizeDrawn(drawn);
   const yesNoTally = spreadType === "yes-no" ? tallyYesNo(drawn) : null;
 
-  const system = `You are Lumina, an insightful, warm, and grounded tarot reader.
-You honour the Rider–Waite tradition and the symbolism of each card.
-Your voice is poetic but never vague, compassionate but honest.
-You weave the cards into a single coherent narrative that directly answers the querent's question.
-Never claim to predict the future with certainty — offer guidance, energy, and reflection.
-Keep language accessible. Use second person ("you"). Avoid filler like "The cards indicate".
-${isPremium ? "Provide a rich, multi-paragraph reading: an opening, per-card analysis, and a closing reflection with an affirmation." : "Be concise: 2-4 sentences total."}`;
+  const system = `You are a master tarot reader with decades of experience in the Rider-Waite-Smith tradition. You have deep knowledge of:
+- Card symbolism (colors, figures, objects, numerology, astrology, elemental associations)
+- Upright and reversed meanings with their psychological and spiritual dimensions
+- How cards interact with each other in a spread (elemental dignities, card combinations, narrative flow)
+- How to weave multiple cards into a single, cohesive story that directly answers the querent's question
 
-  let user = `Question: "${question}"
-Spread: ${spreadType}
+YOUR READING STYLE:
+- Speak with warmth, wisdom, and specificity — never generic or vague
+- Reference the actual visual symbolism on the cards (what the figures are doing, what objects appear, what the colors suggest)
+- Connect each card's energy to the querent's specific question and life situation
+- Be honest about difficult cards — don't sugarcoat, but always find the path forward
+- Use evocative, poetic language that feels like sitting with a wise elder, not a textbook
+- Never use phrases like "The cards indicate" or "This card represents" — instead, speak directly about the energy
+
+YOUR STRUCTURE:
+- Opening: Acknowledge the question and set the emotional tone (1-2 sentences)
+- Card Analysis: For each card, describe what you see, what it means in THIS context, and how it relates to the question
+- Synthesis: Weave the cards together — how do they interact? What's the story arc?
+- Guidance: What should the querent do with this insight? Be specific and actionable.
+- Affirmation: End with a short, powerful affirmation they can carry with them
+
+${isPremium
+  ? "Provide the FULL reading with all sections above. Each card gets 2-3 sentences of analysis. Total: 400-600 words."
+  : "Provide a condensed reading: Opening (1 sentence) + Core insight (2-3 sentences that weave the cards together) + Brief guidance (1 sentence). Total: 4-6 sentences."
+}`;
+
+  let user = `The querent asks: "${question}"
+
+Spread type: ${spreadType}
+
 Cards drawn:
 ${summary}`;
+
   if (yesNoTally) {
-    user += `\n\nYes/No tally from the cards: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally.maybe}. Suggested answer: ${yesNoTally.answer.toUpperCase()} (confidence ${yesNoTally.confidence}%).`;
+    user += `
+
+Yes/No analysis from the cards: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally.maybe}. The overall energy suggests: ${yesNoTally.answer.toUpperCase()} (${yesNoTally.confidence}% confidence).
+However, do not simply parrot this — use your own reading of the cards to nuance the answer. The tally is a starting point, not the final word.`;
   }
-  user += `\n\n${
-    isPremium
-      ? "Give the full reading now."
-      : spreadType === "yes-no"
-      ? "First state the answer (YES / NO / MAYBE) in one word, then 1-2 sentences explaining why."
-      : "In 2-4 sentences, give the core guidance."
-  }`;
+
+  user += `
+
+${isPremium
+  ? "Give the full reading now. Remember: reference the actual card symbolism, connect each card to the question, and weave them into a cohesive narrative."
+  : spreadType === "yes-no"
+  ? "First, give your YES/NO/MAYBE answer based on your reading of the card (not just the tally). Then explain WHY in 2-3 sentences that reference the card's symbolism."
+  : "In 4-6 sentences, give the core guidance. Reference the card symbolism and connect it directly to their question."
+}`;
 
   return [
     { role: "system", content: system },

@@ -35,6 +35,8 @@ export interface PositivityCategoryMeta {
   color: string;
   desc: string;
   keywords: string[];
+  frequencyHz: number; // Solfeggio frequency for this intention
+  frequencyName: string;
 }
 
 export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
@@ -45,6 +47,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#E7D2A8",
     desc: "Abundance, prosperity, and financial freedom",
     keywords: ["wealth", "abundance", "prosperity", "rich", "fortune", "luxury", "opulence"],
+    frequencyHz: 888,
+    frequencyName: "Abundance Frequency",
   },
   {
     id: "money",
@@ -53,6 +57,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#B5CD7E",
     desc: "Income, savings, and financial flow",
     keywords: ["money", "income", "salary", "savings", "cash", "earn", "bank", "financial"],
+    frequencyHz: 888,
+    frequencyName: "Abundance Frequency",
   },
   {
     id: "health",
@@ -61,6 +67,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#B5CD7E",
     desc: "Vitality, healing, and physical wellbeing",
     keywords: ["health", "heal", "body", "wellness", "vitality", "energy", "strong", "fit"],
+    frequencyHz: 528,
+    frequencyName: "Miracle Healing",
   },
   {
     id: "relationship",
@@ -69,6 +77,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#D876A0",
     desc: "Love, connection, and harmony with others",
     keywords: ["love", "relationship", "partner", "connection", "romance", "harmony", "bond", "soulmate"],
+    frequencyHz: 639,
+    frequencyName: "Connection & Love",
   },
   {
     id: "power",
@@ -77,6 +87,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#F09A3D",
     desc: "Confidence, strength, and personal authority",
     keywords: ["power", "strength", "confidence", "authority", "bold", "fearless", "leader", "command"],
+    frequencyHz: 741,
+    frequencyName: "Awakening Intuition",
   },
   {
     id: "career",
@@ -85,6 +97,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#5FA9C7",
     desc: "Success, purpose, and professional growth",
     keywords: ["career", "job", "work", "profession", "success", "purpose", "calling", "path"],
+    frequencyHz: 852,
+    frequencyName: "Spiritual Awakening",
   },
   {
     id: "promotion",
@@ -93,6 +107,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#C5A87C",
     desc: "Advancement, recognition, and rising higher",
     keywords: ["promotion", "advance", "rise", "promote", "upgrade", "elevate", "recognize", "achieve"],
+    frequencyHz: 852,
+    frequencyName: "Spiritual Awakening",
   },
   {
     id: "stress-release",
@@ -101,6 +117,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#9E8AC9",
     desc: "Let go of tension, pressure, and overwhelm",
     keywords: ["stress", "tension", "pressure", "overwhelm", "release", "relax", "unwind", "ease"],
+    frequencyHz: 396,
+    frequencyName: "Liberation from Fear",
   },
   {
     id: "anxiety",
@@ -109,6 +127,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#9E8AC9",
     desc: "Calm the mind, find peace and stillness",
     keywords: ["anxiety", "worry", "fear", "nervous", "panic", "calm", "peace", "stillness", "serene"],
+    frequencyHz: 396,
+    frequencyName: "Liberation from Fear",
   },
   {
     id: "worries",
@@ -117,6 +137,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#9E8AC9",
     desc: "Release concerns and trust the process",
     keywords: ["worry", "concerns", "doubt", "trust", "faith", "surrender", "let go", "release"],
+    frequencyHz: 417,
+    frequencyName: "Facilitating Change",
   },
   {
     id: "anti-negative",
@@ -125,6 +147,8 @@ export const POSITIVITY_CATEGORIES: PositivityCategoryMeta[] = [
     color: "#F09A3D",
     desc: "Clear negativity, protect your energy",
     keywords: ["negative", "negativity", "clear", "protect", "shield", "cleanse", "purify", "ward"],
+    frequencyHz: 417,
+    frequencyName: "Facilitating Change",
   },
 ];
 
@@ -478,7 +502,8 @@ const TEMPLATES: Record<PositivityCategory, {
 /** Generate a template-based positivity script. */
 export function generateTemplateScript(
   category: PositivityCategory,
-  intention: string
+  intention: string,
+  targetDurationSec?: number
 ): PositivityScript {
   const template = TEMPLATES[category] || TEMPLATES.custom;
 
@@ -490,18 +515,34 @@ export function generateTemplateScript(
       ]
     : template.opening;
 
-  const lines: PositivityLine[] = [
+  let allLines: PositivityLine[] = [
     ...personalizedOpening.map((text) => ({ text, durationSec: 9 })),
     ...template.affirmations.map((text) => ({ text, durationSec: 8 })),
     ...template.closing.map((text) => ({ text, durationSec: 10 })),
   ];
 
+  // If target duration is specified, trim or extend lines to match
+  if (targetDurationSec) {
+    const targetLines = Math.round(targetDurationSec / 8.5); // avg 8.5s per line
+    if (allLines.length > targetLines) {
+      // Keep opening + first N affirmations + closing
+      const openingCount = personalizedOpening.length;
+      const closingCount = template.closing.length;
+      const affirmationsToKeep = Math.max(3, targetLines - openingCount - closingCount);
+      allLines = [
+        ...allLines.slice(0, openingCount),
+        ...allLines.slice(openingCount, openingCount + affirmationsToKeep),
+        ...allLines.slice(allLines.length - closingCount),
+      ];
+    }
+  }
+
   return {
     category,
     title: template.title,
     intention: intention.trim() || template.title,
-    lines,
-    totalDurationSec: lines.reduce((sum, l) => sum + l.durationSec, 0),
+    lines: allLines,
+    totalDurationSec: allLines.reduce((sum, l) => sum + l.durationSec, 0),
     source: "template",
   };
 }
@@ -515,12 +556,16 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 export async function generateLLMScript(
   category: PositivityCategory,
-  intention: string
+  intention: string,
+  targetDurationSec?: number
 ): Promise<PositivityScript | null> {
   if (!OPENROUTER_API_KEY) return null;
 
   const catMeta = POSITIVITY_CATEGORIES.find((c) => c.id === category);
   const catName = catMeta?.label || "positivity";
+  const targetLineCount = targetDurationSec
+    ? Math.round(targetDurationSec / 8.5)
+    : 15;
 
   const system = `You are Lumina, a master of positive psychology, affirmation science, and mindfulness meditation.
 You create positivity recitation scripts that people read aloud to start their day with intention and power.
@@ -532,15 +577,15 @@ CRITICAL RULE: Every line MUST be written in FIRST PERSON ("I" statements) — N
 
 Each line should feel like a breath. The progression moves from grounding → affirmation → integration.
 Return ONLY the script lines, one per line, no numbering, no markdown, no commentary.
-Produce 12-15 lines total. Each line should take 6-10 seconds to recite slowly.`;
+Produce ${targetLineCount} lines total. Each line should take 6-10 seconds to recite slowly.`;
 
   const user = `Create a positivity script for someone seeking: ${catName}
 Their specific intention: "${intention || "general positivity and alignment"}"
 
 Structure:
 - Lines 1-3: Grounding and opening (slower, spacious, first person)
-- Lines 4-12: Core affirmations (direct, powerful, all "I" statements)
-- Lines 13-15: Integration and closing (sealing the practice, first person)
+- Lines 4-${Math.max(4, targetLineCount - 3)}: Core affirmations (direct, powerful, all "I" statements)
+- Lines ${Math.max(4, targetLineCount - 2)}-${targetLineCount}: Integration and closing (sealing the practice, first person)
 
 Remember: EVERY line must use "I" — never "you".
 Return ONLY the lines, one per line. No numbering, no markdown.`;
@@ -627,12 +672,13 @@ Return ONLY the lines, one per line. No numbering, no markdown.`;
 
 export async function generatePositivityScript(
   category: PositivityCategory,
-  intention: string
+  intention: string,
+  targetDurationSec?: number
 ): Promise<PositivityScript> {
   // Tier 1: Try LLM
-  const llmScript = await generateLLMScript(category, intention);
+  const llmScript = await generateLLMScript(category, intention, targetDurationSec);
   if (llmScript) return llmScript;
 
   // Tier 2: Template fallback
-  return generateTemplateScript(category, intention);
+  return generateTemplateScript(category, intention, targetDurationSec);
 }

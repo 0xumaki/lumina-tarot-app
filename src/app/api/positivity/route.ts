@@ -102,9 +102,10 @@ export async function POST(req: Request) {
   try {
     const device = await requireDevice(new Headers(req.headers));
     const body = await req.json().catch(() => ({}));
-    const { category, intention } = body as {
+    const { category, intention, durationSec } = body as {
       category?: PositivityCategory;
       intention?: string;
+      durationSec?: number;
     };
 
     // Either category or intention must be provided
@@ -121,6 +122,9 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // Validate duration (1-5 minutes = 60-300 seconds)
+    const validDuration = durationSec && durationSec >= 60 && durationSec <= 300 ? durationSec : undefined;
 
     // Check daily limit for free users
     const today = todayStr();
@@ -144,7 +148,12 @@ export async function POST(req: Request) {
       ? category
       : detectCategory(intention || "");
 
-    const script = await generatePositivityScript(resolvedCategory, intention || "");
+    const script = await generatePositivityScript(resolvedCategory, intention || "", validDuration);
+
+    // Get the frequency for this category
+    const catMeta = POSITIVITY_CATEGORIES.find((c) => c.id === resolvedCategory);
+    const frequencyHz = catMeta?.frequencyHz || 528;
+    const frequencyName = catMeta?.frequencyName || "Miracle Healing";
 
     // Log the session
     try {
@@ -186,6 +195,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       script,
+      frequency: { hz: frequencyHz, name: frequencyName },
       usage: {
         sessionsToday: sessionsToday + 1,
         remaining: device.isPremium ? null : Math.max(0, FREE_DAILY_LIMIT - sessionsToday - 1),

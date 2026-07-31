@@ -36,6 +36,8 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
   const [loading, setLoading] = React.useState(false);
   const [loadingCategory, setLoadingCategory] = React.useState<PositivityCategory | null>(null);
   const [script, setScript] = React.useState<PositivityScript | null>(null);
+  const [frequencyData, setFrequencyData] = React.useState<{ hz: number; name: string } | null>(null);
+  const [durationMin, setDurationMin] = React.useState(2); // 1-5 minutes, default 2
 
   // Fetch usage data
   const { data: usageData } = useQuery<UsageData>({
@@ -76,6 +78,7 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
         body: JSON.stringify({
           category: cat,
           intention: intent,
+          durationSec: durationMin * 60,
         }),
       });
       const data = await res.json();
@@ -91,6 +94,7 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
         return;
       }
       setScript(data.script);
+      setFrequencyData(data.frequency || null);
       qc.invalidateQueries({ queryKey: ["positivity-usage"] });
     } catch {
       toast({ title: "Connection issue", description: "Please try again in a moment." });
@@ -106,8 +110,11 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
       <AnimatePresence>
         <PositivitySession
           script={script}
+          frequencyHz={frequencyData?.hz}
+          frequencyName={frequencyData?.name}
           onClose={() => {
             setScript(null);
+            setFrequencyData(null);
             setIntention("");
             setSelectedCategory(null);
           }}
@@ -225,6 +232,30 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
             />
             <div className="absolute bottom-2 right-2.5 text-[9px] text-ink-muted/50 tabular-nums">
               {intention.length}/500
+            </div>
+          </div>
+
+          {/* Duration slider — 1 to 5 minutes */}
+          <div className="mb-3 px-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-ink-muted/70 font-medium">Session Length</span>
+              <span className="text-[11px] text-gold font-medium tabular-nums">{durationMin} min</span>
+            </div>
+            <div className="relative flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setDurationMin(m)}
+                  disabled={loading}
+                  className={`flex-1 h-8 rounded-lg text-[11px] font-medium transition-all ${
+                    durationMin === m
+                      ? "bg-gold/20 border border-gold/40 text-gold"
+                      : "bg-white/[0.02] border border-white/8 text-ink-muted/60 hover:text-ink hover:border-white/15"
+                  }`}
+                >
+                  {m}m
+                </button>
+              ))}
             </div>
           </div>
 
