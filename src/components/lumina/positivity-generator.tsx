@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GlassCard, ShellCard, GoldButton } from "@/components/lumina/primitives";
+import { useAppStore } from "@/lib/store";
 import { POSITIVITY_CATEGORIES, type PositivityCategory, type PositivityScript } from "@/lib/positivity";
 import { PositivitySession } from "./positivity-session";
 
@@ -37,7 +38,8 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
   const [loadingCategory, setLoadingCategory] = React.useState<PositivityCategory | null>(null);
   const [script, setScript] = React.useState<PositivityScript | null>(null);
   const [frequencyData, setFrequencyData] = React.useState<{ hz: number; name: string } | null>(null);
-  const [durationMin, setDurationMin] = React.useState(2); // 1-5 minutes, default 2
+  const [durationMin, setDurationMin] = React.useState(2);
+  const setSessionActive = useAppStore((s) => s.setSessionActive);
 
   // Fetch usage data
   const { data: usageData } = useQuery<UsageData>({
@@ -95,6 +97,7 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
       }
       setScript(data.script);
       setFrequencyData(data.frequency || null);
+      setSessionActive(true);
       qc.invalidateQueries({ queryKey: ["positivity-usage"] });
     } catch {
       toast({ title: "Connection issue", description: "Please try again in a moment." });
@@ -117,6 +120,7 @@ export function PositivityGenerator({ isPremium }: { isPremium: boolean }) {
             setFrequencyData(null);
             setIntention("");
             setSelectedCategory(null);
+            setSessionActive(false);
           }}
         />
       </AnimatePresence>

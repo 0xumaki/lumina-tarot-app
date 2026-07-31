@@ -45,9 +45,11 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const [mode, setMode] = React.useState<"pure" | "binaural" | "pad">("binaural");
   const [ambient, setAmbient] = React.useState<AmbientBed>("ambient");
   const [secondsLeft, setSecondsLeft] = React.useState<number | null>(null);
+  const [sessionDuration, setSessionDuration] = React.useState(600); // default 10 min, range 30s-3hr(10800s)
 
   const engine = useFrequencyEngine();
   const maxSeconds = isPremium ? Infinity : 30;
+  const setSessionActive = useAppStore((s) => s.setSessionActive);
 
   // Use a ref to track if we're starting to avoid double-starts
   const startingRef = React.useRef(false);
@@ -57,9 +59,10 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       if (startingRef.current) return;
       startingRef.current = true;
 
-      const dur = isPremium ? 600 : 30; // premium: 10-min auto-stop, free: 30s
+      const dur = isPremium ? sessionDuration : 30; // premium: user-selected duration, free: 30s
       // Set the timer display immediately for responsiveness
       setSecondsLeft(dur);
+      setSessionActive(true);
 
       // Mark ritual step: if tarot (step 3) is done, this is step 4 (Balance), otherwise step 1 (Cleanse)
       if (ritual.step3Tarot && !ritual.step4Balance) {
@@ -130,7 +133,8 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       }).then(() => qc.invalidateQueries({ queryKey: ["me"] }));
     }
     setSecondsLeft(null);
-  }, [engine, api, qc, selected, mode]);
+    setSessionActive(false);
+  }, [engine, api, qc, selected, mode, setSessionActive]);
 
   return (
     <div className="space-y-5">
@@ -199,9 +203,9 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
                 {/* Timer ring (only during playback) */}
                 {secondsLeft !== null && (
                   <TimerRing
-                    progress={1 - secondsLeft / (isPremium ? 600 : 30)}
+                    progress={1 - secondsLeft / (isPremium ? sessionDuration : 30)}
                     color={selected.color}
-                    timeLabel={isPremium ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : `${secondsLeft}s`}
+                    timeLabel={isPremium ? formatDuration(secondsLeft) : `${secondsLeft}s`}
                   />
                 )}
 
@@ -236,6 +240,56 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
                 {BRAINWAVE_LABELS[selected.beatType]} · {selected.binauralBeatHz}Hz beat
               </div>
 
+              {/* Duration selector — draggable slider (30s to 3hr, premium only) */}
+              {isPremium && secondsLeft === null && (
+                <div className="mt-5 w-full max-w-[280px] mx-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-[0.15em] text-ink-muted/70 font-medium">Duration</span>
+                    <span className="text-[12px] font-medium tabular-nums" style={{ color: selected.color }}>
+                      {formatDuration(sessionDuration)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Quick presets */}
+                    {[
+                      { label: "30s", val: 30 },
+                      { label: "5m", val: 300 },
+                      { label: "10m", val: 600 },
+                      { label: "30m", val: 1800 },
+                      { label: "1h", val: 3600 },
+                      { label: "3h", val: 10800 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.val}
+                        onClick={() => setSessionDuration(preset.val)}
+                        className={`flex-1 min-w-0 py-1.5 rounded-md text-[9.5px] font-medium transition-all ${
+                          sessionDuration === preset.val
+                            ? "border text-white"
+                            : "border border-white/8 bg-white/[0.02] text-ink-muted/60 hover:text-ink"
+                        }`}
+                        style={sessionDuration === preset.val ? {
+                          background: `${selected.color}20`,
+                          borderColor: `${selected.color}50`,
+                        } : undefined}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Draggable slider */}
+                  <input
+                    type="range"
+                    min={30}
+                    max={10800}
+                    step={30}
+                    value={sessionDuration}
+                    onChange={(e) => setSessionDuration(Number(e.target.value))}
+                    className="w-full mt-2 accent-gold cursor-pointer"
+                    style={{ accentColor: selected.color }}
+                  />
+                </div>
+              )}
+
               {/* Play/Stop button */}
               <div className="mt-6">
                 {secondsLeft === null ? (
@@ -248,7 +302,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
                     }}
                   >
                     <Play className="w-4 h-4" fill="currentColor" />
-                    {isPremium ? "Begin 10-min session" : "Begin 30s session"}
+                    {isPremium ? `Begin ${formatDuration(sessionDuration)} session` : "Begin 30s session"}
                   </button>
                 ) : (
                   <button
@@ -533,6 +587,17 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
     </div>
   );
+}
+
+/** Format seconds as a human-readable duration (e.g., "10:00", "1:30:00") */
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${sec}s`;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m >= 10) return `${m}m`;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function Visualizer({

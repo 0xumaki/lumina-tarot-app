@@ -14,8 +14,10 @@ import { useAppStore, type CelebrationEvent } from "@/lib/store";
  */
 export function CelebrationOverlay() {
   const celebrations = useAppStore((s) => s.celebrations);
+  const sessionActive = useAppStore((s) => s.sessionActive);
   const shift = useAppStore((s) => s.shiftCelebration);
-  const current = celebrations[0] ?? null;
+  // Don't show celebrations during active sessions — queue them for after
+  const current = !sessionActive ? (celebrations[0] ?? null) : null;
 
   // Auto-dismiss after 6s (mastery gets 8s)
   React.useEffect(() => {

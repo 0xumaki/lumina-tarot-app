@@ -67,101 +67,82 @@ export function PositivitySession({
     let stopped = false;
     let nodes: any[] = [];
     let masterGain: any = null;
+    let audioElements: HTMLAudioElement[] = [];
 
-    import("tone").then((Tone) => {
+    // Start Tone.js audio context (requires user gesture — the click that started the session)
+    import("tone").then(async (Tone) => {
       if (stopped) return;
 
       try {
-        // Master gain — audible volume (matching Tones section)
-        masterGain = new Tone.Gain(0.15).toDestination();
+        // CRITICAL: Start the audio context (must be triggered by user gesture)
+        await Tone.start();
+
+        // Master gain — AUDIBLE volume (0.4 = 40% — clearly hearable)
+        masterGain = new Tone.Gain(0.4).toDestination();
 
         // Frequency oscillators (the Solfeggio frequency)
         const osc1 = new Tone.Oscillator({
           frequency: freqHz,
           type: "sine",
-          volume: -6,
+          volume: 0, // 0 dB = full volume
         }).connect(masterGain);
         osc1.start();
 
         const osc2 = new Tone.Oscillator({
-          frequency: freqHz * 1.5, // Perfect fifth
+          frequency: freqHz * 1.5,
           type: "sine",
-          volume: -12,
+          volume: -6,
         }).connect(masterGain);
         osc2.start();
-
-        const osc3 = new Tone.Oscillator({
-          frequency: freqHz * 2, // Octave
-          type: "triangle",
-          volume: -18,
-        }).connect(masterGain);
-        osc3.start();
 
         // Slow LFO for breathing volume modulation
         const lfo = new Tone.LFO({
           frequency: 0.1,
-          min: -10,
-          max: -4,
+          min: -6,
+          max: 0,
           type: "sine",
         }).start();
         lfo.connect(osc1.volume);
 
-        nodes = [osc1, osc2, osc3, lfo];
+        nodes = [osc1, osc2, lfo];
 
-        // Add ambient bed (noise-based: rain, ocean, wind, etc.)
-        const bedId = ambientBed.id;
-        if (bedId !== "none") {
-          const noise = new Tone.Noise("pink").start();
-          const noiseFilter = new Tone.Filter(ambientBed.filter).connect(masterGain);
-          const noiseGain = new Tone.Gain(0.08).connect(noiseFilter);
-          noise.connect(noiseGain);
-
-          // LFO for natural variation in the ambient bed
-          const bedLfo = new Tone.LFO({
-            frequency: 0.3 + Math.random() * 0.4,
-            min: 0.04,
-            max: 0.12,
-            type: "sine",
-          }).start();
-          bedLfo.connect(noiseGain.gain);
-
-          nodes.push(noise, noiseFilter, noiseGain, bedLfo);
-        }
-
-        // For singing bowl / chimes — add periodic bell tones
-        if (bedId === "bowl" || bedId === "chimes") {
-          const bellInterval = setInterval(() => {
-            if (stopped) return;
-            const bellFreq = freqHz * (1 + Math.random());
-            const bell = new Tone.Oscillator({
-              frequency: bellFreq,
-              type: "sine",
-              volume: -15,
-            }).connect(masterGain);
-            bell.start();
-            const bellGain = new Tone.Gain(0.1).connect(masterGain);
-            bell.connect(bellGain);
-            bellGain.gain.rampTo(0, 3);
-            setTimeout(() => {
-              try { bell.stop(); bell.dispose(); bellGain.dispose(); } catch {}
-            }, 3500);
-          }, 4000 + Math.random() * 3000);
-          nodes.push({ stop: () => clearInterval(bellInterval), dispose: () => {} });
-        }
+        // Play REAL ambient soundtrack (WAV file — actual recorded/synthesized audio, not generated at runtime)
+        const bedAudio = new Audio(`/audio/${ambientBed.id}.wav`);
+        bedAudio.loop = true;
+        bedAudio.volume = 0.6; // Clearly audible
+        bedAudio.crossOrigin = "anonymous";
+        await bedAudio.play().catch((e) => {
+          console.warn("Ambient bed audio failed:", e);
+        });
+        audioElements.push(bedAudio);
 
         // Fade in
-        masterGain.gain.rampTo(0.15, 2);
+        masterGain.gain.rampTo(0.4, 2);
 
         audioRef.current = {
           stop: (fadeSec = 3) => {
             if (masterGain) {
               masterGain.gain.rampTo(0, fadeSec);
             }
+            // Fade out ambient audio
+            audioElements.forEach((a) => {
+              try {
+                const fadeInterval = setInterval(() => {
+                  a.volume = Math.max(0, a.volume - 0.05);
+                  if (a.volume <= 0) {
+                    clearInterval(fadeInterval);
+                    a.pause();
+                  }
+                }, (fadeSec * 1000) / 20);
+              } catch {}
+            });
             setTimeout(() => {
               nodes.forEach((n) => {
                 try { n.stop?.(); n.dispose?.(); } catch {}
               });
+              audioElements.forEach((a) => { try { a.pause(); a.src = ""; } catch {} });
               nodes = [];
+              audioElements = [];
             }, (fadeSec + 0.5) * 1000);
           },
         };
