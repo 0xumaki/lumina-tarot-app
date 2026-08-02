@@ -1628,3 +1628,41 @@ Unresolved / next-phase recommendations:
 - Local DATABASE_URL is not configured for PostgreSQL — tarot reading + frequency session logging APIs 500 locally. Either set up a local Postgres (or Neon dev branch) DATABASE_URL in .env for full local E2E testing, or rely on the Vercel preview deployment for DB-backed flows.
 - The 528 Hz frequency is still shared by "Healing & Repair" and "Confidence & Power" (different binaural beats). Not flagged by the user, but could be deduplicated later if desired (e.g. Confidence → 741 Hz or a beta-targeted carrier).
 - Verify the TL;DR synthesis quality with a real LLM reading once the DB is reachable — the prompt is rewritten to forbid card-meaning repetition, but live LLM output should be spot-checked.
+
+---
+Task ID: restore-premium-comparison
+Agent: main
+Task: Bring back the whole comprehensive Premium comparison page ("Lumina Premium / One ritual. Everything unlocked. / Unlimited readings, goals, and frequencies — for less than a coffee a month.") that disappeared when the nav changed from 6 to 5 items. The current comparison looked empty.
+
+Work Log:
+- Read /home/z/my-project/worklog.md and investigated. Found that the full `PremiumView` component (premium-view.tsx, 314 lines, unchanged across all 3 of its git commits) became DEAD CODE when the nav dropped from 6→5 items in commit b520b93 — it is never rendered anywhere now. Every "Go Premium" entry point opens only the small `PremiumModal` (4 perks, no comparison table, no testimonial, no FAQ). That is why the user perceived the comparison as "empty".
+- Root cause confirmed via git history: premium-view.tsx content is identical pre/post nav change; the only thing that changed is it stopped being mounted.
+- Fix approach: restore `PremiumView` as a full-screen scrollable overlay triggered by all the "Go Premium" entry points, while keeping the small `PremiumModal` for feature-gated prompts (locked spreads / locked ambient pad / locked positivity).
+
+Implementation:
+- src/lib/store.ts: added `premiumPageOpen: boolean` + `setPremiumPageOpen` to the Zustand store.
+- src/app/page.tsx: imported `PremiumView` + `ChevronLeft`; read `premiumPageOpen`/`setPremiumPageOpen` from store; changed BOTH header buttons ("Go Premium" and "✦ Premium") from `setTab("profile")` to `setPremiumPageOpen(true)`; changed `HomeView onOpenPremium` to `setPremiumPageOpen(true)`; added a full-screen z-[90] overlay (AnimatePresence) that renders `<PremiumView/>` inside a max-w-md scrollable container with a sticky top bar containing a "Back" chevron + "LUMINA PREMIUM" label.
+- src/features/settings/settings-view.tsx: wired `setPremiumPageOpen` from store; changed the "Upgrade to Premium" GoldButton AND the "Premium comparison" SettingsRow from `setPremiumOpen(true)` (small modal) to `setPremiumPageOpen(true)` (full page). The small PremiumModal still exists for the `pendingPremiumAction` feature-gating flow.
+
+Enriched the comparison (premium-view.tsx rewrite):
+- Replaced the flat 10-row COMPARISON array with a grouped `GROUPS` structure: 5 pillars (Tarot & Divination 7, Manifestation 7, Frequencies & Tones 6, Mastery & Rewards 6, Experience 4) = 30 comparison rows, each group rendered as its own GlassCard with a colored icon header + feature count.
+- Added a Monthly/Annual billing toggle (Annual = $69/yr, −42%, ≈$5/mo) with a pill switch and dynamic price + subtitle.
+- Added an expandable FAQ section ("Questions, answered") with 4 items (real subscription? cancel anytime? free-tier progress? need Premium?) using AnimatePresence height auto.
+- Added a `FullComparison` sub-component with a `CellRender` helper that renders checkmarks (gold for premium, leaf for free), X marks, text, and infinity icons consistently. Column legend "FREE / PREMIUM" at the bottom.
+- When the user IS premium, the page now shows "What you've unlocked" + the full comparison (still comprehensive, not empty).
+
+Verification:
+- `bun run lint` — 0 errors, 0 warnings.
+- agent-browser (iPhone 14 emulation): skipped onboarding → clicked header "Go Premium" → full-screen overlay opened with sticky "Back" bar → confirmed rendered text includes: "LUMINA PREMIUM / One ritual. Everything unlocked.", billing toggle "Monthly / Annual −42%", "$9 /month $19", testimonial (Mira R.), 4 perks, and the full grouped comparison (Tarot & Divination 7 features, Manifestation 7, Frequencies & Tones 6, Mastery & Rewards 6, Experience 4), plus the FAQ "Questions, answered". No console errors.
+- Committed (ebbe8a5) + pushed to GitHub → Vercel auto-deploy BUILDING → READY. Production alias lumina-tarot-app.vercel.app confirmed serving commit ebbe8a5. Verified the deployed JS bundle contains all new strings: "Questions, answered", "Tarot & Divination", "Manifestation", "Frequencies & Tones", "Mastery & Rewards", "Supports the project", "Annual", "−42%", "Full breakdown".
+
+Stage Summary:
+- The comprehensive Premium comparison page is fully restored and accessible again via: header "Go Premium", header "✦ Premium", Home "Go Premium" CTA, Home "Upgrade" button, Profile "Upgrade to Premium", and Profile "Premium comparison" row — all open the full-screen page (not the tiny modal).
+- Comparison expanded from 10 → 30 rows across 5 grouped pillars, plus a Monthly/Annual billing toggle and an expandable FAQ. No longer "empty".
+- Feature-gated prompts (locked Celtic Cross, locked ambient pad, locked positivity) still use the small PremiumModal for contextual upsell — appropriate.
+- Lint clean. Production live and verified.
+
+Unresolved / next-phase recommendations:
+- The small PremiumModal (premium-modal.tsx) and the full PremiumView now both contain perk/price content with slight duplication. Could unify the data source, but they serve different contexts (quick upsell vs full page) so divergence is acceptable.
+- Could add a "Restore purchases" affordance and a real Stripe integration hook for when the demo becomes a real product.
+- The annual plan price ($69) is a demo value — confirm with product before going live with real billing.
