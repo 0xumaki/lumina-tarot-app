@@ -1601,3 +1601,30 @@ Stage Summary:
 - ✅ Duration selector (1-5 min)
 - ✅ Professional tarot prompts (references symbolism, structured)
 - ✅ Live on Vercel
+
+---
+Task ID: tarot-tldr-freq-fixes
+Agent: main
+Task: Three user-reported fixes — (1) scroll to Breath Guide after 5s frequency countdown, (2) tarot TLDR must be a 2-3 line synthesis of the whole reading answering the user's question (not card meanings), (3) fix duplicated 396 Hz frequency and 7.83 Hz typo in the Tones section.
+
+Work Log:
+- Read /home/z/my-project/worklog.md and the three target files: src/lib/ai-tarot.ts, src/features/frequency/frequency-view.tsx, src/lib/frequencies.ts.
+- Identified the frequency data bugs: "Peace & Calm" and "Release & Let Go" both used glyph/carrierHz 396 (duplicate); "Clarity & Focus" had glyph "7.83" (a binaural-beat value) while its carrierHz is actually 432 — a clear typo.
+- Fix 1 (frequencies.ts): Changed "Clarity & Focus" glyph from "7.83" to "432" (matches its carrierHz). Changed "Release & Let Go" from 396 Hz to 285 Hz (a distinct Solfeggio frequency for deep energetic release) — updated glyph, carrierHz, and description. "Peace & Calm" stays at 396 Hz (now unique). Left 528 Hz (Healing/Confidence) unchanged — intentional dual use of the "miracle tone" with different binaural beats; user did not flag it.
+- Fix 2 (frequency-view.tsx): Added `breathRef` + `prevSecondsLeft` ref and a useEffect that fires when `secondsLeft` transitions null → number (session just started). It calls `requestAnimationFrame(() => breathRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }))` so the user is smoothly guided up to the Breath Guide card right after the 5-second pre-session countdown ends — they land on the breathing pacer instead of staying parked on the frequency dial. Wrapped the BreathingPacer in a `<div ref={breathRef} className="scroll-mt-4">` wrapper so the ref has a stable layout box.
+- Fix 3 (ai-tarot.ts): Rewrote the TL;DR instructions in buildMessages() for all three tiers (premium / yes-no / single). Premium TL;DR now explicitly: "2-3 sentences… do NOT name any card, do NOT repeat or paraphrase card meanings… Speak directly TO the person about THEIR situation". Yes/No and Single TL;DR changed from "One sentence" to "2-3 sentences" with the same anti-card-meaning, pro-synthesis rules. Summary sections also updated to forbid re-listing card meanings. Rewrote all three fallbackInterpretation() TL;DRs (yes-no, single, premium multi-card) so they synthesize the whole reading into a directional takeaway instead of repeating `meaning.split(".")[0]`. Premium multi-card fallback now derives a `takeaway` from spread composition (all-upright / all-reversed / mixed) and weaves it into both TL;DR and Summary.
+- Verification: `bun run lint` — 0 errors, 0 warnings. Dev server compiles and renders HTTP 200 with no console errors. agent-browser (iPhone 14 emulation) confirmed the Tones section now shows: 432 Clarity (was 7.83), 285 Release (was dup 396), 396 Peace (now unique) — no duplicate 396, no 7.83. Standalone Node check of the fallback TL;DR templates confirmed they emit 2-3 line synthesized answers with no card names / no repeated meanings.
+- Note: the tarot reading API (/api/tarot/read) returns 500 locally because the local DATABASE_URL is not a postgresql:// URL (the app is deployed to Vercel + Neon; the local .env is not wired for Postgres). This is a pre-existing environment issue, not caused by these changes — the TL;DR prompt + fallback logic were verified via code review and a standalone template run instead.
+
+Stage Summary:
+- Three user-reported bugs fixed and verified:
+  1. Frequencies: duplicate 396 Hz removed (Release → 285 Hz), 7.83 typo corrected (Clarity → 432 Hz).
+  2. Breath Guide: after the 5-second pre-session countdown, the view now smooth-scrolls the user up to the BreathingPacer so they breathe along with it.
+  3. Tarot TL;DR: now a 2-3 line synthesis of the whole reading that answers the user's question directly — no card names, no repeated card meanings, in both the LLM prompt and the no-LLM fallback.
+- Files changed: src/lib/frequencies.ts, src/features/frequency/frequency-view.tsx, src/lib/ai-tarot.ts.
+- Lint clean. Page renders with no console errors. Frequency grid verified in browser.
+
+Unresolved / next-phase recommendations:
+- Local DATABASE_URL is not configured for PostgreSQL — tarot reading + frequency session logging APIs 500 locally. Either set up a local Postgres (or Neon dev branch) DATABASE_URL in .env for full local E2E testing, or rely on the Vercel preview deployment for DB-backed flows.
+- The 528 Hz frequency is still shared by "Healing & Repair" and "Confidence & Power" (different binaural beats). Not flagged by the user, but could be deduplicated later if desired (e.g. Confidence → 741 Hz or a beta-targeted carrier).
+- Verify the TL;DR synthesis quality with a real LLM reading once the DB is reachable — the prompt is rewritten to forbid card-meaning repetition, but live LLM output should be spot-checked.

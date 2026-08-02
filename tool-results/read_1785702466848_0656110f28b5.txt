@@ -1,0 +1,753 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import * as React from "react";
+     4→     4→import { motion, AnimatePresence } from "framer-motion";
+     5→     5→import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+     6→     6→import {
+     7→     7→  AudioLines, Play, Pause, Lock, Activity, Waves, Brain, Sparkles, RotateCcw, Info, Wind,
+     8→     8→  CloudRain, Droplets, Mountain,
+     9→     9→} from "lucide-react";
+    10→    10→import { useApi } from "@/hooks/use-api";
+    11→    11→import { useToast } from "@/hooks/use-toast";
+    12→    12→import { GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider } from "@/components/lumina/primitives";
+    13→    13→import {
+    14→    14→  FREQUENCY_PRESETS, BRAINWAVE_LABELS, SECRET_FREQUENCIES, type FrequencyPreset, type BrainwaveType, type SecretFrequencyPreset, getPreset,
+    15→    15→} from "@/lib/frequencies";
+    16→    16→import { useAppStore } from "@/lib/store";
+    17→    17→import { PremiumModal } from "@/features/premium/premium-modal";
+    18→    18→import { useFrequencyEngine, type AmbientBed } from "./audio-engine";
+    19→    19→import { BreathingPacer } from "./breathing-pacer";
+    20→    20→import { useRitual } from "@/hooks/use-ritual";
+    21→    21→import { useAchievements } from "@/hooks/use-achievements";
+    22→    22→
+    23→    23→const AMBEDIENT_BEDS: { id: AmbientBed; label: string; icon: React.ElementType; desc: string }[] = [
+    24→    24→  { id: "rain", label: "Rain", icon: CloudRain, desc: "Gentle rainfall" },
+    25→    25→  { id: "ocean", label: "Ocean", icon: Waves, desc: "Rolling waves" },
+    26→    26→  { id: "wind", label: "Wind", icon: Wind, desc: "Soft breeze" },
+    27→    27→  { id: "stream", label: "Stream", icon: Droplets, desc: "Bubbling brook" },
+    28→    28→  { id: "river", label: "River", icon: Mountain, desc: "Flowing river with depth" },
+    29→    29→  { id: "none", label: "None", icon: AudioLines, desc: "Pure tone only" },
+    30→    30→];
+    31→    31→
+    32→    32→export function FrequencyView({ isPremium }: { isPremium: boolean }) {
+    33→    33→  const api = useApi();
+    34→    34→  const { toast } = useToast();
+    35→    35→  const qc = useQueryClient();
+    36→    36→  const { ritual, markStep } = useRitual();
+    37→    37→  const { allComplete } = useAchievements();
+    38→    38→  const setPending = useAppStore((s) => s.setPendingPremiumAction);
+    39→    39→  const [premiumOpen, setPremiumOpen] = React.useState(false);
+    40→    40→
+    41→    41→  const [selected, setSelected] = React.useState<FrequencyPreset>(FREQUENCY_PRESETS[0]);
+    42→    42→  const [secretSelected, setSecretSelected] = React.useState<SecretFrequencyPreset | null>(null);
+    43→    43→  const [mode, setMode] = React.useState<"pure" | "binaural" | "pad">("binaural");
+    44→    44→  const [ambient, setAmbient] = React.useState<AmbientBed>("rain");
+    45→    45→  const [secondsLeft, setSecondsLeft] = React.useState<number | null>(null);
+    46→    46→  const [sessionDuration, setSessionDuration] = React.useState(600);
+    47→    47→  const [countdown, setCountdown] = React.useState<number | null>(null); // 5s pre-session countdown
+    48→    48→
+    49→    49→  const engine = useFrequencyEngine();
+    50→    50→  const maxSeconds = isPremium ? Infinity : 30;
+    51→    51→  const setSessionActive = useAppStore((s) => s.setSessionActive);
+    52→    52→
+    53→    53→  const cancelCountdownRef = React.useRef(false);
+    54→    54→
+    55→    55→  const startSession = React.useCallback(
+    56→    56→    async (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
+    57→    57→      // 5-second pre-session countdown
+    58→    58→      cancelCountdownRef.current = false;
+    59→    59→      setCountdown(5);
+    60→    60→
+    61→    61→      await new Promise<void>((resolve) => {
+    62→    62→        let c = 5;
+    63→    63→        const cdInterval = setInterval(() => {
+    64→    64→          if (cancelCountdownRef.current) {
+    65→    65→            clearInterval(cdInterval);
+    66→    66→            setCountdown(null);
+    67→    67→            resolve();
+    68→    68→            return;
+    69→    69→          }
+    70→    70→          c--;
+    71→    71→          if (c <= 0) {
+    72→    72→            clearInterval(cdInterval);
+    73→    73→            setCountdown(null);
+    74→    74→            resolve();
+    75→    75→          } else {
+    76→    76→            setCountdown(c);
+    77→    77→          }
+    78→    78→        }, 1000);
+    79→    79→      });
+    80→    80→
+    81→    81→      if (cancelCountdownRef.current) return;
+    82→    82→
+    83→    83→      // Stop any existing session first
+    84→    84→      engine.stop();
+    85→    85→
+    86→    86→      const dur = isPremium ? sessionDuration : 30;
+    87→    87→      setSecondsLeft(dur);
+    88→    88→      setSessionActive(true);
+    89→    89→
+    90→    90→      // Mark ritual step: if tarot (step 3) is done, this is step 4 (Balance), otherwise step 1 (Cleanse)
+    91→    91→      if (ritual.step3Tarot && !ritual.step4Balance) {
+    92→    92→        markStep(4);
+    93→    93→      } else if (!ritual.step1Cleanse) {
+    94→    94→        markStep(1);
+    95→    95→      }
+    96→    96→
+    97→    97→      try {
+    98→    98→        await engine.start({
+    99→    99→          carrierHz: preset.carrierHz,
+   100→   100→          binauralBeatHz: preset.binauralBeatHz,
+   101→   101→          mode: m,
+   102→   102→          durationSec: dur,
+   103→   103→          ambient,
+   104→   104→          onTick: (s) => setSecondsLeft(s),
+   105→   105→          onEnd: () => {
+   106→   106→            setSecondsLeft(null);
+   107→   107→            // log session
+   108→   108→            api("/api/frequency/session", {
+   109→   109→              method: "POST",
+   110→   110→              body: JSON.stringify({
+   111→   111→                intention: preset.key,
+   112→   112→                frequencyHz: preset.carrierHz,
+   113→   113→                baseHz: m === "binaural" ? preset.carrierHz : null,
+   114→   114→                beatHz: m === "binaural" ? preset.binauralBeatHz : null,
+   115→   115→                mode: m,
+   116→   116→                durationSec: dur,
+   117→   117→                completed: true,
+   118→   118→              }),
+   119→   119→            }).then(() => qc.invalidateQueries({ queryKey: ["me"] }));
+   120→   120→            // Gentle session end — different message for free vs premium
+   121→   121→            if (isPremium) {
+   122→   122→              toast({
+   123→   123→                title: `✦ ${preset.label} complete`,
+   124→   124→                description: `${dur}s of resonance logged to your journey.`,
+   125→   125→              });
+   126→   126→            } else {
+   127→   127→              toast({
+   128→   128→                title: `✦ Your 30 seconds of resonance is complete`,
+   129→   129→                description: `Premium unlocks unlimited sessions.`,
+   130→   130→              });
+   131→   131→            }
+   132→   132→          },
+   133→   133→        });
+   134→   134→      } catch (err) {
+   135→   135→        console.error("Engine start failed:", err);
+   136→   136→        setSecondsLeft(null);
+   137→   137→        setSessionActive(false);
+   138→   138→      }
+   139→   139→    },
+   140→   140→    [engine, isPremium, api, qc, toast, ambient, sessionDuration, ritual, markStep, setSessionActive]
+   141→   141→  );
+   142→   142→
+   143→   143→  const stopSession = React.useCallback(() => {
+   144→   144→    cancelCountdownRef.current = true; // Cancel any pending countdown
+   145→   145→    setCountdown(null);
+   146→   146→    const played = engine.stop();
+   147→   147→    if (played && played > 2) {
+   148→   148→      api("/api/frequency/session", {
+   149→   149→        method: "POST",
+   150→   150→        body: JSON.stringify({
+   151→   151→          intention: selected.key,
+   152→   152→          frequencyHz: selected.carrierHz,
+   153→   153→          mode,
+   154→   154→          durationSec: Math.round(played),
+   155→   155→          completed: false,
+   156→   156→        }),
+   157→   157→      }).then(() => qc.invalidateQueries({ queryKey: ["me"] }));
+   158→   158→    }
+   159→   159→    setSecondsLeft(null);
+   160→   160→    setSessionActive(false);
+   161→   161→  }, [engine, api, qc, selected, mode, setSessionActive]);
+   162→   162→
+   163→   163→  return (
+   164→   164→    <div className="space-y-5">
+   165→   165→      <SectionTitle
+   166→   166→        eyebrow="Frequencies"
+   167→   167→        title={<>Tune your <span className="lum-text-gold">resonance</span></>}
+   168→   168→        subtitle={
+   169→   169→          isPremium
+   170→   170→            ? "Unlimited sessions. Pure tones, binaural beats, and ambient pads."
+   171→   171→            : "30 seconds per session on the free tier. Premium unlocks unlimited."
+   172→   172→        }
+   173→   173→      />
+   174→   174→
+   175→   175→      {/* Pre-session 5-second countdown overlay */}
+   176→   176→      {countdown !== null && countdown > 0 && (
+   177→   177→        <motion.div
+   178→   178→          initial={{ opacity: 0 }}
+   179→   179→          animate={{ opacity: 1 }}
+   180→   180→          exit={{ opacity: 0 }}
+   181→   181→          className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
+   182→   182→          style={{ background: "radial-gradient(ellipse at 50% 50%, #0a0805 0%, #030201 80%)" }}
+   183→   183→          onClick={() => { cancelCountdownRef.current = true; setCountdown(null); }}
+   184→   184→        >
+   185→   185→          <motion.div
+   186→   186→            className="absolute rounded-full pointer-events-none"
+   187→   187→            style={{
+   188→   188→              width: "70vmin",
+   189→   189→              height: "70vmin",
+   190→   190→              background: `radial-gradient(circle, ${selected.color}40 0%, ${selected.color}15 30%, transparent 70%)`,
+   191→   191→            }}
+   192→   192→            animate={{ scale: [0.85, 1.15, 0.85], opacity: [0.4, 0.7, 0.4] }}
+   193→   193→            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+   194→   194→          />
+   195→   195→          <div className="text-[10px] uppercase tracking-[0.28em] font-medium mb-8" style={{ color: selected.color }}>
+   196→   196→            Preparing your session
+   197→   197→          </div>
+   198→   198→          <AnimatePresence mode="popLayout">
+   199→   199→            <motion.div
+   200→   200→              key={countdown}
+   201→   201→              initial={{ opacity: 0, y: 40, scale: 0.8 }}
+   202→   202→              animate={{ opacity: 1, y: 0, scale: 1 }}
+   203→   203→              exit={{ opacity: 0, y: -40, scale: 1.2 }}
+   204→   204→              transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+   205→   205→              className="text-[80px] font-extralight text-white/90 tabular-nums leading-none"
+   206→   206→            >
+   207→   207→              {countdown}
+   208→   208→            </motion.div>
+   209→   209→          </AnimatePresence>
+   210→   210→          <p className="mt-10 text-[12px] text-white/35 max-w-[220px] tracking-wide">
+   211→   211→            Find a comfortable position. Tap to cancel.
+   212→   212→          </p>
+   213→   213→        </motion.div>
+   214→   214→      )}
+   215→   215→
+   216→   216→      {/* Breathing pacer — ABOVE the frequency card (only during active session) */}
+   217→   217→      {secondsLeft !== null && (
+   218→   218→        <BreathingPacer active={!!secondsLeft} color={selected.color} />
+   219→   219→      )}
+   220→   220→
+   221→   221→      {/* Frequency countdown card — award-winning redesign */}
+   222→   222→      <div
+   223→   223→        className="relative rounded-3xl overflow-hidden p-[1.5px]"
+   224→   224→        style={{
+   225→   225→          background: `linear-gradient(135deg, ${selected.color}55 0%, ${selected.color}11 40%, rgba(255,255,255,0.04) 70%, ${selected.color}22 100%)`,
+   226→   226→        }}
+   227→   227→      >
+   228→   228→        <div
+   229→   229→          className="w-full rounded-[22px] relative overflow-hidden"
+   230→   230→          style={{ background: "linear-gradient(165deg, #0f0d0a 0%, #050403 100%)" }}
+   231→   231→        >
+   232→   232→            {/* Ambient glow layers */}
+   233→   233→            <div
+   234→   234→              className="absolute inset-0 pointer-events-none"
+   235→   235→              style={{
+   236→   236→                background: `radial-gradient(80% 50% at 50% 0%, ${selected.color}12 0%, transparent 70%)`,
+   237→   237→              }}
+   238→   238→            />
+   239→   239→            <Visualizer active={!!secondsLeft} color={selected.color} hz={selected.carrierHz} beat={selected.binauralBeatHz} />
+   240→   240→
+   241→   241→            {/* Content */}
+   242→   242→            <div className="relative z-10 flex flex-col items-center text-center px-6 py-8">
+   243→   243→              {/* Status label */}
+   244→   244→              <div className="flex items-center gap-2 mb-1">
+   245→   245→                <motion.div
+   246→   246→                  className="w-1.5 h-1.5 rounded-full"
+   247→   247→                  style={{ background: secondsLeft ? selected.color : "#7A8680" }}
+   248→   248→                  animate={secondsLeft ? { opacity: [1, 0.3, 1] } : { opacity: 0.5 }}
+   249→   249→                  transition={{ duration: 1.5, repeat: Infinity }}
+   250→   250→                />
+   251→   251→                <span className="text-[11px] uppercase tracking-[0.24em] font-medium" style={{ color: secondsLeft ? selected.color : "#7A8680" }}>
+   252→   252→                  {secondsLeft ? "Now resonating" : "Selected"}
+   253→   253→                </span>
+   254→   254→              </div>
+   255→   255→
+   256→   256→              {/* Large frequency ring — the hero element */}
+   257→   257→              <div className="relative mt-4 w-[160px] h-[160px] flex items-center justify-center">
+   258→   258→                {/* Outer glow ring */}
+   259→   259→                <motion.div
+   260→   260→                  className="absolute inset-0 rounded-full"
+   261→   261→                  style={{
+   262→   262→                    background: `radial-gradient(circle at 50% 40%, ${selected.color}18 0%, transparent 70%)`,
+   263→   263→                  }}
+   264→   264→                  animate={secondsLeft ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+   265→   265→                  transition={secondsLeft ? { duration: 4, repeat: Infinity, ease: "easeInOut" } : {}}
+   266→   266→                />
+   267→   267→
+   268→   268→                {/* Timer ring (only during playback) */}
+   269→   269→                {secondsLeft !== null && (
+   270→   270→                  <TimerRing
+   271→   271→                    progress={1 - secondsLeft / (isPremium ? sessionDuration : 30)}
+   272→   272→                    color={selected.color}
+   273→   273→                    timeLabel={isPremium ? formatDuration(secondsLeft) : `${secondsLeft}s`}
+   274→   274→                  />
+   275→   275→                )}
+   276→   276→
+   277→   277→                {/* Center: frequency number */}
+   278→   278→                <div className="relative z-10 flex flex-col items-center">
+   279→   279→                  <div
+   280→   280→                    className="text-[40px] font-extralight leading-none tabular-nums"
+   281→   281→                    style={{
+   282→   282→                      color: selected.color,
+   283→   283→                      textShadow: `0 0 20px ${selected.color}44`,
+   284→   284→                    }}
+   285→   285→                  >
+   286→   286→                    {selected.glyph}
+   287→   287→                  </div>
+   288→   288→                  <div className="text-[11px] uppercase tracking-[0.2em] text-ink-muted mt-1">Hz</div>
+   289→   289→                </div>
+   290→   290→
+   291→   291→                {/* Idle ring (when not playing) */}
+   292→   292→                {secondsLeft === null && (
+   293→   293→                  <svg className="absolute inset-0" width="160" height="160" viewBox="0 0 160 160">
+   294→   294→                    <circle cx="80" cy="80" r="76" fill="none" stroke={`${selected.color}15`} strokeWidth="1" />
+   295→   295→                    <circle cx="80" cy="80" r="68" fill="none" stroke={`${selected.color}08`} strokeWidth="0.5" strokeDasharray="2 4" />
+   296→   296→                  </svg>
+   297→   297→                )}
+   298→   298→              </div>
+   299→   299→
+   300→   300→              {/* Intention label */}
+   301→   301→              <div className="mt-5 text-[16px] font-light text-ink tracking-[-0.01em]">
+   302→   302→                {selected.label}
+   303→   303→              </div>
+   304→   304→              <div className="mt-1 text-[11px] text-ink-muted">
+   305→   305→                {BRAINWAVE_LABELS[selected.beatType]} · {selected.binauralBeatHz}Hz beat
+   306→   306→              </div>
+   307→   307→
+   308→   308→              {/* Duration selector — draggable slider (30s to 3hr, premium only) */}
+   309→   309→              {isPremium && secondsLeft === null && (
+   310→   310→                <div className="mt-5 w-full max-w-[280px] mx-auto">
+   311→   311→                  <div className="flex items-center justify-between mb-2">
+   312→   312→                    <span className="text-[10px] uppercase tracking-[0.15em] text-ink-muted/70 font-medium">Duration</span>
+   313→   313→                    <span className="text-[12px] font-medium tabular-nums" style={{ color: selected.color }}>
+   314→   314→                      {formatDuration(sessionDuration)}
+   315→   315→                    </span>
+   316→   316→                  </div>
+   317→   317→                  <div className="flex items-center gap-2">
+   318→   318→                    {/* Quick presets */}
+   319→   319→                    {[
+   320→   320→                      { label: "30s", val: 30 },
+   321→   321→                      { label: "5m", val: 300 },
+   322→   322→                      { label: "10m", val: 600 },
+   323→   323→                      { label: "30m", val: 1800 },
+   324→   324→                      { label: "1h", val: 3600 },
+   325→   325→                      { label: "3h", val: 10800 },
+   326→   326→                    ].map((preset) => (
+   327→   327→                      <button
+   328→   328→                        key={preset.val}
+   329→   329→                        onClick={() => setSessionDuration(preset.val)}
+   330→   330→                        className={`flex-1 min-w-0 py-1.5 rounded-md text-[9.5px] font-medium transition-all ${
+   331→   331→                          sessionDuration === preset.val
+   332→   332→                            ? "border text-white"
+   333→   333→                            : "border border-white/8 bg-white/[0.02] text-ink-muted/60 hover:text-ink"
+   334→   334→                        }`}
+   335→   335→                        style={sessionDuration === preset.val ? {
+   336→   336→                          background: `${selected.color}20`,
+   337→   337→                          borderColor: `${selected.color}50`,
+   338→   338→                        } : undefined}
+   339→   339→                      >
+   340→   340→                        {preset.label}
+   341→   341→                      </button>
+   342→   342→                    ))}
+   343→   343→                  </div>
+   344→   344→                  {/* Draggable slider */}
+   345→   345→                  <input
+   346→   346→                    type="range"
+   347→   347→                    min={30}
+   348→   348→                    max={10800}
+   349→   349→                    step={30}
+   350→   350→                    value={sessionDuration}
+   351→   351→                    onChange={(e) => setSessionDuration(Number(e.target.value))}
+   352→   352→                    className="w-full mt-2 accent-gold cursor-pointer"
+   353→   353→                    style={{ accentColor: selected.color }}
+   354→   354→                  />
+   355→   355→                </div>
+   356→   356→              )}
+   357→   357→
+   358→   358→              {/* Play/Stop button */}
+   359→   359→              <div className="mt-6">
+   360→   360→                {secondsLeft === null ? (
+   361→   361→                  <button
+   362→   362→                    onClick={() => startSession(selected, mode)}
+   363→   363→                    className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-[14px] font-medium text-black transition-all active:scale-[0.97]"
+   364→   364→                    style={{
+   365→   365→                      background: `linear-gradient(135deg, ${selected.color}ee, ${selected.color}aa)`,
+   366→   366→                      boxShadow: `0 0 24px ${selected.color}44, inset 0 1px 0 rgba(255,255,255,0.3)`,
+   367→   367→                    }}
+   368→   368→                  >
+   369→   369→                    <Play className="w-4 h-4" fill="currentColor" />
+   370→   370→                    {isPremium ? `Begin ${formatDuration(sessionDuration)} session` : "Begin 30s session"}
+   371→   371→                  </button>
+   372→   372→                ) : (
+   373→   373→                  <button
+   374→   374→                    onClick={stopSession}
+   375→   375→                    className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-[14px] font-medium border transition-all active:scale-[0.97]"
+   376→   376→                    style={{
+   377→   377→                      borderColor: `${selected.color}50`,
+   378→   378→                      color: selected.color,
+   379→   379→                      background: `${selected.color}10`,
+   380→   380→                    }}
+   381→   381→                  >
+   382→   382→                    <Pause className="w-4 h-4" fill="currentColor" />
+   383→   383→                    Stop
+   384→   384→                  </button>
+   385→   385→                )}
+   386→   386→              </div>
+   387→   387→            </div>
+   388→   388→          </div>
+   389→   389→        </div>
+   390→   390→
+   391→   391→      {/* Ambient bed selector */}
+   392→   392→      <div>
+   393→   393→        <div className="flex items-center justify-between mb-2.5">
+   394→   394→          <label className="text-[12px] uppercase tracking-[0.18em] text-gold/70 font-medium">
+   395→   395→            Ambient bed
+   396→   396→          </label>
+   397→   397→          <span className="text-[10px] text-ink-muted">
+   398→   398→            {secondsLeft !== null ? "Playing" : "Choose your soundscape"}
+   399→   399→          </span>
+   400→   400→        </div>
+   401→   401→        <div className="grid grid-cols-3 gap-2">
+   402→   402→          {AMBEDIENT_BEDS.map((bed) => {
+   403→   403→            const isActive = ambient === bed.id;
+   404→   404→            const Icon = bed.icon;
+   405→   405→            return (
+   406→   406→              <button
+   407→   407→                key={bed.id}
+   408→   408→                onClick={() => setAmbient(bed.id)}
+   409→   409→                disabled={secondsLeft !== null}
+   410→   410→                className={`relative rounded-xl p-2.5 border transition-all text-center ${
+   411→   411→                  isActive
+   412→   412→                    ? "border-gold/50 bg-gold/[0.10]"
+   413→   413→                    : "border-white/6 bg-white/[0.015] hover:border-white/12"
+   414→   414→                } ${secondsLeft !== null ? "opacity-50 cursor-not-allowed" : ""}`}
+   415→   415→              >
+   416→   416→                <Icon
+   417→   417→                  className={`w-4 h-4 mx-auto ${isActive ? "text-gold" : "text-ink-muted"}`}
+   418→   418→                />
+   419→   419→                <div className={`text-[10px] font-medium mt-1 ${isActive ? "text-gold" : "text-ink"}`}>
+   420→   420→                  {bed.label}
+   421→   421→                </div>
+   422→   422→              </button>
+   423→   423→            );
+   424→   424→          })}
+   425→   425→        </div>
+   426→   426→        <p className="text-[11px] text-ink-muted mt-1.5 leading-[13px]">
+   427→   427→          {AMBEDIENT_BEDS.find((b) => b.id === ambient)?.desc}
+   428→   428→        </p>
+   429→   429→      </div>
+   430→   430→
+   431→   431→      {/* Mode selector */}
+   432→   432→      <div className="grid grid-cols-3 gap-2">
+   433→   433→        {([
+   434→   434→          { id: "pure", label: "Pure Tone", icon: Waves, desc: "Single frequency" },
+   435→   435→          { id: "binaural", label: "Binaural", icon: Brain, desc: "Hemisphere sync", premium: false },
+   436→   436→          { id: "pad", label: "Ambient Pad", icon: AudioLines, desc: "Layered drone", premium: true },
+   437→   437→        ] as const).map((m) => {
+   438→   438→          const locked = !isPremium && m.premium;
+   439→   439→          const active = mode === m.id;
+   440→   440→          const Icon = m.icon;
+   441→   441→          return (
+   442→   442→            <button
+   443→   443→              key={m.id}
+   444→   444→              onClick={() => {
+   445→   445→                if (locked) {
+   446→   446→                  setPending(`${m.label} is a Premium feature.`);
+   447→   447→                  setPremiumOpen(true);
+   448→   448→                  return;
+   449→   449→                }
+   450→   450→                setMode(m.id);
+   451→   451→              }}
+   452→   452→              className={`relative rounded-xl p-3 border text-left transition-all ${
+   453→   453→                active ? "border-gold/50 bg-gold/10" : "border-white/8 bg-white/[0.02] hover:border-white/15"
+   454→   454→              }`}
+   455→   455→            >
+   456→   456→              <Icon className={`w-4 h-4 ${active ? "text-gold" : "text-ink-muted"}`} />
+   457→   457→              <div className="text-[12px] font-medium text-ink mt-1.5">{m.label}</div>
+   458→   458→              <div className="text-[10px] text-ink-muted leading-[12px]">{m.desc}</div>
+   459→   459→              {locked && <Lock className="absolute top-2 right-2 w-3 h-3 text-ink-muted" />}
+   460→   460→            </button>
+   461→   461→          );
+   462→   462→        })}
+   463→   463→      </div>
+   464→   464→
+   465→   465→      {/* Affirmation */}
+   466→   466→      <GlassCard className="p-4">
+   467→   467→        <div className="flex items-start gap-2.5">
+   468→   468→          <Sparkles className="w-3.5 h-3.5 text-gold mt-0.5 shrink-0" />
+   469→   469→          <div>
+   470→   470→            <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-0.5">
+   471→   471→              Speak while you listen
+   472→   472→            </div>
+   473→   473→            <p className="text-[13px] leading-[19px] text-ink italic">"{selected.affirmation}"</p>
+   474→   474→          </div>
+   475→   475→        </div>
+   476→   476→      </GlassCard>
+   477→   477→
+   478→   478→      {/* Preset grid */}
+   479→   479→      <div>
+   480→   480→        <div className="flex items-center justify-between mb-3">
+   481→   481→          <h3 className="text-[13px] font-medium text-ink uppercase tracking-[0.14em]">All intentions</h3>
+   482→   482→        </div>
+   483→   483→        <div className="grid grid-cols-2 gap-2">
+   484→   484→          {FREQUENCY_PRESETS.map((p) => {
+   485→   485→            const active = selected.key === p.key;
+   486→   486→            return (
+   487→   487→              <button
+   488→   488→                key={p.key}
+   489→   489→                onClick={() => setSelected(p)}
+   490→   490→                className={`relative text-left rounded-xl p-3 border transition-all ${
+   491→   491→                  active ? "border-gold/50 bg-gold/[0.08]" : "border-white/8 bg-white/[0.02] hover:border-white/15"
+   492→   492→                }`}
+   493→   493→                style={active ? { boxShadow: `0 0 0 1px ${p.color}40` } : undefined}
+   494→   494→              >
+   495→   495→                <div className="flex items-center justify-between">
+   496→   496→                  <span className="text-[18px] font-light tabular-nums" style={{ color: p.color }}>
+   497→   497→                    {p.glyph}
+   498→   498→                  </span>
+   499→   499→                  <span className="w-2 h-2 rounded-full" style={{ background: p.color, opacity: active ? 1 : 0.4 }} />
+   500→   500→                </div>
+   501→   501→                <div className="text-[12px] font-medium text-ink mt-1 leading-[15px]">{p.label}</div>
+   502→   502→                <div className="text-[10px] text-ink-muted leading-[14px] mt-0.5 line-clamp-3">{p.description}</div>
+   503→   503→              </button>
+   504→   504→            );
+   505→   505→          })}
+   506→   506→        </div>
+   507→   507→      </div>
+   508→   508→
+   509→   509→      {/* Secret Frequencies — only for Luminaries (all 36 achievements unlocked) */}
+   510→   510→      {allComplete && (
+   511→   511→        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+   512→   512→          <ShellCard className="overflow-hidden">
+   513→   513→            <div className="relative p-4 lum-glow-gold">
+   514→   514→              {/* Animated aurora background */}
+   515→   515→              <motion.div
+   516→   516→                className="absolute inset-0 pointer-events-none"
+   517→   517→                style={{ background: "radial-gradient(60% 50% at 30% 20%, rgba(197,168,124,0.12) 0%, transparent 70%), radial-gradient(40% 40% at 80% 80%, rgba(158,138,201,0.08) 0%, transparent 70%)" }}
+   518→   518→                animate={{ opacity: [0.5, 0.9, 0.5], scale: [0.95, 1.05, 0.95] }}
+   519→   519→                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+   520→   520→              />
+   521→   521→              <div className="relative z-10">
+   522→   522→                {/* Header */}
+   523→   523→                <div className="flex items-center justify-between mb-1">
+   524→   524→                  <div className="flex items-center gap-2">
+   525→   525→                    <Sparkles className="w-3.5 h-3.5 text-gold" />
+   526→   526→                    <h3 className="text-[12px] uppercase tracking-[0.22em] text-gold font-medium">Secret Frequencies</h3>
+   527→   527→                  </div>
+   528→   528→                  <span className="text-[9.5px] uppercase tracking-[0.18em] text-gold/60 font-medium">Luminary Only</span>
+   529→   529→                </div>
+   530→   530→                <p className="text-[11px] text-ink-muted leading-[15px] mb-3 max-w-[300px]">
+   531→   531→                  The three crown jewels of the Solfeggio scale — unlocked for completing all 36 achievements.
+   532→   532→                </p>
+   533→   533→
+   534→   534→                {/* Secret frequency cards */}
+   535→   535→                <div className="space-y-2.5">
+   536→   536→                  {SECRET_FREQUENCIES.map((sf, i) => {
+   537→   537→                    const isActive = secretSelected?.key === sf.key;
+   538→   538→                    return (
+   539→   539→                      <motion.button
+   540→   540→                        key={sf.key}
+   541→   541→                        initial={{ opacity: 0, x: -8 }}
+   542→   542→                        animate={{ opacity: 1, x: 0 }}
+   543→   543→                        transition={{ delay: 0.1 + i * 0.08 }}
+   544→   544→                        onClick={() => {
+   545→   545→                          setSecretSelected(isActive ? null : sf);
+   546→   546→                          // Also create a compatible FrequencyPreset-like object so the engine can use it
+   547→   547→                          setSelected({
+   548→   548→                            key: sf.key as any,
+   549→   549→                            label: sf.label,
+   550→   550→                            glyph: sf.glyph,
+   551→   551→                            carrierHz: sf.carrierHz,
+   552→   552→                            binauralBeatHz: sf.binauralBeatHz,
+   553→   553→                            beatType: sf.beatType,
+   554→   554→                            color: sf.color,
+   555→   555→                            affirmation: sf.affirmation,
+   556→   556→                            keywords: [],
+   557→   557→                            description: sf.description,
+   558→   558→                          });
+   559→   559→                        }}
+   560→   560→                        className="relative w-full text-left rounded-2xl p-3.5 border transition-all overflow-hidden"
+   561→   561→                        style={{
+   562→   562→                          borderColor: isActive ? `${sf.color}66` : "rgba(197,168,124,0.2)",
+   563→   563→                          background: isActive
+   564→   564→                            ? `linear-gradient(135deg, ${sf.color}1a, ${sf.color}08)`
+   565→   565→                            : "rgba(255,255,255,0.015)",
+   566→   566→                          boxShadow: isActive ? `0 0 24px ${sf.color}33, inset 0 0 12px ${sf.color}10` : "none",
+   567→   567→                        }}
+   568→   568→                      >
+   569→   569→                        {/* Shimmer line at top */}
+   570→   570→                        <div
+   571→   571→                          className="absolute top-0 left-0 right-0 h-px"
+   572→   572→                          style={{ background: `linear-gradient(90deg, transparent, ${sf.color}80, transparent)` }}
+   573→   573→                        />
+   574→   574→                        <div className="flex items-start gap-3">
+   575→   575→                          {/* Glyph in glowing circle */}
+   576→   576→                          <div
+   577→   577→                            className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative"
+   578→   578→                            style={{
+   579→   579→                              background: `radial-gradient(circle at 30% 30%, ${sf.color}33, ${sf.color}10 60%, transparent 80%)`,
+   580→   580→                              border: `1px solid ${sf.color}44`,
+   581→   581→                              boxShadow: `0 0 12px ${sf.color}33`,
+   582→   582→                            }}
+   583→   583→                          >
+   584→   584→                            <motion.span
+   585→   585→                              className="text-[20px] font-light"
+   586→   586→                              style={{ color: sf.color }}
+   587→   587→                              animate={isActive ? { scale: [1, 1.15, 1] } : {}}
+   588→   588→                              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+   589→   589→                            >
+   590→   590→                              {sf.glyph}
+   591→   591→                            </motion.span>
+   592→   592→                          </div>
+   593→   593→                          {/* Text */}
+   594→   594→                          <div className="flex-1 min-w-0">
+   595→   595→                            <div className="flex items-baseline gap-2">
+   596→   596→                              <span className="text-[15px] font-medium text-ink tabular-nums">{sf.label}</span>
+   597→   597→                              <span className="text-[10.5px] font-medium" style={{ color: sf.color }}>{sf.subtitle}</span>
+   598→   598→                            </div>
+   599→   599→                            <p className="text-[10.5px] text-ink-muted leading-[14px] mt-0.5 line-clamp-2">{sf.description}</p>
+   600→   600→                            <div className="flex items-center gap-2 mt-1.5">
+   601→   601→                              <span className="text-[9px] uppercase tracking-[0.15em] text-ink-muted/70">{BRAINWAVE_LABELS[sf.beatType].split(" · ")[0]}</span>
+   602→   602→                              <span className="text-[9px] text-ink-muted/40">·</span>
+   603→   603→                              <span className="text-[9px] text-ink-muted/70">Beat {sf.binauralBeatHz} Hz</span>
+   604→   604→                            </div>
+   605→   605→                          </div>
+   606→   606→                          {/* Active indicator */}
+   607→   607→                          {isActive && (
+   608→   608→                            <motion.div
+   609→   609→                              initial={{ scale: 0 }}
+   610→   610→                              animate={{ scale: 1 }}
+   611→   611→                              className="w-2 h-2 rounded-full shrink-0 mt-1"
+   612→   612→                              style={{ background: sf.color, boxShadow: `0 0 8px ${sf.color}` }}
+   613→   613→                            />
+   614→   614→                          )}
+   615→   615→                        </div>
+   616→   616→                      </motion.button>
+   617→   617→                    );
+   618→   618→                  })}
+   619→   619→                </div>
+   620→   620→
+   621→   621→                {/* Blessing footer */}
+   622→   622→                {secretSelected && (
+   623→   623→                  <motion.div
+   624→   624→                    initial={{ opacity: 0, height: 0 }}
+   625→   625→                    animate={{ opacity: 1, height: "auto" }}
+   626→   626→                    className="mt-3"
+   627→   627→                  >
+   628→   628→                    <div className="rounded-xl p-3 border border-gold/15 bg-gold/[0.04]">
+   629→   629→                      <div className="text-[9px] uppercase tracking-[0.18em] text-gold/70 font-medium mb-1">✦ Blessing</div>
+   630→   630→                      <p className="text-[10.5px] text-ink-muted leading-[15px] italic">"{secretSelected.blessing}"</p>
+   631→   631→                      <p className="text-[10.5px] text-ink-muted leading-[15px] mt-1.5">Affirmation: <span className="text-gold/90">"{secretSelected.affirmation}"</span></p>
+   632→   632→                    </div>
+   633→   633→                  </motion.div>
+   634→   634→                )}
+   635→   635→              </div>
+   636→   636→            </div>
+   637→   637→          </ShellCard>
+   638→   638→        </motion.div>
+   639→   639→      )}
+   640→   640→
+   641→   641→      <GlassCard className="p-3.5">
+   642→   642→        <div className="flex items-start gap-2.5">
+   643→   643→          <Info className="w-3.5 h-3.5 text-ink-muted mt-0.5 shrink-0" />
+   644→   644→          <p className="text-[11px] leading-[15px] text-ink-muted">
+   645→   645→            Use headphones for binaural beats — each ear receives a slightly different frequency,
+   646→   646→            and the brain perceives the difference as a beat. Sit comfortably, breathe slowly,
+   647→   647→            and let the tone fill the body.
+   648→   648→          </p>
+   649→   649→        </div>
+   650→   650→      </GlassCard>
+   651→   651→
+   652→   652→      <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
+   653→   653→    </div>
+   654→   654→  );
+   655→   655→}
+   656→   656→
+   657→   657→/** Format seconds as a human-readable duration (e.g., "10:00", "1:30:00") */
+   658→   658→function formatDuration(sec: number): string {
+   659→   659→  if (sec < 60) return `${sec}s`;
+   660→   660→  const h = Math.floor(sec / 3600);
+   661→   661→  const m = Math.floor((sec % 3600) / 60);
+   662→   662→  const s = sec % 60;
+   663→   663→  if (h > 0) return `${h}h ${m}m`;
+   664→   664→  if (m >= 10) return `${m}m`;
+   665→   665→  return `${m}:${String(s).padStart(2, "0")}`;
+   666→   666→}
+   667→   667→
+   668→   668→function Visualizer({
+   669→   669→  active, color, hz, beat,
+   670→   670→}: { active: boolean; color: string; hz: number; beat: number }) {
+   671→   671→  const rings = React.useMemo(
+   672→   672→    () => Array.from({ length: 5 }, (_, i) => ({ id: i, delay: i * 0.5, size: 140 + i * 36 })),
+   673→   673→    []
+   674→   674→  );
+   675→   675→  return (
+   676→   676→    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+   677→   677→      {active &&
+   678→   678→        rings.map((r) => (
+   679→   679→          <motion.span
+   680→   680→            key={r.id}
+   681→   681→            className="absolute rounded-full"
+   682→   682→            style={{ width: r.size, height: r.size, border: `1px solid ${color}30` }}
+   683→   683→            animate={{ scale: [1, 1.5], opacity: [0.4, 0] }}
+   684→   684→            transition={{ duration: 3, repeat: Infinity, delay: r.delay, ease: "easeOut" }}
+   685→   685→          />
+   686→   686→        ))}
+   687→   687→    </div>
+   688→   688→  );
+   689→   689→}
+   690→   690→
+   691→   691→/** Circular progress ring — premium award-winning design with dual rings + glow. */
+   692→   692→function TimerRing({
+   693→   693→  progress,
+   694→   694→  color,
+   695→   695→  timeLabel,
+   696→   696→}: {
+   697→   697→  progress: number;
+   698→   698→  color: string;
+   699→   699→  timeLabel: string;
+   700→   700→}) {
+   701→   701→  const size = 160;
+   702→   702→  const stroke = 3;
+   703→   703→  const r = (size - stroke * 2) / 2;
+   704→   704→  const c = 2 * Math.PI * r;
+   705→   705→  const offset = c * (1 - Math.max(0, Math.min(1, progress)));
+   706→   706→  return (
+   707→   707→    <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+   708→   708→      {/* Background ring */}
+   709→   709→      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`${color}12`} strokeWidth={stroke} />
+   710→   710→      {/* Progress ring with glow */}
+   711→   711→      <circle
+   712→   712→        cx={size / 2}
+   713→   713→        cy={size / 2}
+   714→   714→        r={r}
+   715→   715→        fill="none"
+   716→   716→        stroke={color}
+   717→   717→        strokeWidth={stroke}
+   718→   718→        strokeLinecap="round"
+   719→   719→        strokeDasharray={c}
+   720→   720→        strokeDashoffset={offset}
+   721→   721→        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+   722→   722→        style={{
+   723→   723→          transition: "stroke-dashoffset 1s linear",
+   724→   724→          filter: `drop-shadow(0 0 6px ${color}88)`,
+   725→   725→        }}
+   726→   726→      />
+   727→   727→      {/* Inner decorative ring */}
+   728→   728→      <circle
+   729→   729→        cx={size / 2}
+   730→   730→        cy={size / 2}
+   731→   731→        r={r - 8}
+   732→   732→        fill="none"
+   733→   733→        stroke={`${color}08`}
+   734→   734→        strokeWidth={0.5}
+   735→   735→        strokeDasharray="1 3"
+   736→   736→      />
+   737→   737→      {/* Time label at bottom */}
+   738→   738→      <text
+   739→   739→        x={size / 2}
+   740→   740→        y={size - 6}
+   741→   741→        textAnchor="middle"
+   742→   742→        fill={color}
+   743→   743→        fontSize="11"
+   744→   744→        fontWeight="400"
+   745→   745→        opacity="0.6"
+   746→   746→        style={{ letterSpacing: "0.05em" }}
+   747→   747→      >
+   748→   748→        {timeLabel}
+   749→   749→      </text>
+   750→   750→    </svg>
+   751→   751→  );
+   752→   752→}
+   753→   753→

@@ -51,6 +51,21 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const setSessionActive = useAppStore((s) => s.setSessionActive);
 
   const cancelCountdownRef = React.useRef(false);
+  const breathRef = React.useRef<HTMLDivElement>(null);
+  const prevSecondsLeft = React.useRef<number | null>(null);
+
+  // When a session begins (secondsLeft transitions null → number),
+  // smooth-scroll the Breath Guide into view so the user is led to
+  // breathe along with it rather than staying parked on the frequency dial.
+  React.useEffect(() => {
+    if (prevSecondsLeft.current === null && secondsLeft !== null) {
+      // Wait a frame so the newly-mounted pacer has a layout box.
+      requestAnimationFrame(() => {
+        breathRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+    prevSecondsLeft.current = secondsLeft;
+  }, [secondsLeft]);
 
   const startSession = React.useCallback(
     async (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
@@ -213,9 +228,14 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
         </motion.div>
       )}
 
-      {/* Breathing pacer — ABOVE the frequency card (only during active session) */}
+      {/* Breathing pacer — ABOVE the frequency card (only during active session).
+          A ref sits here so that after the 5s pre-session countdown we can
+          smooth-scroll the user up to the Breath Guide, since they need to
+          breathe along with it once the tone starts. */}
       {secondsLeft !== null && (
-        <BreathingPacer active={!!secondsLeft} color={selected.color} />
+        <div ref={breathRef} className="scroll-mt-4">
+          <BreathingPacer active={!!secondsLeft} color={selected.color} />
+        </div>
       )}
 
       {/* Frequency countdown card — award-winning redesign */}

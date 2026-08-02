@@ -175,8 +175,8 @@ Give a comprehensive, detailed reading (500-800 words):
 2. CARD BY CARD (3-4 sentences each): For each card, describe what you see on it, what it means in THIS position for THIS question, and how it connects to the other cards.
 3. SYNTHESIS (3-4 sentences): Step back. What is the overall story the cards are telling together? What's the arc? How do the cards answer the specific question asked?
 4. GUIDANCE (3-4 sentences): What should they do with this? Be specific to their question. What concrete steps or shifts in perspective does the reading suggest?
-5. TL;DR (2-3 sentences): A clear, direct answer to their question. If they walked away remembering only one thing, what would it be? This is the bottom line — the answer distilled.
-6. SUMMARY (4-6 sentences): A comprehensive summary that ties the entire reading together. Restate the key themes, the main message of the cards, what the querent should focus on, and what the outcome looks like if they follow the guidance. This should give enough context that someone who only reads the summary understands the full answer to their question.`
+5. TL;DR (2-3 sentences): The bottom-line ANSWER to their specific question. Synthesize what the ENTIRE reading revealed as a whole. CRITICAL RULES: do NOT name any card here, do NOT repeat or paraphrase card meanings, do NOT describe the spread or the draw. Speak directly TO the person about THEIR situation — tell them what this means for them, what they should take away, and what the reading is ultimately telling them to do or understand. This is the answer they came for, distilled. If they read nothing else, this must satisfy their question.
+6. SUMMARY (4-6 sentences): A comprehensive summary that ties the entire reading together. Restate the key themes in the querent's own language (not card names), the main message of the reading as a whole, what the querent should focus on in their actual life, and what the outcome looks like if they follow the guidance. Weave the cards' combined meaning into a direct answer to their question — do NOT list what each card means again. Someone reading only the summary should understand the complete answer to their question without needing the card-by-card section.`
   : spreadType === "yes-no"
   ? `DEPTH FOR THIS READING (Yes/No):
 Give a focused reading (6-8 sentences):
@@ -185,8 +185,8 @@ Give a focused reading (6-8 sentences):
 3. Connect the card's energy to their specific situation.
 4. End with:
 
-**TL;DR:** One sentence that directly answers their question.
-**Summary:** 2-3 sentences that give the full context of the answer — why this answer, what it means for them, and what they should do next.`
+**TL;DR:** 2-3 sentences that give the bottom-line answer to their question. Synthesize the whole reading — do NOT name the card, do NOT repeat its meaning. Speak directly to them about what this means for their situation and what they should take away.
+**Summary:** 2-3 sentences that give the full context of the answer — why this answer, what it means for them in their actual life, and what they should do next.`
   : `DEPTH FOR THIS READING:
 Give a focused reading (7-10 sentences):
 1. Acknowledge their question and what you see in the card(s).
@@ -194,8 +194,8 @@ Give a focused reading (7-10 sentences):
 3. Connect the symbolism directly to their question.
 4. End with:
 
-**TL;DR:** One sentence that directly answers their question.
-**Summary:** 3-4 sentences that give the full context of the answer — the key themes, what it means for them, and what they should do next. Someone reading only the summary should understand the complete answer to their question.`
+**TL;DR:** 2-3 sentences that give the bottom-line answer to their question. Synthesize what the whole reading revealed — do NOT name the card(s), do NOT repeat their meanings. Speak directly to them about what this means for their situation and what they should take away.
+**Summary:** 3-4 sentences that give the full context of the answer — the key themes in their own language (not card names), what it means for them in their actual life, and what they should do next. Someone reading only the summary should understand the complete answer to their question.`
 }
 
 Speak with warmth, wisdom, and the specificity of someone who has sat with thousands of querents. Use language that is evocative but never vague. Every sentence should earn its place.`;
@@ -242,8 +242,8 @@ function fallbackInterpretation(
     const confidence =
       tally.confidence >= 75 ? "with clarity" : tally.confidence >= 50 ? "with some nuance" : "tentatively";
     const answer = `${tally.answer.toUpperCase()} — ${confidence}. ${c.name} ${drawn[0].reversed ? "arrives reversed, its energy turned inward —" : "arrives upright, its energy clear —"} ${meaning.toLowerCase()} This speaks directly to what you're asking: the path is visible, though it may require something from you first.`;
-    const tldr = `\n\n**TL;DR:** ${tally.answer.toUpperCase()} — ${meaning.split(".")[0]}.`;
-    const summary = `\n\n**Summary:** ${c.name} ${drawn[0].reversed ? "(Reversed)" : "(Upright)"} answers your question ${confidence}. ${meaning} The card suggests that ${tally.answer === "yes" ? "moving forward is favored, but you must bring awareness to the process" : tally.answer === "no" ? "the timing or approach may need adjustment before proceeding" : "the answer is not yet clear — more information or inner reflection is needed"}. Consider what this energy means for your specific situation and what steps you can take to align with it.`;
+    const tldr = `\n\n**TL;DR:** ${tally.answer.toUpperCase()} — taken as a whole, the reading tells you to ${tally.answer === "yes" ? "move forward, but bring real awareness to how you do it rather than rushing blindly ahead" : tally.answer === "no" ? "reconsider your approach or timing before you commit any further" : "wait for more clarity before the path reveals itself"}. This is a direction, not a verdict — carry it with you and let the details above shape your next step.`;
+    const summary = `\n\n**Summary:** The reading answers your question ${confidence}. ${tally.answer === "yes" ? "Moving forward is favored, but the cards ask you to bring awareness and intention to the process rather than charging ahead." : tally.answer === "no" ? "The timing or approach needs adjustment before you proceed — not a permanent block, but a signal to pause and recalibrate." : "The answer isn't yet clear, which is itself information: more reflection or more information is needed before the way forward opens."} Hold the question lightly, watch what unfolds over the coming days, and trust that acting on the guidance above will move you toward clarity.`;
     return answer + tldr + summary;
   }
 
@@ -251,8 +251,8 @@ function fallbackInterpretation(
     const c = drawn[0].card;
     const meaning = drawn[0].reversed ? c.meaningReversed : c.meaningUpright;
     const reading = `${c.name} ${drawn[0].reversed ? "(Reversed)" : ""} — ${meaning}`;
-    const tldr = `\n\n**TL;DR:** ${meaning.split(".")[0]}.`;
-    const summary = `\n\n**Summary:** ${c.name} ${drawn[0].reversed ? "(Reversed)" : "(Upright)"} has been drawn for your question. ${meaning} The card's energy speaks directly to what you're experiencing and what you need to understand. ${drawn[0].reversed ? "The reversed position suggests this energy is currently blocked, internalized, or approaching — consider how it manifests inwardly rather than outwardly." : "The upright position confirms this energy is active and available to you — work with it consciously."} Reflect on how this applies to your situation, and let the card's wisdom guide your next step.`;
+    const tldr = `\n\n**TL;DR:** The reading answers your question directly: ${drawn[0].reversed ? "what you're asking about is currently held inward — the energy is blocked, resisted, or still approaching, so the real work right now is inner rather than outer" : "the energy you need is present and available to you in this moment — the path is open, and the question is how consciously you step into it"}. Meet this moment honestly and your next move will become clear.`;
+    const summary = `\n\n**Summary:** ${drawn[0].reversed ? "The reversed position signals that this energy is currently internalized, blocked, or on its way to you — it hasn't fully landed in the outer world yet. The invitation is to look at where you're resisting it, where it's asking to be felt before it can be acted on, or where the old pattern hasn't quite released." : "The upright position confirms this energy is active and available — you're not waiting for permission, you're being asked to work with it consciously."} Reflect on how this maps onto the specific situation you asked about, and let the guidance above shape the single next step you take.`;
     return reading + tldr + summary;
   }
 
@@ -281,18 +281,26 @@ function fallbackInterpretation(
   const opening = craftOpening(drawn, q);
   const closing = craftClosing(drawn);
 
-  // Build TL;DR and Summary from card meanings
-  const primaryCard = drawn[0];
-  const primaryMeaning = primaryCard?.reversed ? primaryCard.card.meaningReversed : primaryCard?.card.meaningUpright || "";
-  const allMeanings = drawn.map(d => d.reversed ? d.card.meaningReversed : d.card.meaningUpright);
+  // Build TL;DR and Summary by SYNTHESISING the reading — never by
+  // repeating individual card meanings. The querent wants to know what
+  // the whole reading means FOR THEM, not a recap of the cards.
+  const hasReversed = drawn.some((d) => d.reversed);
+  const allUpright = !hasReversed;
+  const allReversed = drawn.every((d) => d.reversed);
+  const takeaway = allUpright
+    ? "the path ahead is open and the energies are working with you — your work now is to receive and act, not to push"
+    : allReversed
+    ? "you're in a season of inner turning — what feels stuck is asking you to look at it differently, and the obstacle itself is the teacher"
+    : "you're mid-transition, with some forces opening and others asking for patience — honour both rather than forcing a single direction";
+
   const keyThemes = drawn.map(d => {
     const kw = d.reversed ? d.card.keywordsReversed : d.card.keywordsUpright;
     return kw.slice(0, 2).join(" and ");
   }).filter(Boolean);
 
-  const tldr = `**TL;DR:** ${primaryMeaning.split(".")[0]}.`;
+  const tldr = `**TL;DR:** Read as a whole, the cards answer your question with this: ${takeaway}. Don't fixate on any single card — what matters is how these energies combine in your specific situation. The guidance above is your map; take the concrete step it points to and let the rest unfold.`;
 
-  const summaryText = `**Summary:** The cards you drew — ${drawn.map(d => d.card.name + (d.reversed ? " (Reversed)" : "")).join(", ")} — speak to ${keyThemes.join(", ")}. ${allMeanings.map(m => m.split(".")[0]).join(". ")}. ${closing} The overall message is clear: the answer to your question lies in understanding these energies and how they interact in your specific situation. Follow the guidance above, and trust that the path will become visible as you walk it.`;
+  const summaryText = `**Summary:** Taken together, the reading speaks to ${keyThemes.join(", ")} moving through your situation right now. The combined message is clear: ${takeaway}. What you asked about isn't answered by any one card but by how these energies interact in your actual life — so carry the guidance above into your next real decision, act on it, and trust that the path becomes visible as you walk it.`;
 
   return `${opening}\n\n${positions.join("\n\n")}\n\n${closing}\n\n${tldr}\n\n${summaryText}`;
 }

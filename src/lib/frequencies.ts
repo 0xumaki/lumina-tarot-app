@@ -123,7 +123,7 @@ export const FREQUENCY_PRESETS: FrequencyPreset[] = [
   {
     key: "clarity",
     label: "Clarity & Focus",
-    glyph: "7.83",
+    glyph: "432",
     carrierHz: 432,
     binauralBeatHz: 14, // low beta — focused calm
     beatType: "beta",
@@ -188,15 +188,15 @@ export const FREQUENCY_PRESETS: FrequencyPreset[] = [
   {
     key: "release",
     label: "Release & Let Go",
-    glyph: "396",
-    carrierHz: 396,
+    glyph: "285",
+    carrierHz: 285,
     binauralBeatHz: 3, // delta — deep release
     beatType: "delta",
     color: "#7A8680",
     affirmation: "I release what no longer serves me with gratitude.",
     keywords: ["release", "let go", "forgive", "forgiveness", "grief", "grieve", "loss", "mourning", "anger", "resentment", "regret", "guilt", "shame", "move on", "closure", "acceptance", "surrender"],
     description:
-      "396 Hz + delta — dissolves the deepest held emotion, allowing true release.",
+      "285 Hz + delta — reaches into the body's energy field to release what is held deep, allowing true surrender and renewal.",
   },
 ];
 
