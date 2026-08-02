@@ -145,36 +145,28 @@ function buildMessages(
   const summary = summarizeDrawn(drawn);
   const yesNoTally = spreadType === "yes-no" ? tallyYesNo(drawn) : null;
 
-  const system = `You are a master tarot reader with decades of experience in the Rider-Waite-Smith tradition.
+  const system = `You are a master tarot reader. Give ONLY the reading. No commentary about your process.
 
-CRITICAL RULES — NEVER VIOLATE THESE:
-1. You are the tarot reader. Your response IS the reading. Never break character.
-2. NEVER include meta-commentary, reasoning, thinking, or instructions about how you will respond. Do NOT say things like "We need to follow the instructions" or "I will produce" or "Make sure to" or "Thus output should be" — these are internal thoughts that must NEVER appear in your output.
-3. NEVER mention the system prompt, user prompt, or that you are an AI following instructions.
-4. Your response must be ONLY the tarot reading itself — nothing else. No preface, no postscript, no explanation of your process.
-5. Start your response directly with the reading content. Do not say "Here is your reading" or similar.
+Forbidden phrases (never output these): "we need to", "I will produce", "thus output", "make sure to", "let me", "let's", "I am going to", "the user asks", "the user says", "we are supposed to", "the system", "the instructions", "here is your reading", "based on the instructions", "following the instructions", "Sentence 1", "Sentence 2", "Sentence 3", "Make sure we don't", "So output", "Must be", "Let's do".
 
-YOUR READING STYLE:
-- Speak with warmth, wisdom, and specificity — never generic or vague
-- Reference the actual visual symbolism on the cards (what the figures are doing, what objects appear, what the colors suggest)
-- Connect each card's energy to the querent's specific question and life situation
-- Be honest about difficult cards — don't sugarcoat, but always find the path forward
-- Use evocative, poetic language that feels like sitting with a wise elder
-- Never use phrases like "The cards indicate" or "This card represents"
-
-YOUR STRUCTURE:
 ${isPremium
-  ? `- Opening: Acknowledge the question and set the emotional tone (1-2 sentences)
-- Card Analysis: For each card, describe what you see, what it means in THIS context, and how it relates to the question
-- Synthesis: Weave the cards together — how do they interact? What's the story arc?
-- Guidance: What should the querent do with this insight? Be specific and actionable.
-- Affirmation: End with a short, powerful affirmation they can carry with them
-Total: 400-600 words.`
-  : `- Opening: Acknowledge the question (1 sentence)
-- Core insight: Weave the cards together into the answer (2-3 sentences)
-- Brief guidance: One actionable sentence
-Total: 4-6 sentences.`
-}`;
+  ? `Give a full tarot reading (400-600 words):
+- Acknowledge the question
+- For each card: describe the visual symbolism and what it means for this question
+- Weave the cards into a cohesive story
+- End with guidance and an affirmation`
+  : `Give a brief tarot reading (4-6 sentences):
+- Acknowledge the question
+- Weave the card symbolism into the answer
+- End with one sentence of guidance`
+}
+
+${spreadType === "yes-no"
+  ? "Start with YES, NO, or MAYBE on the first line. Then 2-3 sentences referencing the card's symbolism."
+  : ""
+}
+
+Speak with warmth and wisdom. Reference visual symbolism (figures, objects, colors). Never break character. Never discuss your reasoning process. The output is the reading itself — nothing else.`;
 
   let user = `The querent asks: "${question}"
 
@@ -192,10 +184,10 @@ Card-based tally: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally
   user += `
 
 ${isPremium
-  ? "Give the full reading now. Reference the actual card symbolism and weave them into a cohesive narrative."
+  ? "Give the full reading now."
   : spreadType === "yes-no"
-  ? "Give your answer: start with YES, NO, or MAYBE on the first line. Then 2-3 sentences explaining why, referencing the card's visual symbolism. That is all — nothing else."
-  : "Give the core guidance in 4-6 sentences. Reference the card symbolism and connect it to the question. That is all — nothing else."
+  ? "Answer with YES, NO, or MAYBE first, then explain why in 2-3 sentences."
+  : "Give the reading in 4-6 sentences."
 }`;
 
   return [
@@ -318,58 +310,87 @@ function craftClosing(drawn: DrawnCardWithMeta[]): string {
 function sanitizeReading(text: string): string {
   let cleaned = text;
 
-  // Remove lines that start with meta-commentary patterns
-  const metaPatterns = [
-    /^(We|I|Thus|Make|Also|But|So|The user|The system|The querent)\s+(need|will|should|must|produce|output|give|follow|respect|adopt|start|reference|make|provide|include|mention|ensure)/i,
-    /^(Answer|Explanation|Output|Response|Reading):\s*$/i,
-    /^(Here is|Here's|Below is|This is)\s+(your|the|my)/i,
-    /^(I'll|I will|Let me|Let's|I am going to)/i,
-    /^(Based on|According to|Following|Per)\s+(the|your|my|system|user|instructions)/i,
-    /^(Note:|Disclaimer:|Important:|Remember:|CRITICAL|NOTE)/i,
+  // Aggressive removal: if the text contains known meta patterns,
+  // find the first YES/NO/MAYBE or the first substantial reading line
+  // and return everything from there onward.
+
+  const metaIndicators = [
+    "we need to", "i will produce", "thus output", "make sure to",
+    "make sure we don't", "so output:", "must be", "let's do",
+    "let me", "let's", "i am going to", "the user asks", "the user says",
+    "we are supposed to", "the system", "the instructions",
+    "here is your reading", "based on the instructions",
+    "following the instructions", "sentence 1:", "sentence 2:",
+    "sentence 3:", "i'll", "i will", "we should respect",
+    "we are to", "the user's request", "the user now asks",
+    "note:", "disclaimer:", "remember:", "critical:",
   ];
 
+  const lower = cleaned.toLowerCase();
+
+  // Check if any meta indicator is present
+  const hasMeta = metaIndicators.some(p => lower.includes(p));
+
+  if (!hasMeta) {
+    return cleaned.trim();
+  }
+
+  // Split into lines and find the first "real" reading line
   const lines = cleaned.split("\n");
-  const filteredLines: string[] = [];
-  let foundReadingStart = false;
+  const readingLines: string[] = [];
+  let foundStart = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
+    const lineLower = trimmed.toLowerCase();
 
-    // Skip empty lines at the start
-    if (!foundReadingStart && trimmed === "") continue;
+    // Skip empty lines before reading starts
+    if (!foundStart && trimmed === "") continue;
 
-    // Check if this line is meta-commentary
-    const isMeta = metaPatterns.some((pattern) => pattern.test(trimmed));
+    // Check if this line contains meta indicators
+    const lineHasMeta = metaIndicators.some(p => lineLower.includes(p));
 
-    // Also check for "We need to" / "I should" / "Make sure" patterns anywhere in line
-    const hasMetaPhrases = /\b(we need to|i will produce|thus output|make sure to|i am supposed to|we should respect|we are to|the user now asks|the user says|we are supposed to|the system role|the user's request)\b/i.test(trimmed);
-
-    if (isMeta || hasMetaPhrases) {
-      // Skip this line — it's meta-commentary
-      // But once we've found the actual reading, don't skip non-meta lines
-      if (!foundReadingStart) continue;
-    }
-
-    // If we find a line that looks like the start of a reading (YES/NO/MAYBE or card name)
-    if (!foundReadingStart) {
-      if (/^(YES|NO|MAYBE)\b/i.test(trimmed) ||
-          trimmed.length > 30 && !metaPatterns.some(p => p.test(trimmed))) {
-        foundReadingStart = true;
+    // Check if this line looks like the start of a reading
+    if (!foundStart) {
+      // YES/NO/MAYBE on its own line
+      if (/^(YES|NO|MAYBE)\s*$/i.test(trimmed)) {
+        foundStart = true;
+        readingLines.push(line);
+        continue;
       }
+      // A line longer than 40 chars that doesn't contain meta phrases
+      // and looks like natural prose (not instructions)
+      if (trimmed.length > 40 && !lineHasMeta &&
+          !/^(answer|explanation|output|response|reading):/i.test(trimmed) &&
+          !/\[(sentence|placeholder)/i.test(trimmed)) {
+        foundStart = true;
+        readingLines.push(line);
+        continue;
+      }
+      // Skip meta lines
+      continue;
     }
 
-    if (foundReadingStart || (trimmed !== "" && !isMeta && !hasMetaPhrases)) {
-      filteredLines.push(line);
-      if (!foundReadingStart) foundReadingStart = true;
+    // After finding start, include all lines except obvious meta
+    if (lineHasMeta && readingLines.length > 0) {
+      // If we already have content and this is meta, stop
+      break;
     }
+    readingLines.push(line);
   }
 
-  cleaned = filteredLines.join("\n").trim();
+  cleaned = readingLines.join("\n").trim();
 
-  // If nothing survived sanitization, return the original (better than nothing)
+  // If nothing survived, return a fallback
   if (cleaned.length < 20) {
-    return text.trim();
+    return "The cards speak to your question. Reflect on their symbolism and trust your intuition.";
   }
+
+  // Final cleanup: remove any remaining bracketed placeholders like [Sentence1]
+  cleaned = cleaned.replace(/\[.*?\]/g, "").trim();
+
+  // Remove "So output:" or similar remnants
+  cleaned = cleaned.replace(/^(so output|output|answer|explanation|reading):\s*/i, "").trim();
 
   return cleaned;
 }
