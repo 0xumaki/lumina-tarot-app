@@ -320,9 +320,6 @@ export function HomeView({ onOpenPremium }: { onOpenPremium: () => void }) {
         </GlassCard>
       )}
 
-      {/* Install hint */}
-      <InstallHint />
-
       {/* #19: Data backup reminder (after 7 days of usage) */}
       <BackupReminder memberSince={data?.device?.createdAt} />
 

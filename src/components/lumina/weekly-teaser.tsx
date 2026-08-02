@@ -30,7 +30,7 @@ export function WeeklyTeaser() {
     <motion.button
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => setTab("stats")}
+      onClick={() => setTab("profile")}
       className="block w-full text-left"
     >
       <GlassCard className="p-3.5 flex items-center gap-3 hover:border-gold/30 transition-colors">

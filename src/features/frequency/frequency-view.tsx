@@ -41,21 +41,44 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   const [selected, setSelected] = React.useState<FrequencyPreset>(FREQUENCY_PRESETS[0]);
   const [secretSelected, setSecretSelected] = React.useState<SecretFrequencyPreset | null>(null);
   const [mode, setMode] = React.useState<"pure" | "binaural" | "pad">("binaural");
-  const [ambient, setAmbient] = React.useState<AmbientBed>("ambient");
+  const [ambient, setAmbient] = React.useState<AmbientBed>("rain");
   const [secondsLeft, setSecondsLeft] = React.useState<number | null>(null);
-  const [sessionDuration, setSessionDuration] = React.useState(600); // default 10 min, range 30s-3hr(10800s)
+  const [sessionDuration, setSessionDuration] = React.useState(600);
+  const [countdown, setCountdown] = React.useState<number | null>(null); // 5s pre-session countdown
 
   const engine = useFrequencyEngine();
   const maxSeconds = isPremium ? Infinity : 30;
   const setSessionActive = useAppStore((s) => s.setSessionActive);
 
-  // Use a ref to track if we're starting to avoid double-starts
-  const startingRef = React.useRef(false);
+  const cancelCountdownRef = React.useRef(false);
 
   const startSession = React.useCallback(
     async (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
-      // Remove startingRef guard — it was getting stuck if engine.start() threw
-      // The engine's own hardStop() handles preventing double-starts
+      // 5-second pre-session countdown
+      cancelCountdownRef.current = false;
+      setCountdown(5);
+
+      await new Promise<void>((resolve) => {
+        let c = 5;
+        const cdInterval = setInterval(() => {
+          if (cancelCountdownRef.current) {
+            clearInterval(cdInterval);
+            setCountdown(null);
+            resolve();
+            return;
+          }
+          c--;
+          if (c <= 0) {
+            clearInterval(cdInterval);
+            setCountdown(null);
+            resolve();
+          } else {
+            setCountdown(c);
+          }
+        }, 1000);
+      });
+
+      if (cancelCountdownRef.current) return;
 
       // Stop any existing session first
       engine.stop();
@@ -118,6 +141,8 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
   );
 
   const stopSession = React.useCallback(() => {
+    cancelCountdownRef.current = true; // Cancel any pending countdown
+    setCountdown(null);
     const played = engine.stop();
     if (played && played > 2) {
       api("/api/frequency/session", {
@@ -146,6 +171,47 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
             : "30 seconds per session on the free tier. Premium unlocks unlimited."
         }
       />
+
+      {/* Pre-session 5-second countdown overlay */}
+      {countdown !== null && countdown > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
+          style={{ background: "radial-gradient(ellipse at 50% 50%, #0a0805 0%, #030201 80%)" }}
+          onClick={() => { cancelCountdownRef.current = true; setCountdown(null); }}
+        >
+          <motion.div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: "70vmin",
+              height: "70vmin",
+              background: `radial-gradient(circle, ${selected.color}40 0%, ${selected.color}15 30%, transparent 70%)`,
+            }}
+            animate={{ scale: [0.85, 1.15, 0.85], opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <div className="text-[10px] uppercase tracking-[0.28em] font-medium mb-8" style={{ color: selected.color }}>
+            Preparing your session
+          </div>
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={countdown}
+              initial={{ opacity: 0, y: 40, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -40, scale: 1.2 }}
+              transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+              className="text-[80px] font-extralight text-white/90 tabular-nums leading-none"
+            >
+              {countdown}
+            </motion.div>
+          </AnimatePresence>
+          <p className="mt-10 text-[12px] text-white/35 max-w-[220px] tracking-wide">
+            Find a comfortable position. Tap to cancel.
+          </p>
+        </motion.div>
+      )}
 
       {/* Breathing pacer — ABOVE the frequency card (only during active session) */}
       {secondsLeft !== null && (

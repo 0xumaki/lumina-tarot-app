@@ -10,8 +10,6 @@ import { HomeView } from "@/features/home/home-view";
 import { TarotView } from "@/features/tarot/tarot-view";
 import { ManifestView } from "@/features/manifest/manifest-view";
 import { FrequencyView } from "@/features/frequency/frequency-view";
-import { PremiumView } from "@/features/premium/premium-view";
-import StatsView from "@/features/stats/stats-view";
 import { SettingsView } from "@/features/settings/settings-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
 import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
@@ -42,7 +40,7 @@ export default function Page() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
-    if (t && ["home", "tarot", "manifest", "frequency", "stats", "premium", "settings"].includes(t)) {
+    if (t && ["home", "tarot", "manifest", "frequency", "profile"].includes(t)) {
       setTab(t as any);
     }
   }, [setTab]);
@@ -113,14 +111,14 @@ export default function Page() {
           </div>
           {isPremium ? (
             <button
-              onClick={() => setTab("settings")}
+              onClick={() => setTab("profile")}
               className="lum-pill-gold text-[10px] hover:bg-gold/20 transition-colors"
             >
               ✦ Premium
             </button>
           ) : (
             <button
-              onClick={() => setTab("premium")}
+              onClick={() => setTab("profile")}
               className="lum-pill-gold text-[10px] hover:bg-gold/20 transition-colors"
             >
               Go Premium
@@ -144,9 +142,7 @@ export default function Page() {
               {tab === "tarot" && <TarotView isPremium={isPremium} remaining={remaining} />}
               {tab === "manifest" && <ManifestView isPremium={isPremium} />}
               {tab === "frequency" && <FrequencyView isPremium={isPremium} />}
-              {tab === "premium" && <PremiumView />}
-              {tab === "stats" && <StatsView />}
-              {tab === "settings" && <SettingsView />}
+              {tab === "profile" && <SettingsView />}
             </motion.div>
           </AnimatePresence>
         </div>

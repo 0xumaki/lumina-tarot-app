@@ -1,18 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Home, Sparkles, Target, AudioLines, BarChart3, Settings as SettingsIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import { Home, Sparkles, Target, AudioLines, User } from "lucide-react";
 import { useAppStore, type TabKey } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
+// 5 items with Tarot as the hero center button (elevated, gold, circular)
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "home", label: "Today", icon: Home },
-  { key: "tarot", label: "Tarot", icon: Sparkles },
   { key: "manifest", label: "Manifest", icon: Target },
+  { key: "tarot", label: "Tarot", icon: Sparkles }, // hero center
   { key: "frequency", label: "Tones", icon: AudioLines },
-  { key: "stats", label: "Stats", icon: BarChart3 },
-  { key: "settings", label: "More", icon: SettingsIcon },
+  { key: "profile", label: "Profile", icon: User },
 ];
 
 export function BottomNav() {
@@ -29,6 +29,54 @@ export function BottomNav() {
           {TABS.map((t) => {
             const active = tab === t.key;
             const Icon = t.icon;
+            const isHero = t.key === "tarot";
+
+            // Hero center button — elevated, circular, gold
+            if (isHero) {
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  aria-current={active ? "page" : undefined}
+                  aria-label="Tarot"
+                  className="relative flex flex-col items-center justify-center"
+                  style={{ marginTop: "-18px" }}
+                >
+                  <motion.div
+                    className="relative w-14 h-14 rounded-full flex items-center justify-center"
+                    style={{
+                      background: active
+                        ? "linear-gradient(135deg, #FBEFC8, #D4B27A, #8A6A2F)"
+                        : "linear-gradient(135deg, rgba(231,210,168,0.25), rgba(197,168,124,0.12))",
+                      border: active ? "none" : "1px solid rgba(197,168,124,0.35)",
+                      boxShadow: active
+                        ? "0 0 24px rgba(197,168,124,0.45), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"
+                        : "0 0 12px rgba(197,168,124,0.2), 0 4px 8px rgba(0,0,0,0.2)",
+                    }}
+                    animate={active ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  >
+                    <Icon
+                      className="relative z-10"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        strokeWidth: active ? 2 : 1.5,
+                        color: active ? "#050806" : "#C5A87C",
+                      }}
+                    />
+                  </motion.div>
+                  <span
+                    className="text-[10px] font-medium tracking-[0.02em] mt-1"
+                    style={{ color: active ? "#C5A87C" : "#9CA8A3", opacity: active ? 1 : 0.7 }}
+                  >
+                    {t.label}
+                  </span>
+                </button>
+              );
+            }
+
+            // Regular nav buttons
             return (
               <button
                 key={t.key}

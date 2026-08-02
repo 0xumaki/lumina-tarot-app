@@ -104,10 +104,66 @@ export function SettingsView() {
   return (
     <div className="space-y-5">
       <SectionTitle
-        eyebrow="More"
+        eyebrow="Profile"
         title={<>Your <span className="lum-text-gold">space</span></>}
         subtitle="Manage your practice, premium, and data."
       />
+
+      {/* Profile header — avatar + guest badge + bypass button */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <GlassCard className="p-4">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
+              style={{
+                background: "radial-gradient(circle at 30% 30%, rgba(197,168,124,0.3), transparent 70%)",
+                border: "1.5px solid rgba(197,168,124,0.35)",
+              }}
+            >
+              <span className="text-[24px] font-light text-gold">✦</span>
+            </div>
+            {/* Name + badge */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] font-medium text-ink">
+                  {data?.device?.displayName || "Guest"}
+                </span>
+                {!isPremium && (
+                  <span className="text-[9px] uppercase tracking-[0.18em] text-ink-muted/60 font-medium px-2 py-0.5 rounded-full border border-white/8">
+                    Guest
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-ink-muted mt-0.5">
+                {memberSince ? `Member since ${memberSince}` : "Welcome to Lumina"}
+              </div>
+            </div>
+          </div>
+          {/* Bypass / sign-in button (temporary — will be replaced with real auth) */}
+          <button
+            onClick={() => {
+              toast({ title: "Guest mode", description: "You're browsing as a guest. Sign in coming soon." });
+            }}
+            className="w-full mt-3 rounded-full py-2.5 text-[12px] font-medium text-gold border border-gold/25 bg-gold/5 hover:bg-gold/10 transition-all"
+          >
+            Enter as Guest
+          </button>
+        </GlassCard>
+      </motion.div>
+
+      {/* Quick stats row */}
+      {data?.usage && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+          <GlassCard className="p-4">
+            <div className="grid grid-cols-3 gap-3">
+              <PracticeStat icon={Sparkles} label="Readings today" value={data.usage.tarotReadings ?? 0} accent="#C5A87C" />
+              <PracticeStat icon={AudioLines} label="Freq. seconds" value={data.usage.frequencySec ?? 0} accent="#9E8AC9" />
+              <PracticeStat icon={Target} label="Active goals" value={data.usage.activeGoals ?? 0} accent="#B5CD7E" />
+            </div>
+          </GlassCard>
+        </motion.div>
+      )}
 
       {/* Premium status card */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -172,26 +228,6 @@ export function SettingsView() {
         </ShellCard>
       </motion.div>
 
-      {/* Practice summary */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-        <GlassCard className="p-4">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-3">
-            Your practice
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <PracticeStat icon={Sparkles} label="Readings today" value={data?.usage?.tarotReadings ?? 0} accent="#C5A87C" />
-            <PracticeStat icon={Target} label="Active goals" value={data?.usage?.activeGoals ?? 0} accent="#B5CD7E" />
-            <PracticeStat icon={Check} label="Confirmed today" value={data?.usage?.confirmedToday ?? 0} accent="#B5CD7E" />
-            <PracticeStat icon={AudioLines} label="Freq. seconds" value={data?.usage?.frequencySec ?? 0} accent="#9E8AC9" />
-          </div>
-          <Divider className="my-3" />
-          <div className="flex items-center justify-between text-[11px] text-ink-muted">
-            <span>Member since</span>
-            <span className="text-ink font-medium">{memberSince}</span>
-          </div>
-        </GlassCard>
-      </motion.div>
-
       {/* Achievement Badges */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
         <AchievementBadges
@@ -219,9 +255,9 @@ export function SettingsView() {
           <Divider />
           <SettingsRow icon={RotateCcw} label="Replay the intro" desc="See the onboarding again" onClick={replayOnboarding} />
           <Divider />
-          <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setTab("premium")} />
+          <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setPremiumOpen(true)} />
           <Divider />
-          <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setTab("stats")} />
+          <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setTab("home")} />
         </GlassCard>
       </motion.div>
 

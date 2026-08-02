@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type TabKey = "home" | "tarot" | "manifest" | "frequency" | "stats" | "premium" | "settings";
+export type TabKey = "home" | "tarot" | "manifest" | "frequency" | "profile";
 
 /** A queued celebration event — either an achievement unlock or a mastery unlock (all 36 badges). */
 export type CelebrationEvent =
