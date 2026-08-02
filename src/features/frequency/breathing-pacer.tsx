@@ -50,8 +50,10 @@ export function BreathingPacer({
   pattern?: BreathPattern;
 }) {
   const [pattern, setPattern] = React.useState<BreathPattern>(patternProp);
+  // Initialize to phase 0 (Inhale) with the correct countdown value
+  const initialPhases = PATTERNS[patternProp].phases;
   const [phaseIdx, setPhaseIdx] = React.useState(0);
-  const [countdown, setCountdown] = React.useState(0);
+  const [countdown, setCountdown] = React.useState(initialPhases[0].sec);
 
   const config = PATTERNS[pattern];
   const phases = config.phases;
@@ -70,14 +72,17 @@ export function BreathingPacer({
   // Self-contained timer — runs independently of parent re-renders
   React.useEffect(() => {
     if (!active) {
+      // Reset to Inhale (phase 0) with correct countdown
+      phaseIdxRef.current = 0;
       setPhaseIdx(0);
-      setCountdown(0);
+      setCountdown(initialPhases[0].sec);
       return;
     }
 
-    // Initialize countdown for the first phase
-    const currentPhases = PATTERNS[patternRef.current].phases;
-    setCountdown(currentPhases[0].sec);
+    // When activating: ensure we start at Inhale (phase 0) with full countdown
+    phaseIdxRef.current = 0;
+    setPhaseIdx(0);
+    setCountdown(initialPhases[0].sec);
 
     const interval = setInterval(() => {
       const currentIdx = phaseIdxRef.current;
@@ -90,13 +95,14 @@ export function BreathingPacer({
         }
         // Phase is done — advance to next phase
         const nextIdx = (currentIdx + 1) % currentPhases.length;
+        phaseIdxRef.current = nextIdx;
         setPhaseIdx(nextIdx);
         return currentPhases[nextIdx].sec;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [active]); // ONLY depend on `active` — not on phaseIdx or pattern changes
+  }, [active]); // ONLY depend on `active`
 
   // Reset when pattern changes
   const handlePatternChange = React.useCallback((p: BreathPattern) => {
