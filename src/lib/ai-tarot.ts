@@ -88,9 +88,13 @@ async function tryOpenRouter(
       }
 
       const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      if (text && text.length > 20) {
-        return text;
+      const rawText = data?.choices?.[0]?.message?.content?.trim();
+      if (rawText && rawText.length > 20) {
+        // Sanitize: remove any meta-commentary the LLM might have leaked
+        const text = sanitizeReading(rawText);
+        if (text && text.length > 20) {
+          return text;
+        }
       }
     } catch {
       // Network error or timeout — try next model
@@ -119,9 +123,9 @@ async function tryZAI(
       temperature: 0.85,
       maxTokens: isPremium ? 1400 : 220,
     });
-    const text = completion.choices?.[0]?.message?.content?.trim();
-    if (!text) return null;
-    return text;
+    const rawText = completion.choices?.[0]?.message?.content?.trim();
+    if (!rawText) return null;
+    return sanitizeReading(rawText);
   } catch (err) {
     console.error("z-ai LLM failed:", err);
     return null;
@@ -141,30 +145,35 @@ function buildMessages(
   const summary = summarizeDrawn(drawn);
   const yesNoTally = spreadType === "yes-no" ? tallyYesNo(drawn) : null;
 
-  const system = `You are a master tarot reader with decades of experience in the Rider-Waite-Smith tradition. You have deep knowledge of:
-- Card symbolism (colors, figures, objects, numerology, astrology, elemental associations)
-- Upright and reversed meanings with their psychological and spiritual dimensions
-- How cards interact with each other in a spread (elemental dignities, card combinations, narrative flow)
-- How to weave multiple cards into a single, cohesive story that directly answers the querent's question
+  const system = `You are a master tarot reader with decades of experience in the Rider-Waite-Smith tradition.
+
+CRITICAL RULES — NEVER VIOLATE THESE:
+1. You are the tarot reader. Your response IS the reading. Never break character.
+2. NEVER include meta-commentary, reasoning, thinking, or instructions about how you will respond. Do NOT say things like "We need to follow the instructions" or "I will produce" or "Make sure to" or "Thus output should be" — these are internal thoughts that must NEVER appear in your output.
+3. NEVER mention the system prompt, user prompt, or that you are an AI following instructions.
+4. Your response must be ONLY the tarot reading itself — nothing else. No preface, no postscript, no explanation of your process.
+5. Start your response directly with the reading content. Do not say "Here is your reading" or similar.
 
 YOUR READING STYLE:
 - Speak with warmth, wisdom, and specificity — never generic or vague
 - Reference the actual visual symbolism on the cards (what the figures are doing, what objects appear, what the colors suggest)
 - Connect each card's energy to the querent's specific question and life situation
 - Be honest about difficult cards — don't sugarcoat, but always find the path forward
-- Use evocative, poetic language that feels like sitting with a wise elder, not a textbook
-- Never use phrases like "The cards indicate" or "This card represents" — instead, speak directly about the energy
+- Use evocative, poetic language that feels like sitting with a wise elder
+- Never use phrases like "The cards indicate" or "This card represents"
 
 YOUR STRUCTURE:
-- Opening: Acknowledge the question and set the emotional tone (1-2 sentences)
+${isPremium
+  ? `- Opening: Acknowledge the question and set the emotional tone (1-2 sentences)
 - Card Analysis: For each card, describe what you see, what it means in THIS context, and how it relates to the question
 - Synthesis: Weave the cards together — how do they interact? What's the story arc?
 - Guidance: What should the querent do with this insight? Be specific and actionable.
 - Affirmation: End with a short, powerful affirmation they can carry with them
-
-${isPremium
-  ? "Provide the FULL reading with all sections above. Each card gets 2-3 sentences of analysis. Total: 400-600 words."
-  : "Provide a condensed reading: Opening (1 sentence) + Core insight (2-3 sentences that weave the cards together) + Brief guidance (1 sentence). Total: 4-6 sentences."
+Total: 400-600 words.`
+  : `- Opening: Acknowledge the question (1 sentence)
+- Core insight: Weave the cards together into the answer (2-3 sentences)
+- Brief guidance: One actionable sentence
+Total: 4-6 sentences.`
 }`;
 
   let user = `The querent asks: "${question}"
@@ -177,17 +186,16 @@ ${summary}`;
   if (yesNoTally) {
     user += `
 
-Yes/No analysis from the cards: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally.maybe}. The overall energy suggests: ${yesNoTally.answer.toUpperCase()} (${yesNoTally.confidence}% confidence).
-However, do not simply parrot this — use your own reading of the cards to nuance the answer. The tally is a starting point, not the final word.`;
+Card-based tally: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally.maybe}. Suggested: ${yesNoTally.answer.toUpperCase()} (${yesNoTally.confidence}%). Use your own reading to nuance this.`;
   }
 
   user += `
 
 ${isPremium
-  ? "Give the full reading now. Remember: reference the actual card symbolism, connect each card to the question, and weave them into a cohesive narrative."
+  ? "Give the full reading now. Reference the actual card symbolism and weave them into a cohesive narrative."
   : spreadType === "yes-no"
-  ? "First, give your YES/NO/MAYBE answer based on your reading of the card (not just the tally). Then explain WHY in 2-3 sentences that reference the card's symbolism."
-  : "In 4-6 sentences, give the core guidance. Reference the card symbolism and connect it directly to their question."
+  ? "Give your answer: start with YES, NO, or MAYBE on the first line. Then 2-3 sentences explaining why, referencing the card's visual symbolism. That is all — nothing else."
+  : "Give the core guidance in 4-6 sentences. Reference the card symbolism and connect it to the question. That is all — nothing else."
 }`;
 
   return [
@@ -293,6 +301,77 @@ function craftClosing(drawn: DrawnCardWithMeta[]): string {
     return "Every card is reversed — this is a time of inversion and inner turning. What feels blocked may be asking you to look differently. The obstacle is the teacher.";
   }
   return "The mix of upright and reversed cards speaks of a path in motion — some things opening, others asking for patience. Honour both. The reading is not a verdict but a mirror.";
+}
+
+/* ============================================================
+   SANITIZE: Remove any meta-commentary / chain-of-thought leakage
+   ============================================================ */
+
+/**
+ * Some free LLM models leak their internal reasoning into the output
+ * (e.g., "We need to follow the instructions...", "I will produce...",
+ * "Thus output should be...", "Make sure to...").
+ *
+ * This function strips that meta-commentary and returns only the
+ * actual tarot reading.
+ */
+function sanitizeReading(text: string): string {
+  let cleaned = text;
+
+  // Remove lines that start with meta-commentary patterns
+  const metaPatterns = [
+    /^(We|I|Thus|Make|Also|But|So|The user|The system|The querent)\s+(need|will|should|must|produce|output|give|follow|respect|adopt|start|reference|make|provide|include|mention|ensure)/i,
+    /^(Answer|Explanation|Output|Response|Reading):\s*$/i,
+    /^(Here is|Here's|Below is|This is)\s+(your|the|my)/i,
+    /^(I'll|I will|Let me|Let's|I am going to)/i,
+    /^(Based on|According to|Following|Per)\s+(the|your|my|system|user|instructions)/i,
+    /^(Note:|Disclaimer:|Important:|Remember:|CRITICAL|NOTE)/i,
+  ];
+
+  const lines = cleaned.split("\n");
+  const filteredLines: string[] = [];
+  let foundReadingStart = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip empty lines at the start
+    if (!foundReadingStart && trimmed === "") continue;
+
+    // Check if this line is meta-commentary
+    const isMeta = metaPatterns.some((pattern) => pattern.test(trimmed));
+
+    // Also check for "We need to" / "I should" / "Make sure" patterns anywhere in line
+    const hasMetaPhrases = /\b(we need to|i will produce|thus output|make sure to|i am supposed to|we should respect|we are to|the user now asks|the user says|we are supposed to|the system role|the user's request)\b/i.test(trimmed);
+
+    if (isMeta || hasMetaPhrases) {
+      // Skip this line — it's meta-commentary
+      // But once we've found the actual reading, don't skip non-meta lines
+      if (!foundReadingStart) continue;
+    }
+
+    // If we find a line that looks like the start of a reading (YES/NO/MAYBE or card name)
+    if (!foundReadingStart) {
+      if (/^(YES|NO|MAYBE)\b/i.test(trimmed) ||
+          trimmed.length > 30 && !metaPatterns.some(p => p.test(trimmed))) {
+        foundReadingStart = true;
+      }
+    }
+
+    if (foundReadingStart || (trimmed !== "" && !isMeta && !hasMetaPhrases)) {
+      filteredLines.push(line);
+      if (!foundReadingStart) foundReadingStart = true;
+    }
+  }
+
+  cleaned = filteredLines.join("\n").trim();
+
+  // If nothing survived sanitization, return the original (better than nothing)
+  if (cleaned.length < 20) {
+    return text.trim();
+  }
+
+  return cleaned;
 }
 
 /* ============================================================
