@@ -22,8 +22,8 @@ const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
 /** Pick the best free model for the reading type. */
 function pickFreeModel(spreadType: string): string {
-  // Use larger models for all readings — quality matters more than speed for tarot
-  // All are :free variants so they cost $0.
+  // Use nemotron-3-nano-30b for all readings — tested clean (no meta-commentary)
+  // NOTE: nvidia/nemotron-3-super-120b was REMOVED — it leaks chain-of-thought
   switch (spreadType) {
     case "yes-no":
       return "nvidia/nemotron-3-nano-30b-a3b:free";
@@ -33,7 +33,7 @@ function pickFreeModel(spreadType: string): string {
     case "celtic-cross":
     case "relationship":
     case "career":
-      return "nvidia/nemotron-3-super-120b-a12b:free";
+      return "google/gemma-4-26b-a4b-it:free"; // Better for complex readings
     case "card-of-day":
       return "nvidia/nemotron-3-nano-30b-a3b:free";
     default:
@@ -41,13 +41,12 @@ function pickFreeModel(spreadType: string): string {
   }
 }
 
-/** Fallback model list — if the primary free model is unavailable, try these. */
+/** Fallback model list — if the primary free model is unavailable, try these.
+ * NOTE: nvidia/nemotron-3-super-120b-a12b:free is EXCLUDED — it leaks meta-commentary */
 const FREE_MODEL_FALLBACKS = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
   "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
 ];
 
 async function tryOpenRouter(
