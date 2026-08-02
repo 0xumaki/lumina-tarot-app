@@ -170,25 +170,32 @@ FORBIDDEN — NEVER DO THESE:
 
 ${isPremium
   ? `DEPTH FOR THIS READING (Premium):
-Give a comprehensive, detailed reading (400-600 words):
+Give a comprehensive, detailed reading (500-800 words):
 1. OPENING (2-3 sentences): Acknowledge their question. Set the emotional tone. What do you notice when you look at the whole spread?
-2. CARD BY CARD (2-3 sentences each): For each card, describe what you see on it, what it means in THIS position for THIS question, and how it connects to the other cards.
-3. SYNTHESIS (2-3 sentences): Step back. What is the overall story the cards are telling together? What's the arc?
-4. GUIDANCE (2-3 sentences): What should they do with this? Be specific to their question.
-5. CLOSING: One sentence of empowerment. Leave them with something to sit with.`
+2. CARD BY CARD (3-4 sentences each): For each card, describe what you see on it, what it means in THIS position for THIS question, and how it connects to the other cards.
+3. SYNTHESIS (3-4 sentences): Step back. What is the overall story the cards are telling together? What's the arc? How do the cards answer the specific question asked?
+4. GUIDANCE (3-4 sentences): What should they do with this? Be specific to their question. What concrete steps or shifts in perspective does the reading suggest?
+5. TL;DR (2-3 sentences): A clear, direct answer to their question. If they walked away remembering only one thing, what would it be? This is the bottom line — the answer distilled.
+6. SUMMARY (4-6 sentences): A comprehensive summary that ties the entire reading together. Restate the key themes, the main message of the cards, what the querent should focus on, and what the outcome looks like if they follow the guidance. This should give enough context that someone who only reads the summary understands the full answer to their question.`
   : spreadType === "yes-no"
   ? `DEPTH FOR THIS READING (Yes/No):
-Give a focused reading (4-6 sentences):
+Give a focused reading (6-8 sentences):
 1. Start with YES, NO, or MAYBE — but don't just say the word. Frame it with nuance. (e.g., "YES — but a yes that asks something of you.")
 2. Describe what you see on the card and what it means for their question.
 3. Connect the card's energy to their specific situation.
-4. End with one sentence of guidance.`
+4. End with:
+
+**TL;DR:** One sentence that directly answers their question.
+**Summary:** 2-3 sentences that give the full context of the answer — why this answer, what it means for them, and what they should do next.`
   : `DEPTH FOR THIS READING:
-Give a focused reading (5-7 sentences):
+Give a focused reading (7-10 sentences):
 1. Acknowledge their question and what you see in the card(s).
 2. Describe the visual imagery and what it means for their situation.
 3. Connect the symbolism directly to their question.
-4. End with guidance specific to what they asked.`
+4. End with:
+
+**TL;DR:** One sentence that directly answers their question.
+**Summary:** 3-4 sentences that give the full context of the answer — the key themes, what it means for them, and what they should do next. Someone reading only the summary should understand the complete answer to their question.`
 }
 
 Speak with warmth, wisdom, and the specificity of someone who has sat with thousands of querents. Use language that is evocative but never vague. Every sentence should earn its place.`;
@@ -234,14 +241,19 @@ function fallbackInterpretation(
     const meaning = drawn[0].reversed ? c.meaningReversed : c.meaningUpright;
     const confidence =
       tally.confidence >= 75 ? "with clarity" : tally.confidence >= 50 ? "with some nuance" : "tentatively";
-    return `${tally.answer.toUpperCase()} — ${confidence}. ${c.name} ${drawn[0].reversed ? "arrives reversed, its energy turned inward —" : "arrives upright, its energy clear —"} ${meaning.toLowerCase()} This speaks directly to what you're asking: the path is visible, though it may require something from you first.`;
+    const answer = `${tally.answer.toUpperCase()} — ${confidence}. ${c.name} ${drawn[0].reversed ? "arrives reversed, its energy turned inward —" : "arrives upright, its energy clear —"} ${meaning.toLowerCase()} This speaks directly to what you're asking: the path is visible, though it may require something from you first.`;
+    const tldr = `\n\n**TL;DR:** ${tally.answer.toUpperCase()} — ${meaning.split(".")[0]}.`;
+    const summary = `\n\n**Summary:** ${c.name} ${drawn[0].reversed ? "(Reversed)" : "(Upright)"} answers your question ${confidence}. ${meaning} The card suggests that ${tally.answer === "yes" ? "moving forward is favored, but you must bring awareness to the process" : tally.answer === "no" ? "the timing or approach may need adjustment before proceeding" : "the answer is not yet clear — more information or inner reflection is needed"}. Consider what this energy means for your specific situation and what steps you can take to align with it.`;
+    return answer + tldr + summary;
   }
 
   if (spreadType === "single") {
     const c = drawn[0].card;
     const meaning = drawn[0].reversed ? c.meaningReversed : c.meaningUpright;
-    const affirm = c.affirmation;
-    return `${c.name} ${drawn[0].reversed ? "(Reversed)" : ""} — ${meaning} Sit with this: ${affirm}`;
+    const reading = `${c.name} ${drawn[0].reversed ? "(Reversed)" : ""} — ${meaning}`;
+    const tldr = `\n\n**TL;DR:** ${meaning.split(".")[0]}.`;
+    const summary = `\n\n**Summary:** ${c.name} ${drawn[0].reversed ? "(Reversed)" : "(Upright)"} has been drawn for your question. ${meaning} The card's energy speaks directly to what you're experiencing and what you need to understand. ${drawn[0].reversed ? "The reversed position suggests this energy is currently blocked, internalized, or approaching — consider how it manifests inwardly rather than outwardly." : "The upright position confirms this energy is active and available to you — work with it consciously."} Reflect on how this applies to your situation, and let the card's wisdom guide your next step.`;
+    return reading + tldr + summary;
   }
 
   // Multi-card spreads — weave meanings into narrative, no keywords
@@ -268,9 +280,21 @@ function fallbackInterpretation(
 
   const opening = craftOpening(drawn, q);
   const closing = craftClosing(drawn);
-  const affirmation = drawn[0]?.card?.affirmation || "I trust the path unfolding before me.";
 
-  return `${opening}\n\n${positions.join("\n\n")}\n\n${closing}\n\n*✦ Affirmation: "${affirmation}"*`;
+  // Build TL;DR and Summary from card meanings
+  const primaryCard = drawn[0];
+  const primaryMeaning = primaryCard?.reversed ? primaryCard.card.meaningReversed : primaryCard?.card.meaningUpright || "";
+  const allMeanings = drawn.map(d => d.reversed ? d.card.meaningReversed : d.card.meaningUpright);
+  const keyThemes = drawn.map(d => {
+    const kw = d.reversed ? d.card.keywordsReversed : d.card.keywordsUpright;
+    return kw.slice(0, 2).join(" and ");
+  }).filter(Boolean);
+
+  const tldr = `**TL;DR:** ${primaryMeaning.split(".")[0]}.`;
+
+  const summaryText = `**Summary:** The cards you drew — ${drawn.map(d => d.card.name + (d.reversed ? " (Reversed)" : "")).join(", ")} — speak to ${keyThemes.join(", ")}. ${allMeanings.map(m => m.split(".")[0]).join(". ")}. ${closing} The overall message is clear: the answer to your question lies in understanding these energies and how they interact in your specific situation. Follow the guidance above, and trust that the path will become visible as you walk it.`;
+
+  return `${opening}\n\n${positions.join("\n\n")}\n\n${closing}\n\n${tldr}\n\n${summaryText}`;
 }
 
 /** Craft an opening sentence that acknowledges the question + theme. */
