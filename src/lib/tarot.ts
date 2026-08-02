@@ -44,17 +44,28 @@ export function attachMeta(drawn: DrawnCard[]): DrawnCardWithMeta[] {
   });
 }
 
-/** Format the cards into a compact text summary for the LLM. */
+/** Format the cards into a rich text summary for the LLM — NO keywords, full imagery context. */
 export function summarizeDrawn(drawn: DrawnCardWithMeta[]): string {
   return drawn
     .map((d, i) => {
       const pos = d.position ? `${i + 1}. ${d.position}` : `${i + 1}.`;
       const orientation = d.reversed ? "Reversed" : "Upright";
-      return `${pos} — ${d.card.name} (${orientation}). Keywords: ${
-        d.reversed ? d.card.keywordsReversed : d.card.keywordsUpright
-      }. ${d.reversed ? d.card.meaningReversed : d.card.meaningUpright}`;
+      const c = d.card;
+      // Provide rich context: card name, orientation, element, astrology, numerology,
+      // visual description (symbol), and meaning — but NOT as keywords.
+      // The LLM should weave these into narrative, not list them.
+      const context = [
+        `Card: ${c.name} (${orientation})`,
+        c.element ? `Element: ${c.element}` : null,
+        c.astrology ? `Astrology: ${c.astrology}` : null,
+        c.numerology ? `Numerology: ${c.numerology}` : null,
+        c.symbol ? `Visual symbol: ${c.symbol}` : null,
+        `Meaning: ${d.reversed ? c.meaningReversed : c.meaningUpright}`,
+        `Affirmation: ${c.affirmation}`,
+      ].filter(Boolean).join("\n  ");
+      return `${pos}\n  ${context}`;
     })
-    .join("\n");
+    .join("\n\n");
 }
 
 /** Aggregate yes/no tallies for the yes-no spread. */

@@ -144,50 +144,70 @@ function buildMessages(
   const summary = summarizeDrawn(drawn);
   const yesNoTally = spreadType === "yes-no" ? tallyYesNo(drawn) : null;
 
-  const system = `You are a master tarot reader. Give ONLY the reading. No commentary about your process.
+  const system = `You are a professional tarot reader with 20 years of experience reading the Rider-Waite-Smith deck. You are giving a real reading to a real person who has come to you with a real question.
 
-Forbidden phrases (never output these): "we need to", "I will produce", "thus output", "make sure to", "let me", "let's", "I am going to", "the user asks", "the user says", "we are supposed to", "the system", "the instructions", "here is your reading", "based on the instructions", "following the instructions", "Sentence 1", "Sentence 2", "Sentence 3", "Make sure we don't", "So output", "Must be", "Let's do".
+HOW A PROFESSIONAL READING WORKS:
+- You NEVER list keywords. You weave meaning into narrative.
+- You describe what you SEE on the card — the figures, the colors, the objects, the landscape — and use that imagery as metaphor for the querent's situation.
+- Each card is read IN ITS POSITION within the spread, not in isolation. A card meaning "new beginnings" in the "past" position means something very different from "new beginnings" in the "future" position.
+- Cards TALK TO EACH OTHER. You look for connections: shared elements, contrasting energies, progressive narratives, tensions between cards.
+- You tie every interpretation directly back to the querent's specific question. If they ask about love, you don't give a generic career reading that happens to mention love.
+- You are honest about difficult cards. You don't sugarcoat the Tower or the Three of Swords — but you always find the path forward within the difficulty.
+- You lean into contradiction. If two cards seem to conflict, you explore that tension rather than smoothing it over.
+- You end with empowerment, not fortune-telling. You offer guidance, not prediction.
+
+HOW TO HANDLE REVERSED CARDS:
+Reversed cards are NOT "the opposite" or "the bad version." Choose the lens that fits the context: the energy may be internalized, blocked, resisted, excessive, or approaching. Describe what the reversal feels like in the querent's situation.
+
+FORBIDDEN — NEVER DO THESE:
+- Never list keywords or say "Keywords:..."
+- Never say "This card represents..." or "The cards indicate..."
+- Never use meta-language about your process ("I will now interpret...", "Let me explain...")
+- Never break character as the tarot reader
+- Never give generic advice that could apply to anyone
+- Never tidy up contradictions — sit with the tension
+- Never start with "Here is your reading" or similar preamble
 
 ${isPremium
-  ? `Give a full tarot reading (400-600 words):
-- Acknowledge the question
-- For each card: describe the visual symbolism and what it means for this question
-- Weave the cards into a cohesive story
-- End with guidance and an affirmation`
-  : `Give a brief tarot reading (4-6 sentences):
-- Acknowledge the question
-- Weave the card symbolism into the answer
-- End with one sentence of guidance`
+  ? `DEPTH FOR THIS READING (Premium):
+Give a comprehensive, detailed reading (400-600 words):
+1. OPENING (2-3 sentences): Acknowledge their question. Set the emotional tone. What do you notice when you look at the whole spread?
+2. CARD BY CARD (2-3 sentences each): For each card, describe what you see on it, what it means in THIS position for THIS question, and how it connects to the other cards.
+3. SYNTHESIS (2-3 sentences): Step back. What is the overall story the cards are telling together? What's the arc?
+4. GUIDANCE (2-3 sentences): What should they do with this? Be specific to their question.
+5. CLOSING: One sentence of empowerment. Leave them with something to sit with.`
+  : spreadType === "yes-no"
+  ? `DEPTH FOR THIS READING (Yes/No):
+Give a focused reading (4-6 sentences):
+1. Start with YES, NO, or MAYBE — but don't just say the word. Frame it with nuance. (e.g., "YES — but a yes that asks something of you.")
+2. Describe what you see on the card and what it means for their question.
+3. Connect the card's energy to their specific situation.
+4. End with one sentence of guidance.`
+  : `DEPTH FOR THIS READING:
+Give a focused reading (5-7 sentences):
+1. Acknowledge their question and what you see in the card(s).
+2. Describe the visual imagery and what it means for their situation.
+3. Connect the symbolism directly to their question.
+4. End with guidance specific to what they asked.`
 }
 
-${spreadType === "yes-no"
-  ? "Start with YES, NO, or MAYBE on the first line. Then 2-3 sentences referencing the card's symbolism."
-  : ""
-}
+Speak with warmth, wisdom, and the specificity of someone who has sat with thousands of querents. Use language that is evocative but never vague. Every sentence should earn its place.`;
 
-Speak with warmth and wisdom. Reference visual symbolism (figures, objects, colors). Never break character. Never discuss your reasoning process. The output is the reading itself — nothing else.`;
+  let user = `Someone has come to you with this question: "${question}"
 
-  let user = `The querent asks: "${question}"
+You are reading the ${spreadType} spread for them. Here are the cards that were drawn:
 
-Spread type: ${spreadType}
-
-Cards drawn:
 ${summary}`;
 
   if (yesNoTally) {
     user += `
 
-Card-based tally: YES=${yesNoTally.yes}, NO=${yesNoTally.no}, MAYBE=${yesNoTally.maybe}. Suggested: ${yesNoTally.answer.toUpperCase()} (${yesNoTally.confidence}%). Use your own reading to nuance this.`;
+When you look at this card, the energy leans ${yesNoTally.answer.toUpperCase()}. But don't just parrot that — read the card yourself and give your own nuanced answer. The querent needs your interpretation, not a tally.`;
   }
 
   user += `
 
-${isPremium
-  ? "Give the full reading now."
-  : spreadType === "yes-no"
-  ? "Answer with YES, NO, or MAYBE first, then explain why in 2-3 sentences."
-  : "Give the reading in 4-6 sentences."
-}`;
+Give the reading now. Speak directly to them. Start with the reading itself — no preamble.`;
 
   return [
     { role: "system", content: system },
@@ -211,23 +231,21 @@ function fallbackInterpretation(
   if (spreadType === "yes-no") {
     const tally = tallyYesNo(drawn);
     const c = drawn[0].card;
-    const orient = drawn[0].reversed ? "reversed" : "upright";
     const meaning = drawn[0].reversed ? c.meaningReversed : c.meaningUpright;
     const confidence =
       tally.confidence >= 75 ? "with clarity" : tally.confidence >= 50 ? "with some nuance" : "tentatively";
-    return `${tally.answer.toUpperCase()} — ${confidence}. ${c.name} appears ${orient}, suggesting ${meaning.toLowerCase()} This card speaks directly to your question: the energy you need is already present, though it may ask something of you first.`;
+    return `${tally.answer.toUpperCase()} — ${confidence}. ${c.name} ${drawn[0].reversed ? "arrives reversed, its energy turned inward —" : "arrives upright, its energy clear —"} ${meaning.toLowerCase()} This speaks directly to what you're asking: the path is visible, though it may require something from you first.`;
   }
 
   if (spreadType === "single") {
     const c = drawn[0].card;
     const meaning = drawn[0].reversed ? c.meaningReversed : c.meaningUpright;
     const affirm = c.affirmation;
-    return `${c.name} ${drawn[0].reversed ? "(Reversed)" : ""} answers your question. ${meaning} Reflect on this: ${affirm}`;
+    return `${c.name} ${drawn[0].reversed ? "(Reversed)" : ""} — ${meaning} Sit with this: ${affirm}`;
   }
 
-  // Multi-card spreads (three-card, celtic-cross, relationship, career)
+  // Multi-card spreads — weave meanings into narrative, no keywords
   if (!isPremium) {
-    // Concise narrative for free tier
     const cards = drawn.slice(0, 3);
     const opening = craftOpening(cards, q);
     const core = cards
@@ -239,18 +257,13 @@ function fallbackInterpretation(
     return `${opening} ${core} Trust where this leads you.`;
   }
 
-  // Premium: rich per-card narrative
+  // Premium: per-card narrative with positions, no keywords
   const positions = drawn.map((d, i) => {
     const posLabel = d.position || `Position ${i + 1}`;
     const c = d.card;
     const orient = d.reversed ? "Reversed" : "Upright";
     const meaning = d.reversed ? c.meaningReversed : c.meaningUpright;
-    const keywords = (d.reversed ? c.keywordsReversed : c.keywordsUpright).slice(0, 3).join(", ");
-    return `**${posLabel} — ${c.name} (${orient})**
-
-${meaning}
-
-*Keywords: ${keywords}*`;
+    return `**${posLabel} — ${c.name} (${orient})**\n\n${meaning}`;
   });
 
   const opening = craftOpening(drawn, q);
