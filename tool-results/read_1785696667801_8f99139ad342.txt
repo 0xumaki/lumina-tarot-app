@@ -1,0 +1,1333 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion, AnimatePresence, type Variants } from "framer-motion";
+     5→import { useQuery } from "@tanstack/react-query";
+     6→import {
+     7→  Sparkles,
+     8→  Target,
+     9→  AudioLines,
+    10→  Flame,
+    11→  CheckCircle2,
+    12→  Activity,
+    13→  CalendarDays,
+    14→  AlertCircle,
+    15→  ChevronRight,
+    16→  Info,
+    17→  X,
+    18→  ThumbsUp,
+    19→  ThumbsDown,
+    20→  type LucideIcon,
+    21→} from "lucide-react";
+    22→import { useApi } from "@/hooks/use-api";
+    23→import {
+    24→  GlassCard,
+    25→  ShellCard,
+    26→  SectionTitle,
+    27→  Divider,
+    28→} from "@/components/lumina/primitives";
+    29→import { useAppStore, type TabKey } from "@/lib/store";
+    30→
+    31→/* ------------------------------------------------------------------ */
+    32→/* Types                                                               */
+    33→/* ------------------------------------------------------------------ */
+    34→
+    35→type StatsData = {
+    36→  memberSince: string;
+    37→  readings: {
+    38→    total: number;
+    39→    thisWeek: number;
+    40→    mostUsedSpread: string | null;
+    41→    mostUsedSpreadKey: string | null;
+    42→  };
+    43→  goals: {
+    44→    total: number;
+    45→    active: number;
+    46→    achieved: number;
+    47→    totalConfirmations: number;
+    48→    bestStreak: number;
+    49→    bestStreakGoalTitle: string | null;
+    50→    confirmationsThisWeek: number[];
+    51→  };
+    52→  frequency: {
+    53→    totalSessions: number;
+    54→    totalSeconds: number;
+    55→    totalMinutes: number;
+    56→    mostUsedIntention: string | null;
+    57→    mostUsedIntentionKey: string | null;
+    58→    mostUsedIntentionHz: number | null;
+    59→    minutesThisWeek: number[];
+    60→  };
+    61→  activity: {
+    62→    date: string;
+    63→    readings: number;
+    64→    confirmations: number;
+    65→    frequencySec: number;
+    66→  }[];
+    67→  mood: {
+    68→    week: (number | null)[];
+    69→    average: number | null;
+    70→    daysLogged: number;
+    71→    correlation: {
+    72→      withReadings: number | null;
+    73→      withoutReadings: number | null;
+    74→    };
+    75→  };
+    76→  insight: {
+    77→    title: string;
+    78→    body: string;
+    79→    accent: string;
+    80→    glyph: string;
+    81→  };
+    82→};
+    83→
+    84→/* ------------------------------------------------------------------ */
+    85→/* Design tokens                                                       */
+    86→/* ------------------------------------------------------------------ */
+    87→
+    88→const GOLD = "#C5A87C";
+    89→const LEAF = "#B5CD7E";
+    90→const SAGE = "#7A8680";
+    91→
+    92→/* ------------------------------------------------------------------ */
+    93→/* Motion variants                                                     */
+    94→/* ------------------------------------------------------------------ */
+    95→
+    96→const containerVariants: Variants = {
+    97→  hidden: { opacity: 0 },
+    98→  show: {
+    99→    opacity: 1,
+   100→    transition: { staggerChildren: 0.07, delayChildren: 0.04 },
+   101→  },
+   102→};
+   103→
+   104→const gridVariants: Variants = {
+   105→  hidden: { opacity: 0 },
+   106→  show: {
+   107→    opacity: 1,
+   108→    transition: { staggerChildren: 0.06 },
+   109→  },
+   110→};
+   111→
+   112→const itemVariants: Variants = {
+   113→  hidden: { opacity: 0, y: 10 },
+   114→  show: {
+   115→    opacity: 1,
+   116→    y: 0,
+   117→    transition: { duration: 0.42, ease: "easeOut" },
+   118→  },
+   119→};
+   120→
+   121→/* ------------------------------------------------------------------ */
+   122→/* Count-up hook                                                       */
+   123→/* ------------------------------------------------------------------ */
+   124→
+   125→/** Animate a number from its previous value to `target` over `duration` ms. */
+   126→function useCountUp(target: number, duration = 900): number {
+   127→  const [val, setVal] = React.useState(0);
+   128→  const prev = React.useRef(0);
+   129→
+   130→  React.useEffect(() => {
+   131→    if (target <= 0) {
+   132→      setVal(0);
+   133→      prev.current = 0;
+   134→      return;
+   135→    }
+   136→    let raf = 0;
+   137→    const start = performance.now();
+   138→    const from = prev.current;
+   139→    const delta = target - from;
+   140→
+   141→    const tick = (now: number) => {
+   142→      const t = Math.min(1, (now - start) / duration);
+   143→      // easeOutCubic
+   144→      const eased = 1 - Math.pow(1 - t, 3);
+   145→      const next = Math.round(from + delta * eased);
+   146→      setVal(next);
+   147→      prev.current = next;
+   148→      if (t < 1) raf = requestAnimationFrame(tick);
+   149→    };
+   150→
+   151→    raf = requestAnimationFrame(tick);
+   152→    return () => cancelAnimationFrame(raf);
+   153→  }, [target, duration]);
+   154→
+   155→  return val;
+   156→}
+   157→
+   158→/* ------------------------------------------------------------------ */
+   159→/* Stat tile                                                           */
+   160→/* ------------------------------------------------------------------ */
+   161→
+   162→function StatTile({
+   163→  icon: Icon,
+   164→  value,
+   165→  label,
+   166→  accent,
+   167→}: {
+   168→  icon: LucideIcon;
+   169→  value: number;
+   170→  label: string;
+   171→  accent: string;
+   172→}) {
+   173→  const animated = useCountUp(value);
+   174→  return (
+   175→    <GlassCard className="p-4 h-full">
+   176→      <div
+   177→        className="w-9 h-9 rounded-full flex items-center justify-center"
+   178→        style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}
+   179→      >
+   180→        <Icon className="w-4 h-4" style={{ color: accent }} />
+   181→      </div>
+   182→      <div className="mt-3 text-[28px] leading-none font-light text-ink tabular-nums">
+   183→        {animated}
+   184→      </div>
+   185→      <div className="mt-1.5 text-[12px] text-ink-muted leading-[15px]">
+   186→        {label}
+   187→      </div>
+   188→    </GlassCard>
+   189→  );
+   190→}
+   191→
+   192→/* ------------------------------------------------------------------ */
+   193→/* 7-day activity chart (custom SVG)                                   */
+   194→/* ------------------------------------------------------------------ */
+   195→
+   196→const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+   197→
+   198→function ActivityChart({ data }: { data: StatsData["activity"] }) {
+   199→  // Normalise each metric to its own max so all three stay visible even
+   200→  // though readings/confirmations are small counts and frequency is minutes.
+   201→  const maxReadings = Math.max(1, ...data.map((d) => d.readings));
+   202→  const maxConf = Math.max(1, ...data.map((d) => d.confirmations));
+   203→  const maxFreqMin = Math.max(
+   204→    1,
+   205→    ...data.map((d) => Math.round(d.frequencySec / 60))
+   206→  );
+   207→
+   208→  const W = 700;
+   209→  const H = 200;
+   210→  const padTop = 6;
+   211→  const chartH = H - padTop;
+   212→  const colW = W / 7;
+   213→  const barW = 16;
+   214→  const gap = 5;
+   215→  const groupW = barW * 3 + gap * 2;
+   216→
+   217→  return (
+   218→    <div>
+   219→      <svg
+   220→        viewBox={`0 0 ${W} ${H}`}
+   221→        preserveAspectRatio="none"
+   222→        width="100%"
+   223→        height={120}
+   224→        className="block"
+   225→        role="img"
+   226→        aria-label="7-day activity chart"
+   227→      >
+   228→        {/* baseline */}
+   229→        <line
+   230→          x1={0}
+   231→          x2={W}
+   232→          y1={H}
+   233→          y2={H}
+   234→          stroke="rgba(255,255,255,0.06)"
+   235→          strokeWidth={1}
+   236→          vectorEffect="non-scaling-stroke"
+   237→        />
+   238→        {data.map((d, i) => {
+   239→          const cx = colW * i + colW / 2;
+   240→          const rH = (d.readings / maxReadings) * chartH;
+   241→          const cH = (d.confirmations / maxConf) * chartH;
+   242→          const fMin = Math.round(d.frequencySec / 60);
+   243→          const fH = (fMin / maxFreqMin) * chartH;
+   244→          const startX = cx - groupW / 2;
+   245→          const baseY = H;
+   246→          return (
+   247→            <g key={d.date}>
+   248→              {/* readings — gold */}
+   249→              <rect
+   250→                x={startX}
+   251→                y={baseY - rH}
+   252→                width={barW}
+   253→                height={rH}
+   254→                rx={2}
+   255→                fill={GOLD}
+   256→                opacity={d.readings > 0 ? 1 : 0.14}
+   257→              />
+   258→              {/* confirmations — leaf */}
+   259→              <rect
+   260→                x={startX + barW + gap}
+   261→                y={baseY - cH}
+   262→                width={barW}
+   263→                height={cH}
+   264→                rx={2}
+   265→                fill={LEAF}
+   266→                opacity={d.confirmations > 0 ? 1 : 0.14}
+   267→              />
+   268→              {/* frequency minutes — sage */}
+   269→              <rect
+   270→                x={startX + (barW + gap) * 2}
+   271→                y={baseY - fH}
+   272→                width={barW}
+   273→                height={fH}
+   274→                rx={2}
+   275→                fill={SAGE}
+   276→                opacity={fMin > 0 ? 0.7 : 0.12}
+   277→              />
+   278→            </g>
+   279→          );
+   280→        })}
+   281→      </svg>
+   282→
+   283→      {/* Day labels (HTML, to avoid SVG distortion) */}
+   284→      <div className="grid grid-cols-7 mt-1.5">
+   285→        {data.map((d) => {
+   286→          const day = new Date(d.date + "T00:00:00").getDay();
+   287→          return (
+   288→            <div
+   289→              key={d.date}
+   290→              className="text-center text-[10px] text-ink-muted font-medium"
+   291→            >
+   292→              {DAY_LABELS[day]}
+   293→            </div>
+   294→          );
+   295→        })}
+   296→      </div>
+   297→
+   298→      {/* Legend */}
+   299→      <div className="flex items-center justify-center gap-4 mt-3">
+   300→        <Legend color={GOLD} label="Readings" />
+   301→        <Legend color={LEAF} label="Confirmations" />
+   302→        <Legend color={SAGE} label="Frequency min" />
+   303→      </div>
+   304→    </div>
+   305→  );
+   306→}
+   307→
+   308→function Legend({ color, label }: { color: string; label: string }) {
+   309→  return (
+   310→    <div className="flex items-center gap-1.5">
+   311→      <span
+   312→        className="w-2 h-2 rounded-sm"
+   313→        style={{ background: color }}
+   314→        aria-hidden
+   315→      />
+   316→      <span className="text-[10px] text-ink-muted">{label}</span>
+   317→    </div>
+   318→  );
+   319→}
+   320→
+   321→/* ------------------------------------------------------------------ */
+   322→/* Mood sparkline + helpers                                            */
+   323→/* ------------------------------------------------------------------ */
+   324→
+   325→const MOOD_GLYPHS = ["🌑", "🌒", "🌓", "🌔", "🌕"];
+   326→const MOOD_COLORS = ["#7A8680", "#8AA8C9", "#C5A87C", "#B5CD7E", "#E7D2A8"];
+   327→const MOOD_LABELS = ["Heavy", "Low", "Neutral", "Light", "Bright"];
+   328→
+   329→function moodLabel(avg: number | null): string {
+   330→  if (avg === null) return "—";
+   331→  const idx = Math.min(4, Math.max(0, Math.round(avg) - 1));
+   332→  return MOOD_LABELS[idx];
+   333→}
+   334→
+   335→function MoodSparkline({ week }: { week: (number | null)[] }) {
+   336→  return (
+   337→    <div>
+   338→      <div className="flex items-end justify-between gap-1.5 h-[60px]">
+   339→        {week.map((m, i) => {
+   340→          const hasMood = m !== null;
+   341→          const idx = hasMood ? Math.min(4, Math.max(0, m! - 1)) : 0;
+   342→          const height = hasMood ? 20 + idx * 10 : 6;
+   343→          const color = hasMood ? MOOD_COLORS[idx] : "rgba(255,255,255,0.06)";
+   344→          return (
+   345→            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+   346→              <div className="flex-1 flex items-end w-full justify-center">
+   347→                <motion.div
+   348→                  initial={{ height: 0 }}
+   349→                  animate={{ height }}
+   350→                  transition={{ delay: i * 0.05, duration: 0.4, ease: "easeOut" }}
+   351→                  className="w-full max-w-[28px] rounded-full"
+   352→                  style={{
+   353→                    height,
+   354→                    background: hasMood ? `${color}` : color,
+   355→                    opacity: hasMood ? 1 : 0.5,
+   356→                    boxShadow: hasMood ? `0 0 8px ${color}44` : "none",
+   357→                  }}
+   358→                />
+   359→              </div>
+   360→              <span className="text-[12px] leading-none" style={{ opacity: hasMood ? 1 : 0.3 }}>
+   361→                {hasMood ? MOOD_GLYPHS[idx] : "·"}
+   362→              </span>
+   363→            </div>
+   364→          );
+   365→        })}
+   366→      </div>
+   367→      <div className="grid grid-cols-7 mt-1.5">
+   368→        {week.map((_, i) => {
+   369→          const d = new Date();
+   370→          d.setDate(d.getDate() - (6 - i));
+   371→          return (
+   372→            <div key={i} className="text-center text-[9px] text-ink-muted font-medium">
+   373→              {["S", "M", "T", "W", "T", "F", "S"][d.getDay()]}
+   374→            </div>
+   375→          );
+   376→        })}
+   377→      </div>
+   378→    </div>
+   379→  );
+   380→}
+   381→
+   382→/* ------------------------------------------------------------------ */
+   383→/* Breakdown row                                                       */
+   384→/* ------------------------------------------------------------------ */
+   385→
+   386→function BreakdownRow({
+   387→  label,
+   388→  value,
+   389→  accent,
+   390→}: {
+   391→  label: string;
+   392→  value: React.ReactNode;
+   393→  accent?: string;
+   394→}) {
+   395→  return (
+   396→    <div className="flex items-center justify-between py-2">
+   397→      <span className="text-[12px] text-ink-muted">{label}</span>
+   398→      <span
+   399→        className="text-[13px] font-medium text-ink tabular-nums text-right"
+   400→        style={accent ? { color: accent } : undefined}
+   401→      >
+   402→        {value}
+   403→      </span>
+   404→    </div>
+   405→  );
+   406→}
+   407→
+   408→/* ------------------------------------------------------------------ */
+   409→/* Loading + error states                                              */
+   410→/* ------------------------------------------------------------------ */
+   411→
+   412→function StatsLoading() {
+   413→  return (
+   414→    <div className="space-y-5">
+   415→      <div>
+   416→        <div className="h-3 w-24 bg-white/5 rounded mb-2 animate-pulse" />
+   417→        <div className="h-6 w-40 bg-white/5 rounded animate-pulse" />
+   418→      </div>
+   419→      <div className="grid grid-cols-2 gap-3">
+   420→        {Array.from({ length: 4 }).map((_, i) => (
+   421→          <div key={i} className="lum-glass rounded-2xl p-4 h-[112px]">
+   422→            <div className="w-9 h-9 rounded-full bg-white/5 animate-pulse" />
+   423→            <div className="mt-3 h-7 w-12 bg-white/5 rounded animate-pulse" />
+   424→            <div className="mt-2 h-3 w-20 bg-white/5 rounded animate-pulse" />
+   425→          </div>
+   426→        ))}
+   427→      </div>
+   428→      <div className="lum-glass rounded-2xl p-4 h-48 animate-pulse" />
+   429→      <div className="lum-glass rounded-2xl p-4 h-32 animate-pulse" />
+   430→      <div className="lum-glass rounded-2xl p-4 h-32 animate-pulse" />
+   431→    </div>
+   432→  );
+   433→}
+   434→
+   435→function StatsError() {
+   436→  return (
+   437→    <ShellCard className="p-6 text-center">
+   438→      <div className="flex flex-col items-center gap-3">
+   439→        <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center">
+   440→          <AlertCircle className="w-5 h-5 text-gold" />
+   441→        </div>
+   442→        <div>
+   443→          <div className="text-[15px] font-medium text-ink">
+   444→            Couldn&apos;t load your stats
+   445→          </div>
+   446→          <p className="text-[12px] text-ink-muted mt-1 max-w-[260px] mx-auto leading-[16px]">
+   447→            Your journey data will appear here once the connection settles.
+   448→          </p>
+   449→        </div>
+   450→      </div>
+   451→    </ShellCard>
+   452→  );
+   453→}
+   454→
+   455→/** Friendly empty-state for first-time users — replaces the "all zeros" dashboard. */
+   456→function StatsEmpty({ memberSinceStr }: { memberSinceStr: string }) {
+   457→  const setTab = useAppStore((s) => s.setTab);
+   458→  const steps = [
+   459→    { icon: Sparkles, title: "Draw your first card", desc: "Ask the cards a question to begin your reading history.", tab: "tarot" as const, accent: GOLD },
+   460→    { icon: Target, title: "Set a manifestation goal", desc: "Name what you desire and confirm it daily to build a streak.", tab: "manifest" as const, accent: LEAF },
+   461→    { icon: AudioLines, title: "Tune into a frequency", desc: "Resonate with an intention tone to log your first session.", tab: "frequency" as const, accent: SAGE },
+   462→  ];
+   463→  return (
+   464→    <motion.div
+   465→      variants={containerVariants}
+   466→      initial="hidden"
+   467→      animate="show"
+   468→      className="space-y-5"
+   469→    >
+   470→      <motion.div variants={itemVariants}>
+   471→        <ShellCard className="overflow-hidden">
+   472→          <div className="relative p-6 lum-glow-gold text-center">
+   473→            <div className="relative z-10 flex flex-col items-center">
+   474→              <motion.div
+   475→                className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#9c7f54] flex items-center justify-center shadow-[0_0_40px_rgba(197,168,124,0.4)]"
+   476→                animate={{ scale: [1, 1.06, 1] }}
+   477→                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+   478→              >
+   479→                <Sparkles className="w-7 h-7 text-black" />
+   480→              </motion.div>
+   481→              <div className="mt-4 text-[11px] uppercase tracking-[0.2em] text-gold/80 font-medium">
+   482→                {memberSinceStr ? `Member since ${memberSinceStr}` : "Welcome"}
+   483→              </div>
+   484→              <h2 className="mt-1 text-[22px] font-light tracking-[-0.02em] text-ink">
+   485→                Your journey <span className="lum-text-gold">begins here</span>
+   486→              </h2>
+   487→              <p className="mt-2 text-[13px] text-ink-muted max-w-[280px] leading-[19px]">
+   488→                Your stats, streaks, and rhythms will bloom here as you read, manifest, and resonate. Begin with one of these:
+   489→              </p>
+   490→            </div>
+   491→          </div>
+   492→        </ShellCard>
+   493→      </motion.div>
+   494→
+   495→      <motion.div variants={gridVariants} className="space-y-2.5">
+   496→        {steps.map((s) => {
+   497→          const Icon = s.icon;
+   498→          return (
+   499→            <motion.button key={s.tab} variants={itemVariants} onClick={() => setTab(s.tab)} className="block w-full text-left">
+   500→              <GlassCard className="p-3.5 flex items-center gap-3 hover:border-white/15 transition-colors">
+   501→                <div
+   502→                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+   503→                  style={{ background: `${s.accent}1a`, border: `1px solid ${s.accent}40` }}
+   504→                >
+   505→                  <Icon className="w-4 h-4" style={{ color: s.accent }} />
+   506→                </div>
+   507→                <div className="flex-1 min-w-0">
+   508→                  <div className="text-[14px] font-medium text-ink">{s.title}</div>
+   509→                  <div className="text-[11px] text-ink-muted leading-[15px] mt-0.5">{s.desc}</div>
+   510→                </div>
+   511→                <ChevronRight className="w-4 h-4 text-ink-muted" />
+   512→              </GlassCard>
+   513→            </motion.button>
+   514→          );
+   515→        })}
+   516→      </motion.div>
+   517→
+   518→      <motion.div variants={itemVariants}>
+   519→        <GlassCard className="p-4">
+   520→          <div className="flex items-start gap-2.5">
+   521→            <Flame className="w-3.5 h-3.5 text-leaf mt-0.5 shrink-0" />
+   522→            <p className="text-[11px] leading-[16px] text-ink-muted">
+   523→              <span className="text-ink font-medium">Streaks unlock rewards.</span> Confirm a goal 3 days in a row to unlock the Daily Reflection spread, and 7 days for a signature insight into your reading style.
+   524→            </p>
+   525→          </div>
+   526→        </GlassCard>
+   527→      </motion.div>
+   528→    </motion.div>
+   529→  );
+   530→}
+   531→
+   532→/* ------------------------------------------------------------------ */
+   533→/* Today's energy — card-of-day snippet                               */
+   534→/* ------------------------------------------------------------------ */
+   535→
+   536→function TodaysEnergy() {
+   537→  const api = useApi();
+   538→  const { data } = useQuery({
+   539→    queryKey: ["card-of-day"],
+   540→    queryFn: async () => (await api("/api/tarot/card-of-day")).json(),
+   541→    staleTime: 60000,
+   542→  });
+   543→
+   544→  if (!data?.card) {
+   545→    return (
+   546→      <GlassCard className="p-3.5 flex items-center gap-3">
+   547→        <div className="w-9 h-9 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0 animate-pulse">
+   548→          <Sparkles className="w-4 h-4 text-gold/50" />
+   549→        </div>
+   550→        <div className="flex-1">
+   551→          <div className="h-3 w-24 bg-white/5 rounded animate-pulse" />
+   552→          <div className="h-2.5 w-40 bg-white/5 rounded mt-1.5 animate-pulse" />
+   553→        </div>
+   554→      </GlassCard>
+   555→    );
+   556→  }
+   557→
+   558→  const card = data.card;
+   559→  const reversed = data.reversed;
+   560→
+   561→  return (
+   562→    <GlassCard className="p-3.5 flex items-center gap-3">
+   563→      <div
+   564→        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-[18px]"
+   565→        style={{
+   566→          background: "radial-gradient(circle at 50% 40%, rgba(197,168,124,0.25), transparent 70%)",
+   567→          border: "1px solid rgba(197,168,124,0.35)",
+   568→          color: "#C5A87C",
+   569→        }}
+   570→      >
+   571→        {card.symbol}
+   572→      </div>
+   573→      <div className="flex-1 min-w-0">
+   574→        <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+   575→          Today's energy
+   576→        </div>
+   577→        <div className="text-[13px] font-medium text-ink mt-0.5 leading-[16px]">
+   578→          {card.nameShort}
+   579→          {reversed && <span className="text-gold/60 font-normal"> · Reversed</span>}
+   580→        </div>
+   581→        <div className="text-[11px] text-ink-muted line-clamp-1 mt-0.5">
+   582→          {(reversed ? card.keywordsReversed : card.keywordsUpright).slice(0, 3).join(" · ")}
+   583→        </div>
+   584→      </div>
+   585→    </GlassCard>
+   586→  );
+   587→}
+   588→
+   589→/* ------------------------------------------------------------------ */
+   590→/* Why this? — transparency tooltip for AI insight                     */
+   591→/* ------------------------------------------------------------------ */
+   592→
+   593→function WhyThisTooltip({ triggers }: { triggers: { label: string; value: string }[] }) {
+   594→  const [open, setOpen] = React.useState(false);
+   595→  return (
+   596→    <div className="relative mt-2">
+   597→      <button
+   598→        onClick={() => setOpen((o) => !o)}
+   599→        className="flex items-center gap-1 text-[10px] text-ink-muted hover:text-gold/80 transition-colors"
+   600→      >
+   601→        <Info className="w-3 h-3" />
+   602→        Why this?
+   603→      </button>
+   604→      <AnimatePresence>
+   605→        {open && (
+   606→          <>
+   607→            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+   608→            <motion.div
+   609→              initial={{ opacity: 0, y: -4, scale: 0.96 }}
+   610→              animate={{ opacity: 1, y: 0, scale: 1 }}
+   611→              exit={{ opacity: 0, y: -4, scale: 0.96 }}
+   612→              transition={{ duration: 0.18 }}
+   613→              className="absolute z-50 top-full mt-1.5 left-0 w-[240px] rounded-xl lum-glass-float p-3"
+   614→            >
+   615→              <div className="text-[10px] uppercase tracking-[0.14em] text-gold/80 font-medium mb-2">
+   616→                Based on your pattern
+   617→              </div>
+   618→              <div className="space-y-1.5">
+   619→                {triggers.map((t) => (
+   620→                  <div key={t.label} className="flex items-center justify-between">
+   621→                    <span className="text-[11px] text-ink-muted">{t.label}</span>
+   622→                    <span className="text-[11px] text-ink font-medium tabular-nums">{t.value}</span>
+   623→                  </div>
+   624→                ))}
+   625→              </div>
+   626→              <p className="text-[10px] text-ink-muted/70 mt-2 leading-[14px] italic">
+   627→                The AI weaves these signals into your archetype.
+   628→              </p>
+   629→            </motion.div>
+   630→          </>
+   631→        )}
+   632→      </AnimatePresence>
+   633→    </div>
+   634→  );
+   635→}
+   636→
+   637→/* ------------------------------------------------------------------ */
+   638→/* Refine insight — thumbs up/down feedback                            */
+   639→/* ------------------------------------------------------------------ */
+   640→
+   641→function RefineInsight({ type }: { type: "energy_signature" | "weekly_reflection" }) {
+   642→  const api = useApi();
+   643→  const [rating, setRating] = React.useState<"up" | "down" | null>(null);
+   644→
+   645→  async function submit(r: "up" | "down") {
+   646→    if (rating) return; // already submitted
+   647→    setRating(r);
+   648→    try {
+   649→      await api("/api/feedback", {
+   650→        method: "POST",
+   651→        body: JSON.stringify({ type, rating: r }),
+   652→      });
+   653→    } catch {}
+   654→  }
+   655→
+   656→  if (rating) {
+   657→    return (
+   658→      <span className="text-[10px] text-ink-muted/70 italic">
+   659→        {rating === "up" ? "Thanks ✦" : "Noted — we'll refine"}
+   660→      </span>
+   661→    );
+   662→  }
+   663→
+   664→  return (
+   665→    <div className="flex items-center gap-1">
+   666→      <span className="text-[10px] text-ink-muted mr-1">Helpful?</span>
+   667→      <button
+   668→        onClick={() => submit("up")}
+   669→        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-leaf hover:bg-leaf/10 transition-colors"
+   670→        aria-label="Thumbs up"
+   671→      >
+   672→        <ThumbsUp className="w-3 h-3" />
+   673→      </button>
+   674→      <button
+   675→        onClick={() => submit("down")}
+   676→        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
+   677→        aria-label="Thumbs down"
+   678→      >
+   679→        <ThumbsDown className="w-3 h-3" />
+   680→      </button>
+   681→    </div>
+   682→  );
+   683→}
+   684→
+   685→/* ------------------------------------------------------------------ */
+   686→/* Main view                                                           */
+   687→/* ------------------------------------------------------------------ */
+   688→
+   689→export default function StatsView() {
+   690→  const api = useApi();
+   691→
+   692→  // Mood history sheet state (declared first, before any early return)
+   693→  const [moodHistoryOpen, setMoodHistoryOpen] = React.useState(false);
+   694→
+   695→  const { data, isLoading, isError } = useQuery<StatsData>({
+   696→    queryKey: ["stats"],
+   697→    queryFn: async () => (await api("/api/stats")).json(),
+   698→    refetchInterval: 30000,
+   699→    refetchOnWindowFocus: true,
+   700→  });
+   701→
+   702→  // Fetch premium status to decide whether to use LLM insight
+   703→  const { data: meData } = useQuery({
+   704→    queryKey: ["me"],
+   705→    queryFn: async () => (await api("/api/me")).json(),
+   706→  });
+   707→  const isPremium = !!meData?.device?.isPremium;
+   708→
+   709→  // Fetch LLM insight for premium users (only if not empty state)
+   710→  const hasNoData = data && data.readings.total === 0 && data.goals.totalConfirmations === 0 && data.frequency.totalSessions === 0;
+   711→  const { data: llmInsightData, isLoading: llmLoading } = useQuery({
+   712→    queryKey: ["llm-insight"],
+   713→    queryFn: async () => (await api("/api/stats/insight")).json(),
+   714→    enabled: isPremium && !hasNoData,
+   715→    staleTime: 300000, // 5 min cache — LLM insight doesn't need to refresh often
+   716→  });
+   717→
+   718→  // Use LLM insight if available, otherwise the rule-based one
+   719→  const effectiveInsight = llmInsightData?.insight ?? data?.insight;
+   720→  const llmActive = isPremium && !hasNoData && llmInsightData?.insight;
+   721→
+   722→  const memberSince = data ? new Date(data.memberSince) : null;
+   723→  const memberSinceStr = memberSince
+   724→    ? memberSince.toLocaleDateString("en-US", {
+   725→        month: "long",
+   726→        day: "numeric",
+   727→        year: "numeric",
+   728→      })
+   729→    : "";
+   730→
+   731→  if (isLoading) return <StatsLoading />;
+   732→  if (isError || !data) return <StatsError />;
+   733→
+   734→  const minutesThisWeekTotal = data.frequency.minutesThisWeek.reduce(
+   735→    (a, b) => a + b,
+   736→    0
+   737→  );
+   738→
+   739→  // Detect empty state: no readings, no confirmations, no frequency sessions
+   740→  const isEmpty =
+   741→    data.readings.total === 0 &&
+   742→    data.goals.totalConfirmations === 0 &&
+   743→    data.frequency.totalSessions === 0;
+   744→
+   745→  if (isEmpty) return <StatsEmpty memberSinceStr={memberSinceStr} />;
+   746→
+   747→  return (
+   748→    <motion.div
+   749→      variants={containerVariants}
+   750→      initial="hidden"
+   751→      animate="show"
+   752→      className="space-y-5"
+   753→    >
+   754→      {/* Header */}
+   755→      <motion.div variants={itemVariants}>
+   756→        <SectionTitle
+   757→          eyebrow="Your journey"
+   758→          title={
+   759→            <>
+   760→              Your <span className="lum-text-gold">journey</span>
+   761→            </>
+   762→          }
+   763→          subtitle={
+   764→            memberSince ? (
+   765→              <span className="inline-flex items-center gap-1.5">
+   766→                <CalendarDays className="w-3 h-3" /> Member since{" "}
+   767→                {memberSinceStr}
+   768→              </span>
+   769→            ) : undefined
+   770→          }
+   771→        />
+   772→      </motion.div>
+   773→
+   774→      {/* Today's energy — card-of-day snippet */}
+   775→      <motion.div variants={itemVariants}>
+   776→        <TodaysEnergy />
+   777→      </motion.div>
+   778→
+   779→      {/* Energy Insight — AI-generated (premium) or rule-based narrative */}
+   780→      <motion.div variants={itemVariants}>
+   781→        <ShellCard className="overflow-hidden">
+   782→          <div className="relative p-4" style={{ background: `linear-gradient(135deg, ${effectiveInsight?.accent ?? "#C5A87C"}14 0%, transparent 70%)` }}>
+   783→            <div className="flex items-start gap-3">
+   784→              <div
+   785→                className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-[20px] ${llmLoading ? "animate-pulse" : ""}`}
+   786→                style={{
+   787→                  background: `radial-gradient(circle at 50% 40%, ${effectiveInsight?.accent ?? "#C5A87C"}33, transparent 70%)`,
+   788→                  border: `1px solid ${effectiveInsight?.accent ?? "#C5A87C"}44`,
+   789→                  color: effectiveInsight?.accent ?? "#C5A87C",
+   790→                }}
+   791→              >
+   792→                {llmLoading ? (
+   793→                  <motion.span
+   794→                    animate={{ rotate: 360 }}
+   795→                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+   796→                    className="inline-block"
+   797→                  >
+   798→                    ✦
+   799→                  </motion.span>
+   800→                ) : (
+   801→                  effectiveInsight?.glyph ?? "✦"
+   802→                )}
+   803→              </div>
+   804→              <div className="flex-1 min-w-0">
+   805→                <div className="flex items-center gap-2">
+   806→                  <div className="text-[10px] uppercase tracking-[0.18em] font-medium" style={{ color: effectiveInsight?.accent ?? "#C5A87C" }}>
+   807→                    {llmLoading ? "Reading your pattern…" : "Your energy signature"}
+   808→                  </div>
+   809→                  {llmActive && !llmLoading && (
+   810→                    <span className="text-[8px] uppercase tracking-[0.14em] text-gold/60 border border-gold/20 rounded-full px-1.5 py-0.5">
+   811→                      AI
+   812→                    </span>
+   813→                  )}
+   814→                </div>
+   815→                {llmLoading ? (
+   816→                  <div className="mt-1.5 space-y-2">
+   817→                    <div className="h-4 w-32 bg-white/8 rounded animate-pulse" />
+   818→                    <div className="h-3 w-full bg-white/6 rounded animate-pulse" />
+   819→                    <div className="h-3 w-4/5 bg-white/6 rounded animate-pulse" />
+   820→                  </div>
+   821→                ) : (
+   822→                  <>
+   823→                    <div className="text-[16px] font-medium text-ink mt-0.5 leading-[20px]">
+   824→                      {effectiveInsight?.title ?? "Finding your rhythm"}
+   825→                    </div>
+   826→                    <p className="text-[12px] leading-[18px] text-ink-muted mt-1.5">
+   827→                      {effectiveInsight?.body ?? "Your pattern is still emerging."}
+   828→                    </p>
+   829→                    {/* Why this? — transparency tooltip + refine insight */}
+   830→                    {llmActive && (
+   831→                      <div className="flex items-center gap-3 mt-2">
+   832→                        <WhyThisTooltip
+   833→                          triggers={[
+   834→                            { label: "Readings", value: `${data.readings.total} total` },
+   835→                            { label: "Goals", value: `${data.goals.active} active` },
+   836→                            { label: "Streak", value: `${data.goals.bestStreak}d` },
+   837→                            { label: "Mood", value: data.mood.average ? `${data.mood.average}/5` : "—" },
+   838→                          ]}
+   839→                        />
+   840→                        <RefineInsight type="energy_signature" />
+   841→                      </div>
+   842→                    )}
+   843→                  </>
+   844→                )}
+   845→              </div>
+   846→            </div>
+   847→          </div>
+   848→        </ShellCard>
+   849→      </motion.div>
+   850→
+   851→      {/* Mood trend — inline sparkline under the signature (Option C) */}
+   852→      {data.mood.daysLogged > 0 && (
+   853→        <motion.div variants={itemVariants}>
+   854→          <button onClick={() => setMoodHistoryOpen(true)} className="block w-full text-left">
+   855→            <GlassCard className="p-4 hover:border-gold/30 transition-colors">
+   856→              <div className="flex items-center justify-between mb-3">
+   857→                <div>
+   858→                  <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+   859→                    This week's tone
+   860→                  </div>
+   861→                  <div className="text-[13px] font-medium text-ink mt-0.5">
+   862→                    {moodLabel(data.mood.average)} · avg {data.mood.average?.toFixed(1)}/5
+   863→                  </div>
+   864→                </div>
+   865→                <div className="flex items-center gap-1.5">
+   866→                  <span className="text-[10px] text-gold/60">30-day</span>
+   867→                  <ChevronRight className="w-3 h-3 text-gold/60" />
+   868→                </div>
+   869→              </div>
+   870→              <MoodSparkline week={data.mood.week} />
+   871→            </GlassCard>
+   872→          </button>
+   873→        </motion.div>
+   874→      )}
+   875→
+   876→      {/* Summary tiles (2×2) */}
+   877→      <motion.div
+   878→        variants={gridVariants}
+   879→        className="grid grid-cols-2 gap-3"
+   880→      >
+   881→        <motion.div variants={itemVariants}>
+   882→          <StatTile
+   883→            icon={Sparkles}
+   884→            value={data.readings.total}
+   885→            label="Total readings"
+   886→            accent={GOLD}
+   887→          />
+   888→        </motion.div>
+   889→        <motion.div variants={itemVariants}>
+   890→          <StatTile
+   891→            icon={CheckCircle2}
+   892→            value={data.goals.totalConfirmations}
+   893→            label="Confirmations"
+   894→            accent={LEAF}
+   895→          />
+   896→        </motion.div>
+   897→        <motion.div variants={itemVariants}>
+   898→          <StatTile
+   899→            icon={AudioLines}
+   900→            value={data.frequency.totalMinutes}
+   901→            label="Frequency minutes"
+   902→            accent={SAGE}
+   903→          />
+   904→        </motion.div>
+   905→        <motion.div variants={itemVariants}>
+   906→          <StatTile
+   907→            icon={Flame}
+   908→            value={data.goals.bestStreak}
+   909→            label="Best streak (days)"
+   910→            accent={GOLD}
+   911→          />
+   912→        </motion.div>
+   913→      </motion.div>
+   914→
+   915→      {/* 7-day activity chart */}
+   916→      <motion.div variants={itemVariants}>
+   917→        <GlassCard className="p-4">
+   918→          <div className="flex items-center justify-between mb-3">
+   919→            <div>
+   920→              <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+   921→                Last 7 days
+   922→              </div>
+   923→              <div className="text-[15px] font-medium text-ink mt-0.5">
+   924→                Activity rhythm
+   925→              </div>
+   926→            </div>
+   927→            <Activity className="w-4 h-4 text-ink-muted" />
+   928→          </div>
+   929→          <ActivityChart data={data.activity} />
+   930→        </GlassCard>
+   931→      </motion.div>
+   932→
+   933→      {/* Tarot breakdown */}
+   934→      <motion.div variants={itemVariants}>
+   935→        <GlassCard className="p-4">
+   936→          <div className="flex items-center gap-2 mb-1">
+   937→            <div className="w-7 h-7 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center">
+   938→              <Sparkles className="w-3.5 h-3.5 text-gold" />
+   939→            </div>
+   940→            <div className="text-[14px] font-medium text-ink">Tarot</div>
+   941→          </div>
+   942→          <Divider className="my-1" />
+   943→          <BreakdownRow
+   944→            label="Most used spread"
+   945→            value={data.readings.mostUsedSpread ?? "—"}
+   946→            accent={GOLD}
+   947→          />
+   948→          <BreakdownRow
+   949→            label="Readings this week"
+   950→            value={data.readings.thisWeek}
+   951→          />
+   952→          <BreakdownRow label="Total readings" value={data.readings.total} />
+   953→        </GlassCard>
+   954→      </motion.div>
+   955→
+   956→      {/* Manifestation breakdown */}
+   957→      <motion.div variants={itemVariants}>
+   958→        <GlassCard className="p-4">
+   959→          <div className="flex items-center gap-2 mb-1">
+   960→            <div className="w-7 h-7 rounded-full bg-leaf/10 border border-leaf/20 flex items-center justify-center">
+   961→              <Target className="w-3.5 h-3.5 text-leaf" />
+   962→            </div>
+   963→            <div className="text-[14px] font-medium text-ink">
+   964→              Manifestation
+   965→            </div>
+   966→          </div>
+   967→          <Divider className="my-1" />
+   968→          <BreakdownRow label="Active goals" value={data.goals.active} accent={LEAF} />
+   969→          <BreakdownRow label="Achieved goals" value={data.goals.achieved} />
+   970→          <BreakdownRow
+   971→            label="Total confirmations"
+   972→            value={data.goals.totalConfirmations}
+   973→          />
+   974→          <BreakdownRow
+   975→            label="Best streak"
+   976→            value={
+   977→              <span>
+   978→                {data.goals.bestStreak}d
+   979→                {data.goals.bestStreakGoalTitle ? (
+   980→                  <span className="text-ink-muted text-[11px] ml-1.5 font-normal">
+   981→                    · {data.goals.bestStreakGoalTitle}
+   982→                  </span>
+   983→                ) : null}
+   984→              </span>
+   985→            }
+   986→            accent={GOLD}
+   987→          />
+   988→        </GlassCard>
+   989→      </motion.div>
+   990→
+   991→      {/* Frequency breakdown */}
+   992→      <motion.div variants={itemVariants}>
+   993→        <GlassCard className="p-4">
+   994→          <div className="flex items-center gap-2 mb-1">
+   995→            <div className="w-7 h-7 rounded-full bg-sage/10 border border-sage/20 flex items-center justify-center">
+   996→              <AudioLines className="w-3.5 h-3.5" style={{ color: SAGE }} />
+   997→            </div>
+   998→            <div className="text-[14px] font-medium text-ink">Frequency</div>
+   999→          </div>
+  1000→          <Divider className="my-1" />
+  1001→          <BreakdownRow
+  1002→            label="Most used intention"
+  1003→            value={
+  1004→              data.frequency.mostUsedIntention ? (
+  1005→                <span>
+  1006→                  {data.frequency.mostUsedIntention}
+  1007→                  {data.frequency.mostUsedIntentionHz ? (
+  1008→                    <span className="text-ink-muted text-[11px] ml-1.5 font-normal">
+  1009→                      · {data.frequency.mostUsedIntentionHz} Hz
+  1010→                    </span>
+  1011→                  ) : null}
+  1012→                </span>
+  1013→              ) : (
+  1014→                "—"
+  1015→              )
+  1016→            }
+  1017→            accent={SAGE}
+  1018→          />
+  1019→          <BreakdownRow
+  1020→            label="Total sessions"
+  1021→            value={data.frequency.totalSessions}
+  1022→          />
+  1023→          <BreakdownRow
+  1024→            label="Minutes this week"
+  1025→            value={minutesThisWeekTotal}
+  1026→          />
+  1027→        </GlassCard>
+  1028→      </motion.div>
+  1029→
+  1030→      {/* Mood-reading correlation insight */}
+  1031→      {data.mood.daysLogged >= 2 &&
+  1032→        data.mood.correlation.withReadings !== null &&
+  1033→        data.mood.correlation.withoutReadings !== null && (
+  1034→          <motion.div variants={itemVariants}>
+  1035→            <GlassCard className="p-4">
+  1036→              <div className="flex items-center gap-2 mb-2">
+  1037→                <div className="w-7 h-7 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center">
+  1038→                  <Sparkles className="w-3.5 h-3.5 text-gold" />
+  1039→                </div>
+  1040→                <div className="text-[14px] font-medium text-ink">Pattern</div>
+  1041→              </div>
+  1042→              <Divider className="my-1" />
+  1043→              <p className="text-[12px] leading-[18px] text-ink-muted py-2">
+  1044→                {buildMoodInsight(
+  1045→                  data.mood.correlation.withReadings,
+  1046→                  data.mood.correlation.withoutReadings
+  1047→                )}
+  1048→              </p>
+  1049→            </GlassCard>
+  1050→          </motion.div>
+  1051→        )}
+  1052→
+  1053→      {/* Weekly reflection — LLM-generated digest */}
+  1054→      <motion.div variants={itemVariants}>
+  1055→        <WeeklyReflection />
+  1056→      </motion.div>
+  1057→
+  1058→      {/* 30-day mood history sheet */}
+  1059→      <MoodHistorySheet open={moodHistoryOpen} onOpenChange={setMoodHistoryOpen} />
+  1060→    </motion.div>
+  1061→  );
+  1062→}
+  1063→
+  1064→/* ------------------------------------------------------------------ */
+  1065→/* Weekly reflection — LLM digest                                      */
+  1066→/* ------------------------------------------------------------------ */
+  1067→
+  1068→function WeeklyReflection() {
+  1069→  const api = useApi();
+  1070→  const { data, isLoading } = useQuery({
+  1071→    queryKey: ["weekly-reflection"],
+  1072→    queryFn: async () => (await api("/api/stats/weekly")).json(),
+  1073→    staleTime: 600000, // 10 min cache
+  1074→  });
+  1075→
+  1076→  if (isLoading) {
+  1077→    return (
+  1078→      <ShellCard className="overflow-hidden">
+  1079→        <div className="p-4 space-y-2">
+  1080→          <div className="h-3 w-28 bg-white/8 rounded animate-pulse" />
+  1081→          <div className="h-4 w-40 bg-white/6 rounded animate-pulse" />
+  1082→          <div className="h-3 w-full bg-white/6 rounded animate-pulse mt-2" />
+  1083→          <div className="h-3 w-4/5 bg-white/6 rounded animate-pulse" />
+  1084→        </div>
+  1085→      </ShellCard>
+  1086→    );
+  1087→  }
+  1088→
+  1089→  if (!data?.reflection) {
+  1090→    // Don't render if no activity or LLM failed
+  1091→    return null;
+  1092→  }
+  1093→
+  1094→  const r = data.reflection;
+  1095→  return (
+  1096→    <ShellCard className="overflow-hidden">
+  1097→      <div className="relative p-4 lum-glow-gold">
+  1098→        <div className="relative z-10">
+  1099→          <div className="flex items-center gap-2 mb-2">
+  1100→            <CalendarDays className="w-3.5 h-3.5 text-gold" />
+  1101→            <span className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+  1102→              Weekly reflection
+  1103→            </span>
+  1104→            <span className="text-[8px] uppercase tracking-[0.14em] text-gold/60 border border-gold/20 rounded-full px-1.5 py-0.5 ml-auto">
+  1105→              AI
+  1106→            </span>
+  1107→          </div>
+  1108→          <div className="text-[16px] font-medium text-ink leading-[20px] lum-text-gold">
+  1109→            {r.theme}
+  1110→          </div>
+  1111→          <p className="text-[13px] leading-[20px] text-ink mt-2">
+  1112→            {r.body}
+  1113→          </p>
+  1114→          {/* Quick stats footer */}
+  1115→          <Divider className="my-3" />
+  1116→          <div className="flex items-center gap-4 text-[10px] text-ink-muted">
+  1117→            <span className="flex items-center gap-1">
+  1118→              <Sparkles className="w-3 h-3" />
+  1119→              {r.stats.readings} readings
+  1120→            </span>
+  1121→            <span className="flex items-center gap-1">
+  1122→              <CheckCircle2 className="w-3 h-3" />
+  1123→              {r.stats.confirmations} confirmations
+  1124→            </span>
+  1125→            <span className="flex items-center gap-1">
+  1126→              <AudioLines className="w-3 h-3" />
+  1127→              {r.stats.frequencyMin} min
+  1128→            </span>
+  1129→            {r.stats.moodAvg && (
+  1130→              <span className="flex items-center gap-1">
+  1131→                <Flame className="w-3 h-3" />
+  1132→                {r.stats.moodAvg}/5
+  1133→              </span>
+  1134→            )}
+  1135→          </div>
+  1136→          <div className="mt-3">
+  1137→            <RefineInsight type="weekly_reflection" />
+  1138→          </div>
+  1139→        </div>
+  1140→      </div>
+  1141→    </ShellCard>
+  1142→  );
+  1143→}
+  1144→
+  1145→function buildMoodInsight(withReadings: number, withoutReadings: number): string {
+  1146→  const diff = Math.round((withReadings - withoutReadings) * 10) / 10;
+  1147→  if (Math.abs(diff) < 0.3) {
+  1148→    return `Your mood stays steady (avg ${withReadings.toFixed(1)}/5) whether or not you read the cards — the ritual is a companion, not a crutch.`;
+  1149→  }
+  1150→  if (diff > 0) {
+  1151→    return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${diff.toFixed(1)} points brighter than days without (${withoutReadings.toFixed(1)}/5). The cards lift you.`;
+  1152→  }
+  1153→  return `On days you read the cards, your mood averages ${withReadings.toFixed(1)}/5 — ${Math.abs(diff).toFixed(1)} points lower than days without (${withoutReadings.toFixed(1)}/5). You may be seeking the cards when you need them most.`;
+  1154→}
+  1155→
+  1156→/* ------------------------------------------------------------------ */
+  1157→/* 30-day mood history sheet                                           */
+  1158→/* ------------------------------------------------------------------ */
+  1159→
+  1160→function MoodHistorySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  1161→  const api = useApi();
+  1162→  const { data, isLoading } = useQuery({
+  1163→    queryKey: ["mood-history"],
+  1164→    queryFn: async () => (await api("/api/mood/history")).json(),
+  1165→    enabled: open,
+  1166→  });
+  1167→
+  1168→  return (
+  1169→    <AnimatePresence>
+  1170→      {open && (
+  1171→        <motion.div
+  1172→          initial={{ opacity: 0 }}
+  1173→          animate={{ opacity: 1 }}
+  1174→          exit={{ opacity: 0 }}
+  1175→          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+  1176→          onClick={() => onOpenChange(false)}
+  1177→        >
+  1178→          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+  1179→          <motion.div
+  1180→            initial={{ y: 40, opacity: 0 }}
+  1181→            animate={{ y: 0, opacity: 1 }}
+  1182→            exit={{ y: 40, opacity: 0 }}
+  1183→            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+  1184→            className="relative w-full max-w-md m-3 lum-glass-float rounded-t-[28px] sm:rounded-[28px] max-h-[82vh] flex flex-col"
+  1185→            onClick={(e) => e.stopPropagation()}
+  1186→          >
+  1187→            <div className="flex items-center justify-between p-4 border-b border-white/8">
+  1188→              <div className="flex items-center gap-2">
+  1189→                <Flame className="w-4 h-4 text-gold" />
+  1190→                <h3 className="text-[15px] font-medium text-ink">30-Day Mood History</h3>
+  1191→              </div>
+  1192→              <button onClick={() => onOpenChange(false)} className="text-ink-muted hover:text-ink">
+  1193→                <X className="w-4 h-4" />
+  1194→              </button>
+  1195→            </div>
+  1196→            <div className="overflow-y-auto p-4 lum-no-scrollbar">
+  1197→              {isLoading ? (
+  1198→                <div className="text-center py-8 text-ink-muted text-[13px]">Loading…</div>
+  1199→              ) : !data || data.daysLogged === 0 ? (
+  1200→                <div className="text-center py-10">
+  1201→                  <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-3">
+  1202→                    <Flame className="w-5 h-5 text-gold/60" />
+  1203→                  </div>
+  1204→                  <div className="text-[14px] font-medium text-ink">No mood data yet</div>
+  1205→                  <p className="text-[12px] text-ink-muted mt-1 max-w-[240px] mx-auto leading-[16px]">
+  1206→                    Check in daily on the home screen to build your 30-day mood pattern.
+  1207→                  </p>
+  1208→                </div>
+  1209→              ) : (
+  1210→                <>
+  1211→                  {/* Summary */}
+  1212→                  <div className="flex items-center justify-between mb-4">
+  1213→                    <div>
+  1214→                      <div className="text-[11px] uppercase tracking-[0.16em] text-gold/80 font-medium">
+  1215→                        {data.daysLogged}/30 days logged
+  1216→                      </div>
+  1217→                      <div className="text-[20px] font-light text-ink mt-0.5">
+  1218→                        avg {data.average?.toFixed(1)}/5 · {moodLabel(data.average)}
+  1219→                      </div>
+  1220→                    </div>
+  1221→                    {data.trend && (
+  1222→                      <div className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${
+  1223→                        data.trend === "rising" ? "text-leaf border-leaf/30 bg-leaf/10" :
+  1224→                        data.trend === "falling" ? "text-destructive border-destructive/30 bg-destructive/10" :
+  1225→                        "text-ink-muted border-white/10 bg-white/[0.03]"
+  1226→                      }`}>
+  1227→                        {data.trend === "rising" ? "↑ rising" : data.trend === "falling" ? "↓ falling" : "→ steady"}
+  1228→                      </div>
+  1229→                    )}
+  1230→                  </div>
+  1231→
+  1232→                  {/* 30-day chart */}
+  1233→                  <MoodHistoryChart days={data.days} />
+  1234→
+  1235→                  {/* Recent notes */}
+  1236→                  {data.days.some((d: any) => d.note) && (
+  1237→                    <>
+  1238→                      <Divider className="my-4" />
+  1239→                      <div className="text-[10px] uppercase tracking-[0.16em] text-gold/80 font-medium mb-2">
+  1240→                        Recent notes
+  1241→                      </div>
+  1242→                      <div className="space-y-2">
+  1243→                        {data.days
+  1244→                          .filter((d: any) => d.note)
+  1245→                          .slice(-4)
+  1246→                          .reverse()
+  1247→                          .map((d: any, i: number) => (
+  1248→                            <div key={i} className="rounded-lg bg-white/[0.03] border border-white/8 p-2.5">
+  1249→                              <div className="flex items-center justify-between mb-0.5">
+  1250→                                <span className="text-[11px] text-ink-muted">
+  1251→                                  {new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+  1252→                                </span>
+  1253→                                <span className="text-[14px]">{MOOD_GLYPHS[Math.min(4, Math.max(0, d.mood - 1))]}</span>
+  1254→                              </div>
+  1255→                              <p className="text-[12px] text-ink italic">"{d.note}"</p>
+  1256→                            </div>
+  1257→                          ))}
+  1258→                      </div>
+  1259→                    </>
+  1260→                  )}
+  1261→                </>
+  1262→              )}
+  1263→            </div>
+  1264→          </motion.div>
+  1265→        </motion.div>
+  1266→      )}
+  1267→    </AnimatePresence>
+  1268→  );
+  1269→}
+  1270→
+  1271→function MoodHistoryChart({ days }: { days: { date: string; mood: number | null; note: string | null }[] }) {
+  1272→  const W = 320;
+  1273→  const H = 120;
+  1274→  const padTop = 8;
+  1275→  const padBottom = 16;
+  1276→  const chartH = H - padTop - padBottom;
+  1277→  const colW = W / days.length;
+  1278→
+  1279→  // Build the line path for connected mood points
+  1280→  const points = days
+  1281→    .map((d, i) => (d.mood !== null ? { x: colW * i + colW / 2, y: padTop + chartH - ((d.mood - 1) / 4) * chartH, mood: d.mood } : null))
+  1282→    .filter((p): p is { x: number; y: number; mood: number } => p !== null);
+  1283→
+  1284→  const pathD = points.length > 1
+  1285→    ? points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ")
+  1286→    : "";
+  1287→
+  1288→  return (
+  1289→    <div>
+  1290→      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block">
+  1291→        {/* Grid lines for mood levels 1-5 */}
+  1292→        {[1, 2, 3, 4, 5].map((lvl) => {
+  1293→          const y = padTop + chartH - ((lvl - 1) / 4) * chartH;
+  1294→          return (
+  1295→            <g key={lvl}>
+  1296→              <line x1={0} x2={W} y1={y} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />
+  1297→              <text x={2} y={y - 2} fill="rgba(122,134,128,0.5)" fontSize={7}>{lvl}</text>
+  1298→            </g>
+  1299→          );
+  1300→        })}
+  1301→        {/* Connecting line */}
+  1302→        {pathD && (
+  1303→          <path d={pathD} fill="none" stroke="#C5A87C" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+  1304→        )}
+  1305→        {/* Points */}
+  1306→        {points.map((p, i) => (
+  1307→          <circle
+  1308→            key={i}
+  1309→            cx={p.x}
+  1310→            cy={p.y}
+  1311→            r={2.5}
+  1312→            fill={MOOD_COLORS[Math.min(4, Math.max(0, p.mood - 1))]}
+  1313→            stroke="#000"
+  1314→            strokeWidth={0.5}
+  1315→          />
+  1316→        ))}
+  1317→      </svg>
+  1318→      {/* Day labels (every 5th day) */}
+  1319→      <div className="flex justify-between mt-1 px-1">
+  1320→        {days.map((d, i) => {
+  1321→          if (i % 5 !== 0 && i !== days.length - 1) return null;
+  1322→          const date = new Date(d.date + "T00:00:00");
+  1323→          return (
+  1324→            <span key={i} className="text-[8px] text-ink-muted">
+  1325→              {date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" })}
+  1326→            </span>
+  1327→          );
+  1328→        })}
+  1329→      </div>
+  1330→    </div>
+  1331→  );
+  1332→}
+  1333→

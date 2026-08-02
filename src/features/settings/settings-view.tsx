@@ -14,6 +14,7 @@ import { useRitual } from "@/hooks/use-ritual";
 import { useAchievements } from "@/hooks/use-achievements";
 import { useLuminaTheme, type LuminaTheme } from "@/lib/theme";
 import { HallOfLight } from "@/components/lumina/hall-of-light";
+import StatsView from "@/features/stats/stats-view";
 import {
   GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider,
 } from "@/components/lumina/primitives";
@@ -40,6 +41,7 @@ export function SettingsView() {
   const [premiumOpen, setPremiumOpen] = React.useState(false);
   const [clearOpen, setClearOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [showStats, setShowStats] = React.useState(false);
 
   const { data } = useQuery<MeData>({
     queryKey: ["me"],
@@ -103,6 +105,20 @@ export function SettingsView() {
 
   return (
     <div className="space-y-5">
+      {/* Stats view (inline, with back button) */}
+      {showStats ? (
+        <div>
+          <button
+            onClick={() => setShowStats(false)}
+            className="flex items-center gap-2 mb-4 text-[12px] text-gold/80 hover:text-gold transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Back to Profile
+          </button>
+          <StatsView />
+        </div>
+      ) : (
+      <>
       <SectionTitle
         eyebrow="Profile"
         title={<>Your <span className="lum-text-gold">space</span></>}
@@ -152,14 +168,23 @@ export function SettingsView() {
         </GlassCard>
       </motion.div>
 
-      {/* Quick stats row */}
+      {/* Quick stats row — 4 tiles matching old practice summary */}
       {data?.usage && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
           <GlassCard className="p-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-3">
+              Your practice
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <PracticeStat icon={Sparkles} label="Readings today" value={data.usage.tarotReadings ?? 0} accent="#C5A87C" />
-              <PracticeStat icon={AudioLines} label="Freq. seconds" value={data.usage.frequencySec ?? 0} accent="#9E8AC9" />
               <PracticeStat icon={Target} label="Active goals" value={data.usage.activeGoals ?? 0} accent="#B5CD7E" />
+              <PracticeStat icon={Check} label="Confirmed today" value={data.usage.confirmedToday ?? 0} accent="#B5CD7E" />
+              <PracticeStat icon={AudioLines} label="Freq. seconds" value={data.usage.frequencySec ?? 0} accent="#9E8AC9" />
+            </div>
+            <Divider className="my-3" />
+            <div className="flex items-center justify-between text-[11px] text-ink-muted">
+              <span>Member since</span>
+              <span className="text-ink font-medium">{memberSince}</span>
             </div>
           </GlassCard>
         </motion.div>
@@ -257,7 +282,7 @@ export function SettingsView() {
           <Divider />
           <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setPremiumOpen(true)} />
           <Divider />
-          <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setTab("home")} />
+          <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setShowStats(true)} />
         </GlassCard>
       </motion.div>
 
@@ -311,6 +336,8 @@ export function SettingsView() {
 
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
       <ClearDataModal open={clearOpen} onOpenChange={setClearOpen} />
+      </>
+      )}
     </div>
   );
 }
