@@ -57,8 +57,12 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       if (startingRef.current) return;
       startingRef.current = true;
 
-      const dur = isPremium ? sessionDuration : 30; // premium: user-selected duration, free: 30s
-      // Set the timer display immediately for responsiveness
+      // HARD STOP any existing session first, then wait for fade to complete
+      // This prevents the "second session doesn't start" bug
+      engine.stop();
+      await new Promise((r) => setTimeout(r, 100));
+
+      const dur = isPremium ? sessionDuration : 30;
       setSecondsLeft(dur);
       setSessionActive(true);
 
@@ -113,7 +117,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
         startingRef.current = false;
       }
     },
-    [engine, isPremium, api, qc, toast, ambient]
+    [engine, isPremium, api, qc, toast, ambient, sessionDuration, ritual, markStep, setSessionActive]
   );
 
   const stopSession = React.useCallback(() => {
