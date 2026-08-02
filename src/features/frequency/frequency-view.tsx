@@ -54,8 +54,8 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
 
   const startSession = React.useCallback(
     async (preset: FrequencyPreset, m: "pure" | "binaural" | "pad") => {
-      if (startingRef.current) return;
-      startingRef.current = true;
+      // Remove startingRef guard — it was getting stuck if engine.start() threw
+      // The engine's own hardStop() handles preventing double-starts
 
       // Stop any existing session first
       engine.stop();
@@ -111,8 +111,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       } catch (err) {
         console.error("Engine start failed:", err);
         setSecondsLeft(null);
-      } finally {
-        startingRef.current = false;
+        setSessionActive(false);
       }
     },
     [engine, isPremium, api, qc, toast, ambient, sessionDuration, ritual, markStep, setSessionActive]
