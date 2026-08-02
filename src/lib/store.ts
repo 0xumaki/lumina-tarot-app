@@ -36,6 +36,9 @@ interface AppState {
   /** Whether a session (frequency/positivity) is currently active — suppresses celebrations. */
   sessionActive: boolean;
   setSessionActive: (v: boolean) => void;
+  /** Full-screen comprehensive Premium comparison page (the old 6-tab-era PremiumView). */
+  premiumPageOpen: boolean;
+  setPremiumPageOpen: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -43,6 +46,8 @@ export const useAppStore = create<AppState>((set) => ({
   setTab: (tab) => set({ tab }),
   pendingPremiumAction: null,
   setPendingPremiumAction: (pendingPremiumAction) => set({ pendingPremiumAction }),
+  premiumPageOpen: false,
+  setPremiumPageOpen: (premiumPageOpen) => set({ premiumPageOpen }),
   celebrations: [],
   pushCelebration: (e) =>
     set((s) => {

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApi } from "@/hooks/use-api";
+import { ChevronLeft } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { BottomNav } from "@/components/lumina/bottom-nav";
 import { HomeView } from "@/features/home/home-view";
@@ -12,6 +13,7 @@ import { ManifestView } from "@/features/manifest/manifest-view";
 import { FrequencyView } from "@/features/frequency/frequency-view";
 import { SettingsView } from "@/features/settings/settings-view";
 import { PremiumModal } from "@/features/premium/premium-modal";
+import { PremiumView } from "@/features/premium/premium-view";
 import { Onboarding, hasOnboarded } from "@/components/lumina/onboarding";
 import { useReminderService } from "@/hooks/use-reminder-service";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +29,8 @@ export default function Page() {
   const api = useApi();
   const tab = useAppStore((s) => s.tab);
   const setTab = useAppStore((s) => s.setTab);
+  const premiumPageOpen = useAppStore((s) => s.premiumPageOpen);
+  const setPremiumPageOpen = useAppStore((s) => s.setPremiumPageOpen);
   const [premiumOpen, setPremiumOpen] = React.useState(false);
   const [onboarded, setOnboarded] = React.useState(true);
 
@@ -111,14 +115,14 @@ export default function Page() {
           </div>
           {isPremium ? (
             <button
-              onClick={() => setTab("profile")}
+              onClick={() => setPremiumPageOpen(true)}
               className="lum-pill-gold text-[10px] hover:bg-gold/20 transition-colors"
             >
               ✦ Premium
             </button>
           ) : (
             <button
-              onClick={() => setTab("profile")}
+              onClick={() => setPremiumPageOpen(true)}
               className="lum-pill-gold text-[10px] hover:bg-gold/20 transition-colors"
             >
               Go Premium
@@ -138,7 +142,7 @@ export default function Page() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
             >
-              {tab === "home" && <HomeView onOpenPremium={() => setPremiumOpen(true)} />}
+              {tab === "home" && <HomeView onOpenPremium={() => setPremiumPageOpen(true)} />}
               {tab === "tarot" && <TarotView isPremium={isPremium} remaining={remaining} />}
               {tab === "manifest" && <ManifestView isPremium={isPremium} />}
               {tab === "frequency" && <FrequencyView isPremium={isPremium} />}
@@ -150,6 +154,41 @@ export default function Page() {
 
       <BottomNav />
       <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
+
+      {/* Full-screen comprehensive Premium comparison page — the old 6-tab-era
+          PremiumView, restored as a scrollable overlay with a sticky close bar. */}
+      <AnimatePresence>
+        {premiumPageOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[90] bg-black overflow-y-auto lum-aurora"
+          >
+            {/* Sticky top bar with back button */}
+            <div className="lum-pt-safe sticky top-0 z-10 px-4 pt-3 pb-2 backdrop-blur-md bg-black/60 border-b border-white/5">
+              <div className="mx-auto max-w-md flex items-center justify-between">
+                <button
+                  onClick={() => setPremiumPageOpen(false)}
+                  className="flex items-center gap-1.5 text-[12px] text-ink-muted hover:text-ink transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <span className="text-[10px] uppercase tracking-[0.22em] text-gold/70 font-medium">
+                  Lumina Premium
+                </span>
+                <div className="w-12" />
+              </div>
+            </div>
+            {/* The full comprehensive premium page */}
+            <div className="mx-auto max-w-md px-4 pt-4 pb-32">
+              <PremiumView />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Global celebration overlay (achievements + level-ups) */}
       <CelebrationOverlay />
       {/* Ritual completion celebration overlay */}

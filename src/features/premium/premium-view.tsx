@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown, Sparkles, Target, AudioLines, Check, X, Infinity as InfinityIcon, ShieldCheck, Star, RotateCcw,
+  ChevronDown, Calendar, Zap, Moon, Sun, Heart, BookOpen, Award,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
@@ -13,27 +14,103 @@ import {
 } from "@/components/lumina/primitives";
 import { useAppStore } from "@/lib/store";
 
-const COMPARISON: {
-  feature: string;
-  free: string | boolean;
-  premium: string | boolean;
-}[] = [
-  { feature: "Tarot questions / day", free: "2", premium: true },
-  { feature: "Available spreads", free: "Yes/No + Single", premium: "All 6 incl. Celtic Cross" },
-  { feature: "AI reading depth", free: "Short", premium: "Deep & multi-paragraph" },
-  { feature: "Reading history", free: true, premium: true },
-  { feature: "Manifestation goals", free: "1 active", premium: true },
-  { feature: "Daily confirmation ritual", free: true, premium: true },
-  { feature: "Frequency session length", free: "30 seconds", premium: "Unlimited" },
-  { feature: "Audio modes", free: "Pure + Binaural", premium: "+ Ambient pads" },
-  { feature: "Home-screen widget & reminders", free: true, premium: true },
-  { feature: "Priority AI responses", free: false, premium: true },
+/* ============================================================
+   COMPREHENSIVE COMPARISON — grouped by pillar
+   ============================================================ */
+
+type Cell = string | boolean;
+type Row = { feature: string; free: Cell; premium: Cell };
+
+const GROUPS: { label: string; icon: typeof Sparkles; color: string; rows: Row[] }[] = [
+  {
+    label: "Tarot & Divination",
+    icon: Sparkles,
+    color: "#C5A87C",
+    rows: [
+      { feature: "Tarot questions per day", free: "2", premium: true },
+      { feature: "Available spreads", free: "Yes/No + Single", premium: "All 6 incl. Celtic Cross" },
+      { feature: "AI reading depth", free: "Short answer", premium: "Deep, multi-paragraph" },
+      { feature: "TL;DR + Summary synthesis", free: "Basic", premium: "Full context answer" },
+      { feature: "Reading history", free: true, premium: true },
+      { feature: "Card-of-Day reveal", free: true, premium: true },
+      { feature: "Priority AI responses", free: false, premium: true },
+    ],
+  },
+  {
+    label: "Manifestation",
+    icon: Target,
+    color: "#B5CD7E",
+    rows: [
+      { feature: "Active goals", free: "1", premium: true },
+      { feature: "Daily confirmation ritual", free: true, premium: true },
+      { feature: "Streak tracking", free: true, premium: true },
+      { feature: "Auto-intention → frequency match", free: true, premium: true },
+      { feature: "Positivity Generator sessions", free: "1 / day", premium: true },
+      { feature: "Positivity categories", free: "3", premium: "All 11" },
+      { feature: "Session length (positivity)", free: "1 min", premium: "Up to 5 min" },
+    ],
+  },
+  {
+    label: "Frequencies & Tones",
+    icon: AudioLines,
+    color: "#9E8AC9",
+    rows: [
+      { feature: "Frequency session length", free: "30 seconds", premium: "Unlimited (up to 3 hr)" },
+      { feature: "Audio modes", free: "Pure + Binaural", premium: "+ Ambient pads" },
+      { feature: "Ambient beds", free: "Rain & Ocean", premium: "All 5 (rain, ocean, wind, stream, river)" },
+      { feature: "Breath guide", free: true, premium: true },
+      { feature: "Secret Solfeggio frequencies", free: false, premium: "963 · 432 · 528 Hz" },
+      { feature: "Custom duration presets", free: false, premium: "30s → 3h slider" },
+    ],
+  },
+  {
+    label: "Mastery & Rewards",
+    icon: Award,
+    color: "#E0A86B",
+    rows: [
+      { feature: "Achievement badges", free: "All 36 unlockable", premium: "All 36 unlockable" },
+      { feature: "Hall of Light (Luminaries)", free: true, premium: true },
+      { feature: "Luminary custom theme", free: true, premium: true },
+      { feature: "Celebration pop-ups", free: true, premium: true },
+      { feature: "Stats & weekly insights", free: true, premium: true },
+      { feature: "Data export", free: true, premium: true },
+    ],
+  },
+  {
+    label: "Experience",
+    icon: Zap,
+    color: "#7AC9A8",
+    rows: [
+      { feature: "Ads", free: "Never", premium: "Never" },
+      { feature: "Home-screen widget & reminders", free: true, premium: true },
+      { feature: "Offline / PWA install", free: true, premium: true },
+      { feature: "Supports the project's growth", free: false, premium: true },
+    ],
+  },
+];
+
+const FAQ = [
+  {
+    q: "Is this a real subscription?",
+    a: "No — Lumina is currently in demo mode. Activating Premium applies the unlock to this device only, with no payment processed. In production this would connect to a real billing provider.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. You can pause or cancel Premium at any time from your Profile → Manage subscription. Your data stays intact either way.",
+  },
+  {
+    q: "What happens to my free-tier progress?",
+    a: "Everything carries over — your readings, goals, streaks, achievements, and the 36 badges you've unlocked. Premium simply lifts the limits on top of what you've already built.",
+  },
+  {
+    q: "Do I need Premium to use Lumina?",
+    a: "No. The free ritual — cleanse, manifest, ask the cards, balance — is complete and always will be. Premium removes the ceilings for deeper practice: more readings, longer sessions, all spreads.",
+  },
 ];
 
 export function PremiumView() {
   const api = useApi();
   const { toast } = useToast();
-  const setTab = useAppStore((s) => s.setTab);
 
   const { data } = useQuery({
     queryKey: ["me"],
@@ -41,6 +118,8 @@ export function PremiumView() {
   });
   const isPremium = data?.device?.isPremium;
   const [loading, setLoading] = React.useState(false);
+  const [billing, setBilling] = React.useState<"monthly" | "annual">("monthly");
+  const [openFaq, setOpenFaq] = React.useState<number | null>(0);
 
   async function toggle() {
     setLoading(true);
@@ -88,9 +167,18 @@ export function PremiumView() {
         </ShellCard>
 
         <PremiumPerksGrid />
+
+        {/* Even as Premium, show what's unlocked */}
+        <FullComparison premium={true} />
       </div>
     );
   }
+
+  const monthlyPrice = 9;
+  const annualPrice = 69; // ~$5.75/mo, saves 42%
+  const price = billing === "monthly" ? monthlyPrice : annualPrice;
+  const priceSub = billing === "monthly" ? "/month" : "/year";
+  const perMonth = billing === "annual" ? Math.round(annualPrice / 12) : null;
 
   return (
     <div className="space-y-5">
@@ -100,6 +188,7 @@ export function PremiumView() {
         subtitle="Unlimited readings, goals, and frequencies — for less than a coffee a month."
       />
 
+      {/* Hero card with billing toggle */}
       <ShellCard className="overflow-hidden">
         <div className="relative p-6 lum-glow-gold">
           <StarField count={16} />
@@ -118,7 +207,6 @@ export function PremiumView() {
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E7D2A8] to-[#9c7f54] flex items-center justify-center shadow-[0_0_40px_rgba(197,168,124,0.5)]">
                 <Crown className="w-8 h-8 text-black" />
               </div>
-              {/* pulsing ring */}
               <motion.div
                 className="absolute inset-0 rounded-full border border-gold/40"
                 animate={{ scale: [1, 1.3], opacity: [0.6, 0] }}
@@ -148,12 +236,40 @@ export function PremiumView() {
               <span className="text-[10px] text-ink-muted">12,400+ seekers</span>
             </div>
 
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-[36px] font-light text-ink">$9</span>
-              <span className="text-[14px] text-ink-muted">/month</span>
-              <span className="ml-2 text-[12px] text-ink-muted line-through">$19</span>
+            {/* Billing toggle */}
+            <div className="mt-4 inline-flex items-center p-1 rounded-full bg-white/[0.04] border border-white/8">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={`px-4 py-1.5 rounded-full text-[11px] font-medium transition-all ${
+                  billing === "monthly" ? "bg-gold/20 text-gold" : "text-ink-muted"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("annual")}
+                className={`px-4 py-1.5 rounded-full text-[11px] font-medium transition-all flex items-center gap-1.5 ${
+                  billing === "annual" ? "bg-gold/20 text-gold" : "text-ink-muted"
+                }`}
+              >
+                Annual
+                <span className="text-[8px] px-1 py-0.5 rounded-full bg-leaf/20 text-leaf">−42%</span>
+              </button>
             </div>
-            <p className="mt-1 text-[12px] text-ink-muted">Cancel anytime · demo mode, no payment</p>
+
+            {/* Price */}
+            <div className="mt-3 flex items-baseline gap-1">
+              <span className="text-[36px] font-light text-ink">${price}</span>
+              <span className="text-[14px] text-ink-muted">{priceSub}</span>
+              {billing === "monthly" ? (
+                <span className="ml-2 text-[12px] text-ink-muted line-through">$19</span>
+              ) : (
+                <span className="ml-2 text-[11px] text-leaf">≈ ${perMonth}/mo</span>
+              )}
+            </div>
+            <p className="mt-1 text-[12px] text-ink-muted">
+              {billing === "annual" ? "Billed yearly · " : ""}Cancel anytime · demo mode, no payment
+            </p>
 
             {/* Gold-gradient CTA */}
             <button
@@ -166,7 +282,7 @@ export function PremiumView() {
               }}
             >
               <Crown className="w-4 h-4" />
-              {loading ? "Activating…" : "Activate Premium"}
+              {loading ? "Activating…" : billing === "annual" ? "Activate Annual Premium" : "Activate Premium"}
             </button>
             <p className="mt-2 text-[10px] text-gold/70 tracking-wide">
               ✦ Instant access · 7-day reflection included
@@ -180,42 +296,44 @@ export function PremiumView() {
 
       <PremiumPerksGrid />
 
-      {/* Comparison */}
-      <GlassCard className="p-4">
-        <h3 className="text-[13px] font-medium text-ink uppercase tracking-[0.14em] mb-3">
-          Free vs Premium
+      {/* Comprehensive grouped comparison */}
+      <FullComparison premium={false} />
+
+      {/* FAQ */}
+      <div>
+        <h3 className="text-[13px] font-medium text-ink uppercase tracking-[0.14em] mb-3 px-1">
+          Questions, answered
         </h3>
-        <div className="space-y-0">
-          {COMPARISON.map((row, i) => (
+        <GlassCard className="overflow-hidden">
+          {FAQ.map((item, i) => (
             <div key={i}>
               {i > 0 && <Divider />}
-              <div className="flex items-center gap-3 py-2.5">
-                <div className="flex-1 min-w-0 text-[12px] text-ink-muted">{row.feature}</div>
-                <div className="w-16 text-right text-[12px] flex items-center justify-end gap-1">
-                  {row.free === true ? (
-                    <Check className="w-3.5 h-3.5 text-leaf" />
-                  ) : row.free === false ? (
-                    <X className="w-3.5 h-3.5 text-ink-muted/50" />
-                  ) : (
-                    <span className="text-ink-muted">{row.free}</span>
-                  )}
-                </div>
-                <div className="w-20 text-right text-[12px] flex items-center justify-end gap-1">
-                  {row.premium === true ? (
-                    <InfinityIcon className="w-4 h-4 text-gold" />
-                  ) : (
-                    <span className="text-gold">{row.premium}</span>
-                  )}
-                </div>
-              </div>
+              <button
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full flex items-center justify-between gap-3 p-4 text-left"
+              >
+                <span className="text-[13px] font-medium text-ink leading-[17px]">{item.q}</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-ink-muted shrink-0 transition-transform ${openFaq === i ? "rotate-180" : ""}`}
+                />
+              </button>
+              <AnimatePresence initial={false}>
+                {openFaq === i && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: [0.2, 0, 0, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <p className="px-4 pb-4 text-[12px] text-ink-muted leading-[18px]">{item.a}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
-        </div>
-        <div className="flex justify-between mt-2 pt-2 text-[10px] uppercase tracking-[0.16em]">
-          <span className="text-ink-muted">Free</span>
-          <span className="text-gold">Premium</span>
-        </div>
-      </GlassCard>
+        </GlassCard>
+      </div>
 
       <GlassCard className="p-3.5">
         <div className="flex items-start gap-2.5">
@@ -227,9 +345,90 @@ export function PremiumView() {
         </div>
       </GlassCard>
 
-      {/* Replay onboarding */}
       <ReplayOnboarding />
     </div>
+  );
+}
+
+/* ============================================================
+   FULL COMPARISON — grouped by pillar with section headers
+   ============================================================ */
+
+function FullComparison({ premium }: { premium: boolean }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-[13px] font-medium text-ink uppercase tracking-[0.14em]">
+          {premium ? "What you've unlocked" : "Free vs Premium"}
+        </h3>
+        <span className="text-[10px] text-ink-muted">Full breakdown</span>
+      </div>
+
+      {GROUPS.map((group, gi) => {
+        const Icon = group.icon;
+        return (
+          <motion.div
+            key={group.label}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.04 * gi }}
+          >
+            <GlassCard className="overflow-hidden">
+              {/* Group header */}
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/5" style={{ background: `${group.color}08` }}>
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: `${group.color}1a`, border: `1px solid ${group.color}40` }}
+                >
+                  <Icon className="w-3.5 h-3.5" style={{ color: group.color }} />
+                </div>
+                <span className="text-[12px] font-medium text-ink tracking-wide">{group.label}</span>
+                <span className="ml-auto text-[10px] text-ink-muted">{group.rows.length} features</span>
+              </div>
+              {/* Rows */}
+              <div className="px-4 py-1">
+                {group.rows.map((row, i) => (
+                  <div key={i}>
+                    {i > 0 && <Divider />}
+                    <div className="flex items-center gap-2 py-2.5">
+                      <div className="flex-1 min-w-0 text-[12px] text-ink-muted leading-[15px]">
+                        {row.feature}
+                      </div>
+                      <div className="w-16 text-right text-[11px] flex items-center justify-end gap-1">
+                        <CellRender value={row.free} premium={false} />
+                      </div>
+                      <div className="w-24 text-right text-[11px] flex items-center justify-end gap-1">
+                        <CellRender value={row.premium} premium={true} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </motion.div>
+        );
+      })}
+
+      {/* Column legend */}
+      <div className="flex justify-between px-4 text-[10px] uppercase tracking-[0.16em]">
+        <span className="text-ink-muted">Free</span>
+        <span className="text-gold">Premium</span>
+      </div>
+    </div>
+  );
+}
+
+function CellRender({ value, premium }: { value: Cell; premium: boolean }) {
+  if (value === true) {
+    return <Check className={`w-3.5 h-3.5 ${premium ? "text-gold" : "text-leaf"}`} />;
+  }
+  if (value === false) {
+    return <X className="w-3.5 h-3.5 text-ink-muted/40" />;
+  }
+  return (
+    <span className={premium ? "text-gold font-medium" : "text-ink-muted"} style={{ fontSize: "11px" }}>
+      {value === true ? <InfinityIcon className="w-3.5 h-3.5" /> : value}
+    </span>
   );
 }
 

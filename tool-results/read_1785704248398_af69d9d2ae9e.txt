@@ -1,0 +1,972 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion } from "framer-motion";
+     5→import { useQuery, useQueryClient } from "@tanstack/react-query";
+     6→import {
+     7→  Crown, RotateCcw, Trash2, ShieldCheck, Bell, Smartphone,
+     8→  Sparkles, Target, AudioLines, ChevronRight, Check, AlertCircle, Info, BarChart3, Download, Volume2, VolumeX, Lock,
+     9→} from "lucide-react";
+    10→import { useApi } from "@/hooks/use-api";
+    11→import { useToast } from "@/hooks/use-toast";
+    12→import { useSoundEnabled, useSound } from "@/hooks/use-sound";
+    13→import { useRitual } from "@/hooks/use-ritual";
+    14→import { useAchievements } from "@/hooks/use-achievements";
+    15→import { useLuminaTheme, type LuminaTheme } from "@/lib/theme";
+    16→import { HallOfLight } from "@/components/lumina/hall-of-light";
+    17→import StatsView from "@/features/stats/stats-view";
+    18→import {
+    19→  GlassCard, ShellCard, GoldButton, GhostButton, Pill, SectionTitle, Divider,
+    20→} from "@/components/lumina/primitives";
+    21→import { PremiumModal } from "@/features/premium/premium-modal";
+    22→import { useAppStore } from "@/lib/store";
+    23→
+    24→type MeData = {
+    25→  device: { id: string; deviceId: string; isPremium: boolean; displayName: string | null; createdAt: string };
+    26→  usage: {
+    27→    date: string;
+    28→    tarotReadings: number;
+    29→    remainingTarot: number | null;
+    30→    frequencySec: number;
+    31→    activeGoals: number;
+    32→    confirmedToday: number;
+    33→  };
+    34→};
+    35→
+    36→export function SettingsView() {
+    37→  const api = useApi();
+    38→  const { toast } = useToast();
+    39→  const qc = useQueryClient();
+    40→  const setTab = useAppStore((s) => s.setTab);
+    41→  const [premiumOpen, setPremiumOpen] = React.useState(false);
+    42→  const [clearOpen, setClearOpen] = React.useState(false);
+    43→  const [loading, setLoading] = React.useState(false);
+    44→  const [showStats, setShowStats] = React.useState(false);
+    45→
+    46→  const { data } = useQuery<MeData>({
+    47→    queryKey: ["me"],
+    48→    queryFn: async () => (await api("/api/me")).json(),
+    49→  });
+    50→  const { ritual, streak: ritualStreak } = useRitual();
+    51→  const { allComplete } = useAchievements();
+    52→  const { theme, setTheme } = useLuminaTheme(allComplete);
+    53→
+    54→  const isPremium = !!data?.device?.isPremium;
+    55→  const memberSince = data?.device?.createdAt
+    56→    ? new Date(data.device.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    57→    : "";
+    58→
+    59→  async function togglePremium() {
+    60→    setLoading(true);
+    61→    try {
+    62→      const res = await api("/api/me", {
+    63→        method: "PATCH",
+    64→        body: JSON.stringify({ isPremium: !isPremium }),
+    65→      });
+    66→      if (res.ok) {
+    67→        toast({
+    68→          title: isPremium ? "Premium paused" : "Welcome to Premium",
+    69→          description: isPremium ? "You're back on the free tier." : "Everything is unlocked.",
+    70→        });
+    71→        qc.invalidateQueries({ queryKey: ["me"] });
+    72→      }
+    73→    } finally {
+    74→      setLoading(false);
+    75→    }
+    76→  }
+    77→
+    78→  function replayOnboarding() {
+    79→    try { localStorage.removeItem("lumina.onboarded"); } catch {}
+    80→    toast({ title: "Onboarding reset", description: "Reloading…" });
+    81→    setTimeout(() => window.location.reload(), 600);
+    82→  }
+    83→
+    84→  async function exportData() {
+    85→    try {
+    86→      const res = await api("/api/export");
+    87→      const data = await res.json();
+    88→      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    89→      const url = URL.createObjectURL(blob);
+    90→      const a = document.createElement("a");
+    91→      a.href = url;
+    92→      a.download = `lumina-export-${new Date().toISOString().slice(0, 10)}.json`;
+    93→      document.body.appendChild(a);
+    94→      a.click();
+    95→      document.body.removeChild(a);
+    96→      URL.revokeObjectURL(url);
+    97→      toast({
+    98→        title: "Data exported",
+    99→        description: `${data.stats.totalReadings} readings, ${data.stats.totalGoals} goals, ${data.stats.totalMoodEntries} moods.`,
+   100→      });
+   101→    } catch {
+   102→      toast({ title: "Export failed", description: "Please try again." });
+   103→    }
+   104→  }
+   105→
+   106→  return (
+   107→    <div className="space-y-5">
+   108→      {/* Stats view (inline, with back button) */}
+   109→      {showStats ? (
+   110→        <div>
+   111→          <button
+   112→            onClick={() => setShowStats(false)}
+   113→            className="flex items-center gap-2 mb-4 text-[12px] text-gold/80 hover:text-gold transition-colors"
+   114→          >
+   115→            <ChevronRight className="w-4 h-4 rotate-180" />
+   116→            Back to Profile
+   117→          </button>
+   118→          <StatsView />
+   119→        </div>
+   120→      ) : (
+   121→      <>
+   122→      <SectionTitle
+   123→        eyebrow="Profile"
+   124→        title={<>Your <span className="lum-text-gold">space</span></>}
+   125→        subtitle="Manage your practice, premium, and data."
+   126→      />
+   127→
+   128→      {/* Profile header — avatar + guest badge + bypass button */}
+   129→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+   130→        <GlassCard className="p-4">
+   131→          <div className="flex items-center gap-3">
+   132→            {/* Avatar */}
+   133→            <div
+   134→              className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
+   135→              style={{
+   136→                background: "radial-gradient(circle at 30% 30%, rgba(197,168,124,0.3), transparent 70%)",
+   137→                border: "1.5px solid rgba(197,168,124,0.35)",
+   138→              }}
+   139→            >
+   140→              <span className="text-[24px] font-light text-gold">✦</span>
+   141→            </div>
+   142→            {/* Name + badge */}
+   143→            <div className="flex-1 min-w-0">
+   144→              <div className="flex items-center gap-2">
+   145→                <span className="text-[15px] font-medium text-ink">
+   146→                  {data?.device?.displayName || "Guest"}
+   147→                </span>
+   148→                {!isPremium && (
+   149→                  <span className="text-[9px] uppercase tracking-[0.18em] text-ink-muted/60 font-medium px-2 py-0.5 rounded-full border border-white/8">
+   150→                    Guest
+   151→                  </span>
+   152→                )}
+   153→              </div>
+   154→              <div className="text-[11px] text-ink-muted mt-0.5">
+   155→                {memberSince ? `Member since ${memberSince}` : "Welcome to Lumina"}
+   156→              </div>
+   157→            </div>
+   158→          </div>
+   159→          {/* Bypass / sign-in button (temporary — will be replaced with real auth) */}
+   160→          <button
+   161→            onClick={() => {
+   162→              toast({ title: "Guest mode", description: "You're browsing as a guest. Sign in coming soon." });
+   163→            }}
+   164→            className="w-full mt-3 rounded-full py-2.5 text-[12px] font-medium text-gold border border-gold/25 bg-gold/5 hover:bg-gold/10 transition-all"
+   165→          >
+   166→            Enter as Guest
+   167→          </button>
+   168→        </GlassCard>
+   169→      </motion.div>
+   170→
+   171→      {/* Quick stats row — 4 tiles matching old practice summary */}
+   172→      {data?.usage && (
+   173→        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+   174→          <GlassCard className="p-4">
+   175→            <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium mb-3">
+   176→              Your practice
+   177→            </div>
+   178→            <div className="grid grid-cols-2 gap-3">
+   179→              <PracticeStat icon={Sparkles} label="Readings today" value={data.usage.tarotReadings ?? 0} accent="#C5A87C" />
+   180→              <PracticeStat icon={Target} label="Active goals" value={data.usage.activeGoals ?? 0} accent="#B5CD7E" />
+   181→              <PracticeStat icon={Check} label="Confirmed today" value={data.usage.confirmedToday ?? 0} accent="#B5CD7E" />
+   182→              <PracticeStat icon={AudioLines} label="Freq. seconds" value={data.usage.frequencySec ?? 0} accent="#9E8AC9" />
+   183→            </div>
+   184→            <Divider className="my-3" />
+   185→            <div className="flex items-center justify-between text-[11px] text-ink-muted">
+   186→              <span>Member since</span>
+   187→              <span className="text-ink font-medium">{memberSince}</span>
+   188→            </div>
+   189→          </GlassCard>
+   190→        </motion.div>
+   191→      )}
+   192→
+   193→      {/* Premium status card */}
+   194→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+   195→        <ShellCard className="overflow-hidden">
+   196→          <div className="relative p-4 lum-glow-gold">
+   197→            <div className="relative z-10 flex items-center gap-3">
+   198→              <div
+   199→                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+   200→                style={{
+   201→                  background: isPremium
+   202→                    ? "linear-gradient(135deg, #E7D2A8, #9c7f54)"
+   203→                    : "radial-gradient(circle at 50% 40%, rgba(197,168,124,0.2), transparent 70%)",
+   204→                  border: `1px solid ${isPremium ? "transparent" : "rgba(197,168,124,0.3)"}`,
+   205→                  boxShadow: isPremium ? "0 0 24px rgba(197,168,124,0.4)" : "none",
+   206→                }}
+   207→              >
+   208→                <Crown className={`w-6 h-6 ${isPremium ? "text-black" : "text-gold"}`} />
+   209→              </div>
+   210→              <div className="flex-1 min-w-0">
+   211→                <div className="flex items-center gap-2">
+   212→                  <span className="text-[15px] font-medium text-ink">
+   213→                    {isPremium ? "Lumina Premium" : "Free tier"}
+   214→                  </span>
+   215→                  {isPremium && (
+   216→                    <div
+   217→                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-semibold tracking-wide"
+   218→                      style={{
+   219→                        background: "linear-gradient(135deg, rgba(181,205,126,0.25), rgba(181,205,126,0.10))",
+   220→                        border: "1px solid rgba(181,205,126,0.5)",
+   221→                        boxShadow: "0 0 12px rgba(181,205,126,0.2), inset 0 1px 0 rgba(181,205,126,0.15)",
+   222→                      }}
+   223→                    >
+   224→                      <motion.div
+   225→                        className="w-1.5 h-1.5 rounded-full"
+   226→                        style={{ background: "#B5CD7E", boxShadow: "0 0 6px #B5CD7E" }}
+   227→                        animate={{ opacity: [1, 0.4, 1] }}
+   228→                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+   229→                      />
+   230→                      <span style={{ color: "#B5CD7E" }}>ACTIVE</span>
+   231→                    </div>
+   232→                  )}
+   233→                </div>
+   234→                <div className="text-[11px] text-ink-muted mt-0.5">
+   235→                  {isPremium
+   236→                    ? "Unlimited tarot, goals & frequencies."
+   237→                    : "2 readings/day · 1 goal · 30s frequencies."}
+   238→                </div>
+   239→              </div>
+   240→            </div>
+   241→            <div className="relative z-10 mt-4">
+   242→              {isPremium ? (
+   243→                <GhostButton onClick={togglePremium} disabled={loading} className="w-full">
+   244→                  {loading ? "…" : "Manage subscription"}
+   245→                </GhostButton>
+   246→              ) : (
+   247→                <GoldButton onClick={() => setPremiumOpen(true)} className="w-full">
+   248→                  <Crown className="w-4 h-4" /> Upgrade to Premium
+   249→                </GoldButton>
+   250→              )}
+   251→            </div>
+   252→          </div>
+   253→        </ShellCard>
+   254→      </motion.div>
+   255→
+   256→      {/* Achievement Badges */}
+   257→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+   258→        <AchievementBadges
+   259→          isPremium={!!data?.device?.isPremium}
+   260→          readingsToday={data?.usage?.tarotReadings ?? 0}
+   261→          confirmedToday={data?.usage?.confirmedToday ?? 0}
+   262→          activeGoals={data?.usage?.activeGoals ?? 0}
+   263→          freqSec={data?.usage?.frequencySec ?? 0}
+   264→          streak={ritualStreak}
+   265→          ritual={ritual}
+   266→        />
+   267→      </motion.div>
+   268→
+   269→      {/* Mastery Rewards — Hall of Light + Luminary Theme + Secret Frequencies (only when all 36 unlocked) */}
+   270→      {allComplete && (
+   271→        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
+   272→          <MasteryRewards theme={theme} onThemeChange={setTheme} />
+   273→        </motion.div>
+   274→      )}
+   275→
+   276→      {/* Quick links */}
+   277→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+   278→        <GlassCard className="overflow-hidden">
+   279→          <SoundToggleRow />
+   280→          <Divider />
+   281→          <SettingsRow icon={RotateCcw} label="Replay the intro" desc="See the onboarding again" onClick={replayOnboarding} />
+   282→          <Divider />
+   283→          <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setPremiumOpen(true)} />
+   284→          <Divider />
+   285→          <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setShowStats(true)} />
+   286→        </GlassCard>
+   287→      </motion.div>
+   288→
+   289→      {/* Data management */}
+   290→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+   291→        <GlassCard className="overflow-hidden">
+   292→          <div className="p-4 pb-2">
+   293→            <div className="text-[10px] uppercase tracking-[0.18em] text-gold/80 font-medium">
+   294→              Data & privacy
+   295→            </div>
+   296→          </div>
+   297→          <SettingsRow
+   298→            icon={ShieldCheck}
+   299→            label="Your data is local"
+   300→            desc="Stored on this device only. No account, no email."
+   301→            onClick={() => toast({ title: "Private by design", description: "Your readings never leave this device's database." })}
+   302→          />
+   303→          <Divider />
+   304→          <SettingsRow
+   305→            icon={Download}
+   306→            label="Export your data"
+   307→            desc="Download all readings, goals & moods as JSON"
+   308→            onClick={exportData}
+   309→          />
+   310→          <Divider />
+   311→          <SettingsRow
+   312→            icon={Trash2}
+   313→            label="Clear all data"
+   314→            desc="Erase readings, goals, moods & stats"
+   315→            onClick={() => setClearOpen(true)}
+   316→            destructive
+   317→          />
+   318→        </GlassCard>
+   319→      </motion.div>
+   320→
+   321→      {/* About */}
+   322→      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+   323→        <GlassCard className="p-4">
+   324→          <div className="flex items-start gap-2.5">
+   325→            <Info className="w-3.5 h-3.5 text-ink-muted mt-0.5 shrink-0" />
+   326→            <div>
+   327→              <div className="text-[12px] font-medium text-ink">Lumina · Tarot · Manifest · Tones</div>
+   328→              <p className="text-[11px] text-ink-muted leading-[15px] mt-1">
+   329→                A mystical daily companion for clarity, desire, and resonance. Built with care for the seeking heart.
+   330→              </p>
+   331→              <div className="text-[10px] text-ink-muted/60 mt-2">Version 1.0 · PWA</div>
+   332→            </div>
+   333→          </div>
+   334→        </GlassCard>
+   335→      </motion.div>
+   336→
+   337→      <PremiumModal open={premiumOpen} onOpenChange={setPremiumOpen} />
+   338→      <ClearDataModal open={clearOpen} onOpenChange={setClearOpen} />
+   339→      </>
+   340→      )}
+   341→    </div>
+   342→  );
+   343→}
+   344→
+   345→function PracticeStat({ icon: Icon, label, value, accent }: { icon: React.ElementType; label: string; value: number; accent: string }) {
+   346→  return (
+   347→    <div className="flex items-center gap-2.5">
+   348→      <div
+   349→        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+   350→        style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}
+   351→      >
+   352→        <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
+   353→      </div>
+   354→      <div className="min-w-0">
+   355→        <div className="text-[16px] font-light text-ink tabular-nums leading-none">{value}</div>
+   356→        <div className="text-[10px] text-ink-muted mt-0.5">{label}</div>
+   357→      </div>
+   358→    </div>
+   359→  );
+   360→}
+   361→
+   362→/**
+   363→ * MasteryRewards — the Luminary reward panel shown when all 36 achievements are unlocked.
+   364→ * Contains: Hall of Light constellation, Luminary Theme toggle, and a Secret Frequencies pointer.
+   365→ */
+   366→function MasteryRewards({
+   367→  theme,
+   368→  onThemeChange,
+   369→}: {
+   370→  theme: LuminaTheme;
+   371→  onThemeChange: (t: LuminaTheme) => void;
+   372→}) {
+   373→  const setTab = useAppStore((s) => s.setTab);
+   374→  const masteryDate = React.useMemo(() => {
+   375→    try {
+   376→      return localStorage.getItem("lumina.masteryCelebrated") || new Date().toISOString();
+   377→    } catch {
+   378→      return new Date().toISOString();
+   379→    }
+   380→  }, []);
+   381→
+   382→  const goldGrad = "linear-gradient(135deg, #FBEFC8, #D4B27A, #8A6A2F)";
+   383→
+   384→  return (
+   385→    <div className="space-y-4">
+   386→      {/* Mastery banner */}
+   387→      <ShellCard className="overflow-hidden">
+   388→        <div className="relative p-5 lum-glow-gold text-center">
+   389→          {/* Animated light rays */}
+   390→          <motion.div
+   391→            className="absolute inset-0 pointer-events-none flex items-center justify-center"
+   392→            animate={{ rotate: 360 }}
+   393→            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+   394→          >
+   395→            {Array.from({ length: 8 }).map((_, i) => (
+   396→              <div
+   397→                key={i}
+   398→                className="absolute w-px origin-bottom"
+   399→                style={{
+   400→                  height: "160px",
+   401→                  background: "linear-gradient(to top, transparent, rgba(197,168,124,0.1), transparent)",
+   402→                  transform: `rotate(${i * 45}deg) translateY(-80px)`,
+   403→                }}
+   404→              />
+   405→            ))}
+   406→          </motion.div>
+   407→          <div className="relative z-10">
+   408→            <motion.div
+   409→              className="w-16 h-16 mx-auto mb-3 relative flex items-center justify-center"
+   410→              animate={{ scale: [1, 1.08, 1] }}
+   411→              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+   412→            >
+   413→              <div
+   414→                className="absolute inset-0 rounded-full"
+   415→                style={{
+   416→                  background: "radial-gradient(circle, rgba(197,168,124,0.3), transparent 70%)",
+   417→                  border: "1.5px solid rgba(197,168,124,0.4)",
+   418→                  boxShadow: "0 0 30px rgba(197,168,124,0.4)",
+   419→                }}
+   420→              />
+   421→              <svg width="36" height="36" viewBox="0 0 72 72" fill="none" className="relative z-10">
+   422→                <defs>
+   423→                  <linearGradient id="mr-crown" x1="14" y1="10" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+   424→                    <stop offset="0%" stopColor="#FBEFC8" />
+   425→                    <stop offset="55%" stopColor="#D4B27A" />
+   426→                    <stop offset="100%" stopColor="#8A6A2F" />
+   427→                  </linearGradient>
+   428→                </defs>
+   429→                <path d="M14 50 L18 26 L28 38 L36 22 L44 38 L54 26 L58 50 Z" fill="url(#mr-crown)" stroke="#FFFFFF" strokeOpacity="0.5" strokeWidth="0.6" strokeLinejoin="round" />
+   430→                <rect x="14" y="48" width="44" height="6" rx="1.5" fill="url(#mr-crown)" stroke="#FFFFFF" strokeOpacity="0.3" strokeWidth="0.5" />
+   431→                <circle cx="36" cy="22" r="2.4" fill="#FFFFFF" fillOpacity="0.95" />
+   432→              </svg>
+   433→            </motion.div>
+   434→            <div className="text-[10px] uppercase tracking-[0.3em] text-gold font-medium mb-1">✦ Luminary Status ✦</div>
+   435→            <h3 className="text-[20px] font-light text-ink leading-[24px] mb-1">
+   436→              All <span style={{ background: goldGrad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>36 achievements</span> complete
+   437→            </h3>
+   438→            <p className="text-[11px] text-ink-muted leading-[15px] max-w-[280px] mx-auto">
+   439→              You have walked the full path. Three sacred rewards are now yours.
+   440→            </p>
+   441→          </div>
+   442→        </div>
+   443→      </ShellCard>
+   444→
+   445→      {/* Hall of Light */}
+   446→      <HallOfLight unlockedAt={masteryDate} />
+   447→
+   448→      {/* Luminary Theme toggle */}
+   449→      <GlassCard className="p-4">
+   450→        <div className="flex items-center justify-between mb-3">
+   451→          <div className="flex items-center gap-2">
+   452→            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gold to-gold/30" />
+   453→            <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold font-medium">Luminary Theme</h3>
+   454→          </div>
+   455→          {theme === "luminary" && <Pill variant="gold">Active</Pill>}
+   456→        </div>
+   457→        <p className="text-[11px] text-ink-muted leading-[15px] mb-3">
+   458→          A warm, radiant gold-tinted theme with floating particle effects — exclusive to Luminaries.
+   459→        </p>
+   460→        {/* Theme toggle — two options */}
+   461→        <div className="flex gap-2">
+   462→          <button
+   463→            onClick={() => onThemeChange("dark")}
+   464→            className={`flex-1 rounded-xl p-3 border transition-all ${
+   465→              theme === "dark"
+   466→                ? "border-white/20 bg-white/[0.04]"
+   467→                : "border-white/8 bg-transparent hover:border-white/12"
+   468→            }`}
+   469→          >
+   470→            <div className="w-full h-8 rounded-md mb-2" style={{ background: "linear-gradient(135deg, #000000, #121815)" }} />
+   471→            <div className="text-[11px] font-medium text-ink">Midnight</div>
+   472→            <div className="text-[9px] text-ink-muted">The original dark</div>
+   473→          </button>
+   474→          <button
+   475→            onClick={() => onThemeChange("luminary")}
+   476→            className={`flex-1 rounded-xl p-3 border transition-all ${
+   477→              theme === "luminary"
+   478→                ? "border-gold/50 bg-gold/[0.08]"
+   479→                : "border-gold/15 bg-transparent hover:border-gold/25"
+   480→            }`}
+   481→            style={theme === "luminary" ? { boxShadow: "0 0 16px rgba(197,168,124,0.2)" } : undefined}
+   482→          >
+   483→            <div className="w-full h-8 rounded-md mb-2" style={{ background: "linear-gradient(135deg, #0A0805, #1A140C)", boxShadow: "inset 0 0 8px rgba(231,210,168,0.15)" }} />
+   484→            <div className="text-[11px] font-medium text-gold">Luminary</div>
+   485→            <div className="text-[9px] text-ink-muted">Warm gold radiance</div>
+   486→          </button>
+   487→        </div>
+   488→      </GlassCard>
+   489→
+   490→      {/* Secret Frequencies pointer */}
+   491→      <GlassCard className="p-4">
+   492→        <div className="flex items-center justify-between mb-2">
+   493→          <div className="flex items-center gap-2">
+   494→            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gold to-gold/30" />
+   495→            <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold font-medium">Secret Frequencies</h3>
+   496→          </div>
+   497→          <Pill variant="gold">3 unlocked</Pill>
+   498→        </div>
+   499→        <p className="text-[11px] text-ink-muted leading-[15px] mb-3">
+   500→          The three crown jewels of the Solfeggio scale — 963 Hz, 432 Hz, and 528 Hz — reserved for Luminaries.
+   501→        </p>
+   502→        <button
+   503→          onClick={() => setTab("frequency")}
+   504→          className="w-full rounded-full px-4 py-2.5 text-[12px] font-medium text-black active:scale-[0.98] transition-all"
+   505→          style={{ background: goldGrad }}
+   506→        >
+   507→          ✦ Open Secret Frequencies
+   508→        </button>
+   509→      </GlassCard>
+   510→    </div>
+   511→  );
+   512→}
+   513→
+   514→/**
+   515→ * Achievement Badges — 36 unlockable milestones (18 free + 18 premium).
+   516→ * Premium SVG icons with colors baked into gradients (no currentColor).
+   517→ * Unlocked: vibrant SVG displayed directly with a colored glow container.
+   518→ * Locked: grayscale + dim CSS filter on the icon (still visible, just desaturated).
+   519→ */
+   520→
+   521→type RitualInfo = {
+   522→  step1Cleanse: boolean;
+   523→  step2Manifest: boolean;
+   524→  step3Tarot: boolean;
+   525→  step4Balance: boolean;
+   526→  completed: boolean;
+   527→} | null;
+   528→
+   529→type BadgeCtx = {
+   530→  isPremium: boolean;
+   531→  readingsToday: number;
+   532→  confirmedToday: number;
+   533→  activeGoals: number;
+   534→  freqSec: number;
+   535→  streak: number;
+   536→  ritual: RitualInfo;
+   537→};
+   538→
+   539→type Badge = {
+   540→  id: string;
+   541→  name: string;
+   542→  svg: string;
+   543→  desc: string;
+   544→  tier: "free" | "premium";
+   545→  color: string;
+   546→  unlock: (c: BadgeCtx) => boolean;
+   547→};
+   548→
+   549→const BADGES: Badge[] = [
+   550→  // ── Free tier (18) ────────────────────────────────────────────
+   551→  { id: "first-card",      name: "First Card",     svg: "/badges/first-card.svg",      desc: "Drew your first tarot card",        tier: "free",    color: "#D4B27A", unlock: (c) => c.readingsToday > 0 },
+   552→  { id: "card-reader",     name: "Card Reader",    svg: "/badges/card-reader.svg",     desc: "Drew 2+ cards in a day",            tier: "free",    color: "#D4B27A", unlock: (c) => c.readingsToday >= 2 },
+   553→  { id: "ritual-keeper",   name: "Ritual Keeper",  svg: "/badges/ritual-keeper.svg",   desc: "Began a daily ritual step",         tier: "free",    color: "#F09A3D", unlock: (c) => !!(c.ritual && (c.ritual.step1Cleanse || c.ritual.step2Manifest || c.ritual.step3Tarot || c.ritual.step4Balance)) },
+   554→  { id: "consistent",      name: "Consistent",     svg: "/badges/consistent.svg",      desc: "Confirmed a goal today",            tier: "free",    color: "#A4CC72", unlock: (c) => c.confirmedToday > 0 },
+   555→  { id: "resonator",       name: "Resonator",      svg: "/badges/resonator.svg",       desc: "Listened to a frequency",           tier: "free",    color: "#5FA9C7", unlock: (c) => c.freqSec > 0 },
+   556→  { id: "goal-setter",     name: "Goal Setter",    svg: "/badges/goal-setter.svg",     desc: "Set a manifestation goal",          tier: "free",    color: "#A4CC72", unlock: (c) => c.activeGoals > 0 },
+   557→  { id: "morning-light",   name: "Morning Light",  svg: "/badges/morning-light.svg",   desc: "Practice at sunrise",               tier: "free",    color: "#F09A3D", unlock: (c) => c.readingsToday > 0 || c.confirmedToday > 0 },
+   558→  { id: "moon-child",      name: "Moon Child",     svg: "/badges/moon-child.svg",      desc: "Practice after sundown",            tier: "free",    color: "#9B82D6", unlock: (c) => c.freqSec > 0 },
+   559→  { id: "mood-tracker",    name: "Mood Keeper",    svg: "/badges/mood-tracker.svg",    desc: "Tune in to how you feel",           tier: "free",    color: "#D876A0", unlock: (c) => c.confirmedToday > 0 },
+   560→  { id: "three-spread",    name: "Three Spread",   svg: "/badges/three-spread.svg",    desc: "Complete a 3-card spread",          tier: "free",    color: "#D4B27A", unlock: (c) => c.readingsToday >= 3 },
+   561→  { id: "first-frequency", name: "First Tone",     svg: "/badges/first-frequency.svg", desc: "First frequency session",           tier: "free",    color: "#5FA9C7", unlock: (c) => c.freqSec > 0 },
+   562→  { id: "breather",        name: "Breather",       svg: "/badges/breather.svg",        desc: "2+ minutes of breathing",           tier: "free",    color: "#A4CC72", unlock: (c) => c.freqSec >= 120 },
+   563→  { id: "reveal",          name: "The Reveal",     svg: "/badges/reveal.svg",          desc: "Reveal your card of the day",       tier: "free",    color: "#9B82D6", unlock: (c) => c.readingsToday > 0 },
+   564→  { id: "seven-seeker",    name: "Seven Seeker",   svg: "/badges/seven-seeker.svg",    desc: "Reach a 7-day streak",              tier: "free",    color: "#F09A3D", unlock: (c) => c.streak >= 7 },
+   565→  { id: "wheel-of-time",   name: "Wheel of Time",  svg: "/badges/wheel-of-time.svg",   desc: "Draw 5+ cards in a day",            tier: "free",    color: "#D4B27A", unlock: (c) => c.readingsToday >= 5 },
+   566→  { id: "cleansed",        name: "Cleansed",       svg: "/badges/cleansed.svg",        desc: "Complete the Cleanse step",         tier: "free",    color: "#5FA9C7", unlock: (c) => !!(c.ritual && c.ritual.step1Cleanse) },
+   567→  { id: "balanced",        name: "Balanced",       svg: "/badges/balanced.svg",        desc: "Complete the Balance step",         tier: "free",    color: "#9B82D6", unlock: (c) => !!(c.ritual && c.ritual.step4Balance) },
+   568→  { id: "asked",           name: "The Ask",        svg: "/badges/asked.svg",           desc: "Complete the Ask step",             tier: "free",    color: "#D4B27A", unlock: (c) => !!(c.ritual && c.ritual.step3Tarot) },
+   569→  // ── Premium tier (18) ─────────────────────────────────────────
+   570→  { id: "seer",            name: "Seer",           svg: "/badges/seer.svg",            desc: "Complete a Celtic Cross (10 cards)", tier: "premium", color: "#9B82D6", unlock: (c) => c.isPremium && c.readingsToday >= 10 },
+   571→  { id: "manifestor",      name: "Manifestor",     svg: "/badges/manifestor.svg",      desc: "Affirm a goal into being",          tier: "premium", color: "#A4CC72", unlock: (c) => c.isPremium && c.confirmedToday > 0 },
+   572→  { id: "deep-resonator",  name: "Deep Resonator", svg: "/badges/deep-resonator.svg",  desc: "10-minute frequency session",       tier: "premium", color: "#5FA9C7", unlock: (c) => c.isPremium && c.freqSec >= 600 },
+   573→  { id: "ritual-master",   name: "Ritual Master",  svg: "/badges/ritual-master.svg",   desc: "7-day ritual streak",               tier: "premium", color: "#D4B27A", unlock: (c) => c.isPremium && c.streak >= 7 },
+   574→  { id: "scholar",         name: "Scholar",        svg: "/badges/scholar.svg",         desc: "Draw 5+ cards in a session",        tier: "premium", color: "#D4B27A", unlock: (c) => c.isPremium && c.readingsToday >= 5 },
+   575→  { id: "mystic",          name: "Mystic",         svg: "/badges/mystic.svg",          desc: "Open the full frequency spectrum",  tier: "premium", color: "#9B82D6", unlock: (c) => c.isPremium && c.freqSec > 0 },
+   576→  { id: "priestess",       name: "Priestess",      svg: "/badges/priestess.svg",       desc: "Work with the High Priestess",      tier: "premium", color: "#9B82D6", unlock: (c) => c.isPremium && c.readingsToday > 0 },
+   577→  { id: "magician",        name: "Magician",       svg: "/badges/magician.svg",        desc: "Work with the Magician",            tier: "premium", color: "#D4B27A", unlock: (c) => c.isPremium && c.readingsToday > 0 },
+   578→  { id: "star-bearer",     name: "Star Bearer",    svg: "/badges/star-bearer.svg",     desc: "Work with the Star",                tier: "premium", color: "#F09A3D", unlock: (c) => c.isPremium && c.readingsToday > 0 },
+   579→  { id: "world-walker",    name: "World Walker",   svg: "/badges/world-walker.svg",    desc: "Complete a 3+ card spread",         tier: "premium", color: "#A4CC72", unlock: (c) => c.isPremium && c.readingsToday >= 3 },
+   580→  { id: "sun-child",       name: "Sun Child",      svg: "/badges/sun-child.svg",       desc: "Affirm under the Sun",              tier: "premium", color: "#F09A3D", unlock: (c) => c.isPremium && c.confirmedToday > 0 },
+   581→  { id: "moon-walker",     name: "Moon Walker",    svg: "/badges/moon-walker.svg",     desc: "Resonate with the Moon",            tier: "premium", color: "#9B82D6", unlock: (c) => c.isPremium && c.freqSec > 0 },
+   582→  { id: "tower-breaker",   name: "Tower Breaker",  svg: "/badges/tower-breaker.svg",   desc: "Break through with the Tower",      tier: "premium", color: "#F09A3D", unlock: (c) => c.isPremium && c.readingsToday >= 5 },
+   583→  { id: "phoenix",         name: "Phoenix",        svg: "/badges/phoenix.svg",         desc: "Transform with Death",              tier: "premium", color: "#D876A0", unlock: (c) => c.isPremium && c.confirmedToday > 0 },
+   584→  { id: "empress",         name: "Empress",        svg: "/badges/empress.svg",         desc: "Nurture a goal with the Empress",   tier: "premium", color: "#D876A0", unlock: (c) => c.isPremium && c.activeGoals > 0 },
+   585→  { id: "emperor",         name: "Emperor",        svg: "/badges/emperor.svg",         desc: "Structure a goal with the Emperor", tier: "premium", color: "#D4B27A", unlock: (c) => c.isPremium && c.activeGoals > 0 },
+   586→  { id: "hermit",          name: "Hermit",         svg: "/badges/hermit.svg",          desc: "Sit with 5+ min of frequency",      tier: "premium", color: "#F09A3D", unlock: (c) => c.isPremium && c.freqSec >= 300 },
+   587→  { id: "lovers",          name: "The Lovers",     svg: "/badges/lovers.svg",          desc: "Unite intention and feeling",       tier: "premium", color: "#D876A0", unlock: (c) => c.isPremium && c.confirmedToday > 0 },
+   588→];
+   589→
+   590→function AchievementBadges({
+   591→  isPremium,
+   592→  readingsToday,
+   593→  confirmedToday,
+   594→  activeGoals,
+   595→  freqSec,
+   596→  streak,
+   597→  ritual,
+   598→}: {
+   599→  isPremium: boolean;
+   600→  readingsToday: number;
+   601→  confirmedToday: number;
+   602→  activeGoals: number;
+   603→  freqSec: number;
+   604→  streak: number;
+   605→  ritual: RitualInfo;
+   606→}) {
+   607→  const [tier, setTier] = React.useState<"all" | "free" | "premium">("all");
+   608→  const [selected, setSelected] = React.useState<Badge | null>(null);
+   609→
+   610→  const ctx: BadgeCtx = React.useMemo(
+   611→    () => ({ isPremium, readingsToday, confirmedToday, activeGoals, freqSec, streak, ritual }),
+   612→    [isPremium, readingsToday, confirmedToday, activeGoals, freqSec, streak, ritual],
+   613→  );
+   614→
+   615→  const withStatus = React.useMemo(
+   616→    () => BADGES.map((b) => ({ ...b, unlocked: b.unlock(ctx) })),
+   617→    [ctx],
+   618→  );
+   619→  const unlockedCount = withStatus.filter((b) => b.unlocked).length;
+   620→  const visible = tier === "all" ? withStatus : withStatus.filter((b) => b.tier === tier);
+   621→
+   622→  const freeUnlocked = withStatus.filter((b) => b.tier === "free" && b.unlocked).length;
+   623→  const premiumUnlocked = withStatus.filter((b) => b.tier === "premium" && b.unlocked).length;
+   624→
+   625→  return (
+   626→    <GlassCard className="p-4">
+   627→      {/* Header */}
+   628→      <div className="flex items-center justify-between mb-3">
+   629→        <div className="flex items-center gap-2">
+   630→          <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gold to-gold/30" />
+   631→          <h3 className="text-[12px] uppercase tracking-[0.2em] text-gold font-medium">Achievements</h3>
+   632→        </div>
+   633→        <div className="flex items-baseline gap-1">
+   634→          <span className="text-[13px] font-light text-ink tabular-nums">{unlockedCount}</span>
+   635→          <span className="text-[10px] text-ink-muted">/ {BADGES.length} unlocked</span>
+   636→        </div>
+   637→      </div>
+   638→
+   639→      {/* Progress bar */}
+   640→      <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden mb-4">
+   641→        <motion.div
+   642→          className="h-full rounded-full"
+   643→          style={{ background: "linear-gradient(90deg, #C5A87C, #B5CD7E, #9E8AC9)" }}
+   644→          initial={{ width: 0 }}
+   645→          animate={{ width: `${(unlockedCount / BADGES.length) * 100}%` }}
+   646→          transition={{ type: "spring", stiffness: 120, damping: 20 }}
+   647→        />
+   648→      </div>
+   649→
+   650→      {/* Tier filter pills */}
+   651→      <div className="flex items-center gap-1.5 mb-3 p-0.5 rounded-full bg-white/[0.025] border border-white/[0.04]">
+   652→        {([
+   653→          { k: "all", label: "All", count: unlockedCount, total: BADGES.length },
+   654→          { k: "free", label: "Free", count: freeUnlocked, total: 18 },
+   655→          { k: "premium", label: "Premium", count: premiumUnlocked, total: 18 },
+   656→        ] as const).map((p) => (
+   657→          <button
+   658→            key={p.k}
+   659→            onClick={() => setTier(p.k)}
+   660→            className={`flex-1 rounded-full py-1.5 px-2 text-[10.5px] font-medium tracking-wide transition-all ${
+   661→              tier === p.k
+   662→                ? "bg-gradient-to-b from-gold/25 to-gold/10 text-gold border border-gold/30"
+   663→                : "text-ink-muted hover:text-ink"
+   664→            }`}
+   665→          >
+   666→            {p.label}
+   667→            <span className={`ml-1 tabular-nums ${tier === p.k ? "text-gold/80" : "text-ink-muted/60"}`}>
+   668→              {p.count}/{p.total}
+   669→            </span>
+   670→          </button>
+   671→        ))}
+   672→      </div>
+   673→
+   674→      {/* Badge grid — scrollable for 36 items */}
+   675→      <div
+   676→        className="grid grid-cols-3 gap-x-2 gap-y-3 max-h-[360px] overflow-y-auto pr-1 lumina-scroll"
+   677→        role="list"
+   678→      >
+   679→        {visible.map((badge, i) => (
+   680→          <motion.button
+   681→            key={badge.id}
+   682→            role="listitem"
+   683→            initial={{ opacity: 0, scale: 0.85 }}
+   684→            animate={{ opacity: 1, scale: 1 }}
+   685→            transition={{ delay: Math.min(i * 0.02, 0.4) }}
+   686→            onClick={() => setSelected(badge)}
+   687→            className="flex flex-col items-center text-center group focus:outline-none"
+   688→            title={`${badge.name} — ${badge.desc}${badge.unlocked ? " (unlocked)" : " (locked)"}`}
+   689→          >
+   690→            <div
+   691→              className="w-14 h-14 rounded-full flex items-center justify-center mb-1.5 relative transition-all duration-300 group-hover:scale-105 group-active:scale-95"
+   692→              style={{
+   693→                background: badge.unlocked
+   694→                  ? `radial-gradient(circle at 30% 30%, ${badge.color}33, ${badge.color}10 60%, transparent 80%)`
+   695→                  : "rgba(255,255,255,0.018)",
+   696→                border: `1.2px solid ${badge.unlocked ? `${badge.color}66` : "rgba(255,255,255,0.05)"}`,
+   697→                boxShadow: badge.unlocked
+   698→                  ? `0 0 16px ${badge.color}33, inset 0 0 12px ${badge.color}14`
+   699→                  : "inset 0 0 8px rgba(0,0,0,0.4)",
+   700→              }}
+   701→            >
+   702→              {/* Inner medal ring for unlocked */}
+   703→              {badge.unlocked && (
+   704→                <div
+   705→                  className="absolute inset-1 rounded-full pointer-events-none"
+   706→                  style={{ border: `0.5px solid ${badge.color}40` }}
+   707→                />
+   708→              )}
+   709→              {/* The SVG icon — displayed directly, no recoloring filter */}
+   710→              <img
+   711→                src={badge.svg}
+   712→                alt=""
+   713→                width={36}
+   714→                height={36}
+   715→                draggable={false}
+   716→                className="w-9 h-9 select-none pointer-events-none"
+   717→                style={{
+   718→                  filter: badge.unlocked
+   719→                    ? "drop-shadow(0 1px 2px rgba(0,0,0,0.45))"
+   720→                    : "grayscale(0.85) brightness(0.9) opacity(0.6)",
+   721→                }}
+   722→              />
+   723→              {/* Premium lock badge for locked premium-tier badges */}
+   724→              {!badge.unlocked && badge.tier === "premium" && (
+   725→                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-black border border-gold/40 flex items-center justify-center">
+   726→                  <Lock className="w-2 h-2 text-gold/70" />
+   727→                </div>
+   728→              )}
+   729→              {/* Sparkle twinkle for freshly unlocked (purely decorative) */}
+   730→              {badge.unlocked && (
+   731→                <span
+   732→                  className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full"
+   733→                  style={{
+   734→                    background: badge.color,
+   735→                    boxShadow: `0 0 6px ${badge.color}`,
+   736→                    opacity: 0.85,
+   737→                  }}
+   738→                />
+   739→              )}
+   740→            </div>
+   741→            <div
+   742→              className="text-[10px] font-medium leading-[12px] max-w-[72px] min-h-[24px] flex items-center justify-center text-center line-clamp-2"
+   743→              style={{ color: badge.unlocked ? "#E8EBE9" : "#9CA8A3" }}
+   744→            >
+   745→              {badge.name}
+   746→            </div>
+   747→          </motion.button>
+   748→        ))}
+   749→      </div>
+   750→
+   751→      <Divider className="my-3" />
+   752→      <div className="flex items-center justify-between text-[10px] text-ink-muted">
+   753→        <span>Tap a badge to see how to earn it.</span>
+   754→        {!isPremium && <span className="text-gold/60">Premium unlocks 18 more →</span>}
+   755→      </div>
+   756→
+   757→      {/* Detail popover */}
+   758→      <BadgeDetail badge={selected} onClose={() => setSelected(null)} isPremium={isPremium} />
+   759→    </GlassCard>
+   760→  );
+   761→}
+   762→
+   763→function BadgeDetail({
+   764→  badge,
+   765→  onClose,
+   766→  isPremium,
+   767→}: {
+   768→  badge: Badge | null;
+   769→  onClose: () => void;
+   770→  isPremium: boolean;
+   771→}) {
+   772→  const isOpen = !!badge;
+   773→  return (
+   774→    <motion.div
+   775→      initial={{ opacity: 0 }}
+   776→      animate={{ opacity: isOpen ? 1 : 0 }}
+   777→      className={`fixed inset-0 z-[80] flex items-end sm:items-center justify-center ${isOpen ? "" : "pointer-events-none"}`}
+   778→      onClick={onClose}
+   779→    >
+   780→      {isOpen && <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />}
+   781→      <motion.div
+   782→        initial={{ y: 50, opacity: 0, scale: 0.97 }}
+   783→        animate={{ y: isOpen ? 0 : 50, opacity: isOpen ? 1 : 0, scale: isOpen ? 1 : 0.97 }}
+   784→        transition={{ type: "spring", stiffness: 280, damping: 26 }}
+   785→        className="relative w-full max-w-sm m-3 lum-glass-float rounded-[24px] overflow-hidden"
+   786→        onClick={(e) => e.stopPropagation()}
+   787→      >
+   788→        {badge && (
+   789→          <div className="p-6 text-center">
+   790→            <div
+   791→              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center relative"
+   792→              style={{
+   793→                background: badge.unlocked
+   794→                  ? `radial-gradient(circle at 30% 30%, ${badge.color}33, ${badge.color}10 60%, transparent 80%)`
+   795→                  : "rgba(255,255,255,0.025)",
+   796→                border: `1.5px solid ${badge.unlocked ? `${badge.color}66` : "rgba(255,255,255,0.06)"}`,
+   797→                boxShadow: badge.unlocked ? `0 0 28px ${badge.color}40, inset 0 0 16px ${badge.color}18` : "none",
+   798→              }}
+   799→            >
+   800→              <img
+   801→                src={badge.svg}
+   802→                alt=""
+   803→                width={48}
+   804→                height={48}
+   805→                className="w-12 h-12"
+   806→                style={{
+   807→                  filter: badge.unlocked
+   808→                    ? "drop-shadow(0 1px 3px rgba(0,0,0,0.5))"
+   809→                    : "grayscale(0.85) brightness(0.9) opacity(0.6)",
+   810→                }}
+   811→              />
+   812→            </div>
+   813→
+   814→            <div className="flex items-center justify-center gap-2 mb-1">
+   815→              <span
+   816→                className="text-[9.5px] uppercase tracking-[0.18em] font-medium"
+   817→                style={{ color: badge.color }}
+   818→              >
+   819→                {badge.tier === "premium" ? "Premium" : "Free"}
+   820→              </span>
+   821→              <span className="text-[9.5px] text-ink-muted">·</span>
+   822→              <span
+   823→                className="text-[9.5px] uppercase tracking-[0.18em] font-medium"
+   824→                style={{ color: badge.unlocked ? badge.color : "#9CA8A3" }}
+   825→              >
+   826→                {badge.unlocked ? "Unlocked" : "Locked"}
+   827→              </span>
+   828→            </div>
+   829→
+   830→            <h3 className="text-[17px] font-medium text-ink mb-1">{badge.name}</h3>
+   831→            <p className="text-[12px] text-ink-muted leading-[17px] max-w-[240px] mx-auto">
+   832→              {badge.desc}
+   833→            </p>
+   834→
+   835→            <div className="mt-5">
+   836→              {!badge.unlocked && badge.tier === "premium" && !isPremium ? (
+   837→                <GhostButton onClick={onClose} className="w-full">
+   838→                  Premium unlocks this badge
+   839→                </GhostButton>
+   840→              ) : (
+   841→                <GhostButton onClick={onClose} className="w-full">
+   842→                  {badge.unlocked ? "Nicely done" : "Keep practicing"}
+   843→                </GhostButton>
+   844→              )}
+   845→            </div>
+   846→          </div>
+   847→        )}
+   848→      </motion.div>
+   849→    </motion.div>
+   850→  );
+   851→}
+   852→
+   853→function SoundToggleRow() {
+   854→  const { enabled, toggle } = useSoundEnabled();
+   855→  const sound = useSound();
+   856→  const Icon = enabled ? Volume2 : VolumeX;
+   857→  return (
+   858→    <div className="w-full flex items-center gap-3 p-4">
+   859→      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gold/10 border border-gold/20">
+   860→        <Icon className="w-4 h-4 text-gold" />
+   861→      </div>
+   862→      <div className="flex-1 min-w-0">
+   863→        <div className="text-[13px] font-medium text-ink">Ritual sounds</div>
+   864→        <div className="text-[11px] text-ink-muted mt-0.5">
+   865→          {enabled ? "Shuffle, flip, bell & chime" : "Silent"}
+   866→        </div>
+   867→      </div>
+   868→      <button
+   869→        onClick={() => {
+   870→          toggle(!enabled);
+   871→          if (!enabled) sound("bell");
+   872→        }}
+   873→        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${enabled ? "bg-gold/40" : "bg-white/10"}`}
+   874→        aria-label="Toggle sound"
+   875→      >
+   876→        <div
+   877→          className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${enabled ? "left-[22px] bg-gold" : "left-0.5 bg-white/40"}`}
+   878→        />
+   879→      </button>
+   880→    </div>
+   881→  );
+   882→}
+   883→
+   884→function SettingsRow({
+   885→  icon: Icon,
+   886→  label,
+   887→  desc,
+   888→  onClick,
+   889→  destructive,
+   890→}: {
+   891→  icon: React.ElementType;
+   892→  label: string;
+   893→  desc: string;
+   894→  onClick: () => void;
+   895→  destructive?: boolean;
+   896→}) {
+   897→  return (
+   898→    <button onClick={onClick} className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.02] transition-colors">
+   899→      <div
+   900→        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+   901→          destructive ? "bg-destructive/10 border border-destructive/20" : "bg-gold/10 border border-gold/20"
+   902→        }`}
+   903→      >
+   904→        <Icon className={`w-4 h-4 ${destructive ? "text-destructive" : "text-gold"}`} />
+   905→      </div>
+   906→      <div className="flex-1 min-w-0">
+   907→        <div className={`text-[13px] font-medium ${destructive ? "text-destructive" : "text-ink"}`}>{label}</div>
+   908→        <div className="text-[11px] text-ink-muted mt-0.5">{desc}</div>
+   909→      </div>
+   910→      <ChevronRight className="w-4 h-4 text-ink-muted shrink-0" />
+   911→    </button>
+   912→  );
+   913→}
+   914→
+   915→function ClearDataModal({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+   916→  const api = useApi();
+   917→  const { toast } = useToast();
+   918→  const [loading, setLoading] = React.useState(false);
+   919→
+   920→  async function clearData() {
+   921→    setLoading(true);
+   922→    try {
+   923→      // Clear localStorage + reload to reset device id
+   924→      localStorage.clear();
+   925→      toast({ title: "Data cleared", description: "Starting fresh." });
+   926→      setTimeout(() => window.location.reload(), 800);
+   927→    } finally {
+   928→      setLoading(false);
+   929→    }
+   930→  }
+   931→
+   932→  return (
+   933→    <motion.div
+   934→      initial={{ opacity: 0 }}
+   935→      animate={{ opacity: open ? 1 : 0 }}
+   936→      className={`fixed inset-0 z-[70] flex items-end sm:items-center justify-center ${open ? "" : "pointer-events-none"}`}
+   937→      onClick={() => onOpenChange(false)}
+   938→    >
+   939→      {open && <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />}
+   940→      <motion.div
+   941→        initial={{ y: 50, opacity: 0, scale: 0.97 }}
+   942→        animate={{ y: open ? 0 : 50, opacity: open ? 1 : 0, scale: open ? 1 : 0.97 }}
+   943→        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+   944→        className="relative w-full max-w-md m-3 lum-glass-float rounded-[28px] overflow-hidden"
+   945→        onClick={(e) => e.stopPropagation()}
+   946→      >
+   947→        <div className="p-6 text-center">
+   948→          <div className="w-14 h-14 rounded-full bg-destructive/15 border border-destructive/30 flex items-center justify-center mx-auto mb-4">
+   949→            <AlertCircle className="w-7 h-7 text-destructive" />
+   950→          </div>
+   951→          <h2 className="text-[18px] font-medium text-ink">Clear all data?</h2>
+   952→          <p className="text-[13px] text-ink-muted mt-2 leading-[18px] max-w-[280px] mx-auto">
+   953→            This will erase all your readings, goals, moods, confirmations, and stats from this device. This cannot be undone.
+   954→          </p>
+   955→          <div className="mt-5 space-y-2">
+   956→            <button
+   957→              onClick={clearData}
+   958→              disabled={loading}
+   959→              className="w-full rounded-full py-3 text-[14px] font-medium bg-destructive text-white active:scale-[0.98] transition-all disabled:opacity-50"
+   960→            >
+   961→              {loading ? "Clearing…" : "Yes, erase everything"}
+   962→            </button>
+   963→            <GhostButton onClick={() => onOpenChange(false)} className="w-full">
+   964→              Keep my data
+   965→            </GhostButton>
+   966→          </div>
+   967→        </div>
+   968→      </motion.div>
+   969→    </motion.div>
+   970→  );
+   971→}
+   972→

@@ -38,6 +38,7 @@ export function SettingsView() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const setTab = useAppStore((s) => s.setTab);
+  const setPremiumPageOpen = useAppStore((s) => s.setPremiumPageOpen);
   const [premiumOpen, setPremiumOpen] = React.useState(false);
   const [clearOpen, setClearOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -244,7 +245,7 @@ export function SettingsView() {
                   {loading ? "…" : "Manage subscription"}
                 </GhostButton>
               ) : (
-                <GoldButton onClick={() => setPremiumOpen(true)} className="w-full">
+                <GoldButton onClick={() => setPremiumPageOpen(true)} className="w-full">
                   <Crown className="w-4 h-4" /> Upgrade to Premium
                 </GoldButton>
               )}
@@ -280,7 +281,7 @@ export function SettingsView() {
           <Divider />
           <SettingsRow icon={RotateCcw} label="Replay the intro" desc="See the onboarding again" onClick={replayOnboarding} />
           <Divider />
-          <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setPremiumOpen(true)} />
+          <SettingsRow icon={Crown} label="Premium comparison" desc="See what's included" onClick={() => setPremiumPageOpen(true)} />
           <Divider />
           <SettingsRow icon={BarChart3} label="Your stats" desc="Journey, mood & patterns" onClick={() => setShowStats(true)} />
         </GlassCard>
