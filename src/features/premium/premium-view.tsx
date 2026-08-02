@@ -4,7 +4,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown, Sparkles, Target, AudioLines, Check, X, Infinity as InfinityIcon, ShieldCheck, Star, RotateCcw,
-  ChevronDown, Calendar, Zap, Moon, Sun, Heart, BookOpen, Award,
+  ChevronDown, Calendar, Moon, Sun, Heart, BookOpen,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/hooks/use-api";
@@ -61,30 +61,6 @@ const GROUPS: { label: string; icon: typeof Sparkles; color: string; rows: Row[]
       { feature: "Breath guide", free: true, premium: true },
       { feature: "Secret Solfeggio frequencies", free: false, premium: "963 · 432 · 528 Hz" },
       { feature: "Custom duration presets", free: false, premium: "30s → 3h slider" },
-    ],
-  },
-  {
-    label: "Mastery & Rewards",
-    icon: Award,
-    color: "#E0A86B",
-    rows: [
-      { feature: "Achievement badges", free: "All 36 unlockable", premium: "All 36 unlockable" },
-      { feature: "Hall of Light (Luminaries)", free: true, premium: true },
-      { feature: "Luminary custom theme", free: true, premium: true },
-      { feature: "Celebration pop-ups", free: true, premium: true },
-      { feature: "Stats & weekly insights", free: true, premium: true },
-      { feature: "Data export", free: true, premium: true },
-    ],
-  },
-  {
-    label: "Experience",
-    icon: Zap,
-    color: "#7AC9A8",
-    rows: [
-      { feature: "Ads", free: "Never", premium: "Never" },
-      { feature: "Home-screen widget & reminders", free: true, premium: true },
-      { feature: "Offline / PWA install", free: true, premium: true },
-      { feature: "Supports the project's growth", free: false, premium: true },
     ],
   },
 ];
