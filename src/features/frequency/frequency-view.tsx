@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AudioLines, Play, Pause, Lock, Activity, Waves, Brain, Sparkles, RotateCcw, Info, Wind,
-  CloudRain, Trees, Droplets, Mountain, Music,
+  CloudRain, Droplets, Mountain,
 } from "lucide-react";
 import { useApi } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
@@ -21,11 +21,9 @@ import { useRitual } from "@/hooks/use-ritual";
 import { useAchievements } from "@/hooks/use-achievements";
 
 const AMBEDIENT_BEDS: { id: AmbientBed; label: string; icon: React.ElementType; desc: string }[] = [
-  { id: "ambient", label: "Ambient", icon: Music, desc: "Warm evolving drone" },
   { id: "rain", label: "Rain", icon: CloudRain, desc: "Gentle rainfall" },
   { id: "ocean", label: "Ocean", icon: Waves, desc: "Rolling waves" },
   { id: "wind", label: "Wind", icon: Wind, desc: "Soft breeze" },
-  { id: "birds", label: "Birds", icon: Trees, desc: "Melodic bird songs" },
   { id: "stream", label: "Stream", icon: Droplets, desc: "Bubbling brook" },
   { id: "river", label: "River", icon: Mountain, desc: "Flowing river with depth" },
   { id: "none", label: "None", icon: AudioLines, desc: "Pure tone only" },
@@ -333,7 +331,7 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
             {secondsLeft !== null ? "Playing" : "Choose your soundscape"}
           </span>
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {AMBEDIENT_BEDS.map((bed) => {
             const isActive = ambient === bed.id;
             const Icon = bed.icon;
