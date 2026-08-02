@@ -195,13 +195,9 @@ export function useFrequencyEngine() {
 
   const start = React.useCallback(
     async (opts: StartOptions) => {
-      // HARD STOP any existing session first — guarantees clean slate
-      hardStop();
-
-      // Small delay to ensure old nodes are fully gone
-      await new Promise((r) => setTimeout(r, 30));
-
-      // Resume audio context
+      // CRITICAL: Resume audio context FIRST, before any async operations.
+      // Browsers require this to happen within a user gesture (click handler).
+      // Any await before this breaks the gesture chain and audio stays suspended.
       try {
         const ctx = Tone.getContext();
         if (ctx.state !== "running") {
@@ -209,6 +205,9 @@ export function useFrequencyEngine() {
         }
         await Tone.start();
       } catch {}
+
+      // HARD STOP any existing session (synchronous — no await before this)
+      hardStop();
 
       const fadeIn = 2.0;
       const now = Tone.now();
