@@ -58,8 +58,9 @@ export function useFrequencyEngine() {
   const stopRef = React.useRef<() => number>(() => 0);
 
   /**
-   * GRACEFUL STOP — 2s fade, then dispose.
-   * Simple, reliable, no complex routing.
+   * STOP — immediate stop, then 50ms cleanup.
+   * No fade (fade was causing bugs). Instead, we use a short master gain
+   * ramp in startSession's onEnd callback if needed.
    */
   const stop = React.useCallback(() => {
     const session = sessionRef.current;
@@ -78,60 +79,39 @@ export function useFrequencyEngine() {
       session.fadeInterval = null;
     }
 
-    const fadeOut = 2.0; // 2 seconds
-    const steps = 40; // 50ms per step
-    const stepDuration = (fadeOut * 1000) / steps;
+    // IMMEDIATELY stop everything — no fade.
+    // The fade was causing the "second session doesn't start" bug because
+    // the old sessionRef was still alive (isStopping=true) when the new
+    // session tried to start. hardStop in start() couldn't clean it up
+    // because sessionRef wasn't null yet.
 
-    // Get current master gain value
-    let currentMasterVal = 0.4;
-    try { currentMasterVal = session.masterGain.gain.value; } catch {}
+    // Stop oscillators
+    session.oscillators.forEach((o) => {
+      try { o.stop(); } catch {}
+    });
 
-    // Get current bed audio volume
-    let currentBedVol = 0.5;
-    try { currentBedVol = session.bedAudio?.volume ?? 0; } catch {}
+    // Pause bed audio
+    try { session.bedAudio?.pause(); } catch {}
 
-    // Fade both master gain and bed audio using simple JS interval
-    let step = 0;
-    session.fadeInterval = setInterval(() => {
-      step++;
-      const factor = Math.max(0, 1 - step / steps);
+    // Set master gain to 0 immediately
+    try { session.masterGain.gain.value = 0; } catch {}
 
-      // Fade master gain (Tone.js oscillators)
-      try {
-        session.masterGain.gain.value = currentMasterVal * factor;
-      } catch {}
+    // Dispose everything after a tiny delay (lets current audio frame finish)
+    setTimeout(() => {
+      const s = sessionRef.current;
+      if (!s) return;
 
-      // Fade bed audio volume
-      try {
-        if (session.bedAudio) {
-          session.bedAudio.volume = currentBedVol * factor;
-        }
-      } catch {}
-
-      // When fade complete
-      if (step >= steps) {
-        clearInterval(session.fadeInterval!);
-        session.fadeInterval = null;
-
-        // Stop oscillators
-        session.oscillators.forEach((o) => {
-          try { o.stop(); } catch {}
-        });
-
-        // Pause bed audio
-        try { session.bedAudio?.pause(); } catch {}
-
-        // Dispose everything
-        session.oscillators.forEach((o) => {
-          try { o.dispose(); } catch {}
-        });
-        try { session.masterGain.dispose(); } catch {}
-
-        sessionRef.current = null;
-      }
-    }, stepDuration);
+      s.oscillators.forEach((o) => {
+        try { o.dispose(); } catch {}
+      });
+      try { s.masterGain.dispose(); } catch {}
+      try { s.bedAudio?.pause(); s.bedAudio = null; } catch {}
+      sessionRef.current = null;
+    }, 50);
 
     const played = session.startTime ? (Date.now() - session.startTime) / 1000 : 0;
+    // Null the ref IMMEDIATELY so start() can create a new session
+    sessionRef.current = null;
     return played;
   }, []);
 

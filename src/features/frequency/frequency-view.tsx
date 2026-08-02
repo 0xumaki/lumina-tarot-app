@@ -57,10 +57,8 @@ export function FrequencyView({ isPremium }: { isPremium: boolean }) {
       if (startingRef.current) return;
       startingRef.current = true;
 
-      // HARD STOP any existing session first, then wait for fade to complete
-      // This prevents the "second session doesn't start" bug
+      // Stop any existing session first
       engine.stop();
-      await new Promise((r) => setTimeout(r, 100));
 
       const dur = isPremium ? sessionDuration : 30;
       setSecondsLeft(dur);
