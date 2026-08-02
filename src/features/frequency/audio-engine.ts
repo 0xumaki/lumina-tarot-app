@@ -4,22 +4,21 @@ import * as React from "react";
 import * as Tone from "tone";
 
 /**
- * Lumina Frequency Engine v8 — Zero glitches.
+ * Lumina Frequency Engine v9 — Smooth, reliable, graceful.
  *
- * COMPLETELY SIMPLIFIED from v7:
- * - NO MediaElementSource (was causing routing issues + clicks)
- * - NO per-oscillator gain nodes (was causing zipper noise)
- * - NO Tone.Merge for binaural (was causing stereo routing issues)
- * - Ambient bed: plain HTML <audio> element (no Web Audio routing)
- * - Frequency tone: ONE master gain, oscillators connected directly
- * - Fade: simple HTML audio volume ramp + Tone master gain ramp
- * - Stop: immediate master gain to 0, then dispose after 100ms
- *
- * The tap-tap-tap was caused by:
- * 1. Multiple gain nodes with different ramp times creating amplitude beating
- * 2. MediaElementSource creating a secondary audio graph that could glitch
- * 3. Tone.Merge creating stereo phase issues
- * 4. WAV loop boundary clicks (fixed by applying fade-in/fade-out to WAV files)
+ * Fixes from v8:
+ * 1. SHAKY FREQUENCY: Oscillators were all at the same gain with no volume
+ *    difference, causing phase cancellation when multiple oscillators play
+ *    simultaneously (especially binaural + pad mode). Now each oscillator
+ *    has its own gain node with carefully tuned levels to prevent beating.
+ * 2. STEEP ENDING: stop() killed everything instantly. Now uses a 1.5s
+ *    graceful fade using Tone.js linearRampToValueAtTime (scheduled, reliable).
+ *    sessionRef is captured in a local variable so it can be nulled immediately
+ *    (allowing new sessions to start) while the fade runs on the captured nodes.
+ * 3. CAN'T STOP AFTER SWITCHING: The old stop() used isStopping flag which
+ *    blocked subsequent stop() calls. Now stop() captures the session locally,
+ *    nulls the ref immediately, and runs the fade on the captured session.
+ *    A second stop() call finds sessionRef null and returns 0 (no-op).
  */
 
 type Mode = "pure" | "binaural" | "pad";
@@ -44,74 +43,87 @@ const BED_AUDIO_FILES: Record<string, string> = {
   none: "",
 };
 
-export function useFrequencyEngine() {
-  const sessionRef = React.useRef<{
-    oscillators: Tone.Oscillator[];
-    masterGain: Tone.Gain;
-    bedAudio: HTMLAudioElement | null;
-    timer: ReturnType<typeof setInterval> | null;
-    startTime: number;
-    isStopping: boolean;
-    fadeInterval: ReturnType<typeof setInterval> | null;
-  } | null>(null);
+interface AudioSession {
+  oscillators: Tone.Oscillator[];
+  gains: Tone.Gain[];
+  masterGain: Tone.Gain;
+  bedAudio: HTMLAudioElement | null;
+  timer: ReturnType<typeof setInterval> | null;
+  startTime: number;
+}
 
+export function useFrequencyEngine() {
+  const sessionRef = React.useRef<AudioSession | null>(null);
   const stopRef = React.useRef<() => number>(() => 0);
 
   /**
-   * STOP — immediate stop, then 50ms cleanup.
-   * No fade (fade was causing bugs). Instead, we use a short master gain
-   * ramp in startSession's onEnd callback if needed.
+   * GRACEFUL STOP — 1.5s fade using Tone.js scheduling, then dispose.
+   *
+   * KEY DESIGN: sessionRef is captured in a local variable and nulled
+   * IMMEDIATELY. The fade runs on the captured session. This means:
+   * - A second stop() call finds sessionRef=null → returns 0 (no-op, safe)
+   * - start() finds sessionRef=null → creates new session immediately
+   * - The old session's fade continues on captured nodes, disposed after 1.8s
+   * - No isStopping flag needed, no race conditions
    */
   const stop = React.useCallback(() => {
     const session = sessionRef.current;
-    if (!session || session.isStopping) return 0;
+    if (!session) return 0;
 
-    session.isStopping = true;
+    // NULL IMMEDIATELY — allows new sessions to start right away
+    sessionRef.current = null;
 
     // Clear timer
     if (session.timer) {
       clearInterval(session.timer);
-      session.timer = null;
-    }
-    // Clear any existing fade interval
-    if (session.fadeInterval) {
-      clearInterval(session.fadeInterval);
-      session.fadeInterval = null;
     }
 
-    // IMMEDIATELY stop everything — no fade.
-    // The fade was causing the "second session doesn't start" bug because
-    // the old sessionRef was still alive (isStopping=true) when the new
-    // session tried to start. hardStop in start() couldn't clean it up
-    // because sessionRef wasn't null yet.
+    const now = Tone.now();
+    const fadeOut = 1.5; // 1.5-second graceful echo fade
 
-    // Stop oscillators
+    // Fade master gain to zero using Tone.js scheduling (reliable, not JS interval)
+    try {
+      session.masterGain.gain.cancelScheduledValues(now);
+      session.masterGain.gain.setValueAtTime(session.masterGain.gain.value, now);
+      session.masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
+    } catch {}
+
+    // Schedule oscillator stops at end of fade
     session.oscillators.forEach((o) => {
-      try { o.stop(); } catch {}
+      try { o.stop(now + fadeOut + 0.05); } catch {}
     });
 
-    // Pause bed audio
-    try { session.bedAudio?.pause(); } catch {}
+    // Fade bed audio volume gradually (backup to Tone.js ramp)
+    if (session.bedAudio) {
+      const audio = session.bedAudio;
+      const startVol = audio.volume;
+      let step = 0;
+      const steps = 15;
+      const bedFade = setInterval(() => {
+        step++;
+        try {
+          audio.volume = Math.max(0, startVol * (1 - step / steps));
+        } catch {}
+        if (step >= steps) {
+          clearInterval(bedFade);
+          try { audio.pause(); } catch {}
+        }
+      }, 100);
+    }
 
-    // Set master gain to 0 immediately
-    try { session.masterGain.gain.value = 0; } catch {}
-
-    // Dispose everything after a tiny delay (lets current audio frame finish)
+    // Dispose everything AFTER fade completes
     setTimeout(() => {
-      const s = sessionRef.current;
-      if (!s) return;
-
-      s.oscillators.forEach((o) => {
+      session.oscillators.forEach((o) => {
         try { o.dispose(); } catch {}
       });
-      try { s.masterGain.dispose(); } catch {}
-      try { s.bedAudio?.pause(); s.bedAudio = null; } catch {}
-      sessionRef.current = null;
-    }, 50);
+      session.gains.forEach((g) => {
+        try { g.dispose(); } catch {}
+      });
+      try { session.masterGain.dispose(); } catch {}
+      try { session.bedAudio?.pause(); session.bedAudio = null; } catch {}
+    }, (fadeOut + 0.3) * 1000);
 
     const played = session.startTime ? (Date.now() - session.startTime) / 1000 : 0;
-    // Null the ref IMMEDIATELY so start() can create a new session
-    sessionRef.current = null;
     return played;
   }, []);
 
@@ -130,75 +142,83 @@ export function useFrequencyEngine() {
         await Tone.start();
       } catch {}
 
-      // HARD STOP any existing session
-      const existing = sessionRef.current;
-      if (existing) {
-        if (existing.timer) clearInterval(existing.timer);
-        if (existing.fadeInterval) clearInterval(existing.fadeInterval);
-        existing.oscillators.forEach((o) => { try { o.stop(); o.dispose(); } catch {} });
-        try { existing.masterGain.dispose(); } catch {}
-        try { existing.bedAudio?.pause(); } catch {}
-        sessionRef.current = null;
-      }
+      // Stop any existing session (graceful — captures + nulls ref immediately)
+      stop();
 
       const fadeIn = 2.0;
       const now = Tone.now();
 
-      // === SINGLE MASTER GAIN — everything goes through this ===
+      // === MASTER GAIN ===
       const masterGain = new Tone.Gain(0).toDestination();
 
       const oscillators: Tone.Oscillator[] = [];
+      const gains: Tone.Gain[] = [];
 
       // === FREQUENCY TONE ===
-      // Simplified: all oscillators connect DIRECTLY to masterGain (no intermediate gains)
+      // Each oscillator has its OWN gain node to prevent phase cancellation.
+      // Gains are carefully tuned so oscillators don't beat against each other.
       if (opts.mode === "pure") {
+        // Single sine wave — cleanest tone
+        const oscGain = new Tone.Gain(0.18).connect(masterGain);
+        gains.push(oscGain);
         const osc = new Tone.Oscillator(opts.carrierHz, "sine");
-        osc.connect(masterGain);
+        osc.connect(oscGain);
         osc.start(now);
         oscillators.push(osc);
 
       } else if (opts.mode === "binaural") {
-        // Binaural: two oscillators at slightly different frequencies
-        // Both go to masterGain (mono mix — simpler, no stereo routing issues)
+        // Two oscillators at slightly different frequencies for binaural beat.
+        // Each has its own gain to prevent phase cancellation.
         const beat = opts.binauralBeatHz || 7;
         const leftFreq = opts.carrierHz - beat / 2;
         const rightFreq = opts.carrierHz + beat / 2;
 
+        const leftGain = new Tone.Gain(0.12).connect(masterGain);
+        gains.push(leftGain);
         const left = new Tone.Oscillator(leftFreq, "sine");
-        left.connect(masterGain);
+        left.connect(leftGain);
         left.start(now);
         oscillators.push(left);
 
+        const rightGain = new Tone.Gain(0.12).connect(masterGain);
+        gains.push(rightGain);
         const right = new Tone.Oscillator(rightFreq, "sine");
-        right.connect(masterGain);
+        right.connect(rightGain);
         right.start(now);
         oscillators.push(right);
 
       } else {
-        // pad mode — 3 oscillators, all connect directly to masterGain
-        const freqs = [opts.carrierHz, opts.carrierHz * 1.5, opts.carrierHz * 2];
+        // pad mode — 3 oscillators at harmonic frequencies.
+        // Different gain levels prevent beating.
+        const freqs = [
+          { freq: opts.carrierHz, gain: 0.12 },       // root — loudest
+          { freq: opts.carrierHz * 1.5, gain: 0.06 },  // fifth — quieter
+          { freq: opts.carrierHz * 2, gain: 0.04 },    // octave — quietest
+        ];
         for (const f of freqs) {
-          const osc = new Tone.Oscillator(f, "sine");
-          osc.connect(masterGain);
+          const oscGain = new Tone.Gain(f.gain).connect(masterGain);
+          gains.push(oscGain);
+          const osc = new Tone.Oscillator(f.freq, "sine");
+          osc.connect(oscGain);
           osc.start(now);
           oscillators.push(osc);
         }
       }
 
-      // === AMBIENT BED — plain HTML audio element (NO MediaElementSource) ===
+      // === AMBIENT BED — plain HTML audio element ===
       let bedAudio: HTMLAudioElement | null = null;
       const bedFile = BED_AUDIO_FILES[opts.ambient] || "";
 
       if (bedFile) {
         bedAudio = new Audio(bedFile);
         bedAudio.loop = true;
-        bedAudio.volume = 0; // Start silent, fade in
+        bedAudio.volume = 0;
         bedAudio.crossOrigin = "anonymous";
 
         try {
           await bedAudio.play();
-          // Fade in over 2 seconds (20 steps × 100ms)
-          const targetVol = 0.5;
+          // Fade in over 2 seconds
+          const targetVol = 0.45;
           let fadeStep = 0;
           const fadeSteps = 20;
           const bedFadeInterval = setInterval(() => {
@@ -216,20 +236,19 @@ export function useFrequencyEngine() {
 
       // Fade in master gain (frequency tone)
       masterGain.gain.setValueAtTime(0, now);
-      masterGain.gain.linearRampToValueAtTime(0.15, now + fadeIn); // Lower volume (0.15, was 0.4)
+      masterGain.gain.linearRampToValueAtTime(0.5, now + fadeIn);
 
       // Store session
       sessionRef.current = {
         oscillators,
+        gains,
         masterGain,
         bedAudio,
         timer: null,
         startTime: Date.now(),
-        isStopping: false,
-        fadeInterval: null,
       };
 
-      // Timer
+      // Timer — only updates state
       let remaining = opts.durationSec;
       opts.onTick?.(remaining);
 
@@ -251,8 +270,8 @@ export function useFrequencyEngine() {
       const session = sessionRef.current;
       if (session) {
         if (session.timer) clearInterval(session.timer);
-        if (session.fadeInterval) clearInterval(session.fadeInterval);
         session.oscillators.forEach((o) => { try { o.stop(); o.dispose(); } catch {} });
+        session.gains.forEach((g) => { try { g.dispose(); } catch {} });
         try { session.masterGain.dispose(); } catch {}
         try { session.bedAudio?.pause(); } catch {}
         sessionRef.current = null;
